@@ -1,0 +1,115 @@
+import { itemLabel } from "../../../core/labels";
+import { isNone, SensorCategory, SENSOR_CATEGORIES } from "../../../core/manifest";
+import { t } from "../../../i18n";
+import { useApp } from "../../../store";
+import { Choice, Section, StepHead } from "../../ui";
+import { ParamField } from "../ParamField";
+
+const TITLES: Record<SensorCategory, { title: string; part: string; token: string; none?: string }> = {
+  imu: { title: "IMU — гироскоп и акселерометр", part: "board", token: "imu" },
+  baro: { title: "Барометр — высота", part: "baro", token: "baro", none: "Режимы с высотой будут недоступны" },
+  mag: { title: "Компас", part: "mag", token: "mag" },
+  gps: { title: "GPS", part: "gps", token: "gps" },
+  airspeed: { title: "Трубка Пито — воздушная скорость", part: "pitot", token: "pitot" },
+};
+
+export function SensorsStep() {
+  const manifest = useApp((s) => s.manifest)!;
+  const plane = useApp((s) => s.current())!;
+  const updatePlane = useApp((s) => s.updatePlane);
+  const setFocus = useApp((s) => s.setFocus);
+  const mode = useApp((s) => s.mode);
+
+  /** Что этот датчик открывает и что улучшает — из меток @needs/@better. */
+  const gives = (token: string) => {
+    const needs: string[] = [];
+    const better: string[] = [];
+    for (const m of manifest.modes) {
+      if (m.needs?.includes(token)) needs.push(itemLabel("mode", m.id));
+      else if (m.better.includes(token)) better.push(itemLabel("mode", m.id));
+    }
+    for (const f of manifest.features) if (f.needs?.includes(token)) needs.push(itemLabel("feature", f.id));
+    return { needs, better };
+  };
+
+  const kits = manifest.sensors.kits.filter((k) => Object.keys(k.sensors).length);
+  const kitActive = (sensors: Partial<Record<SensorCategory, string>>) =>
+    SENSOR_CATEGORIES.every((c) => sensors[c] === plane.sensors[c]);
+
+  return (
+    <>
+      <StepHead title={t("Датчики")}>
+        {t("Что подключено к плате. Режимы автопилота открываются датчиками: удержанию высоты нужен барометр, возврату домой и геозабору — GPS.")}
+      </StepHead>
+      {kits.length > 0 && (
+        <Section title={t("Готовые наборы")} sub={t("из SensorSelection.h — одним нажатием")}>
+          <div className="choices wide">
+            {kits.map((k) => (
+              <Choice
+                key={k.id}
+                title={k.id.replace("SENSOR_KIT_", "").replace(/_/g, " ")}
+                desc={k.doc}
+                selected={kitActive(k.sensors)}
+                onClick={() => updatePlane((p) => Object.assign(p.sensors, k.sensors))}
+              />
+            ))}
+          </div>
+        </Section>
+      )}
+      {SENSOR_CATEGORIES.map((cat) => {
+        const info = TITLES[cat];
+        const options = manifest.sensors.options[cat];
+        const g = gives(info.token);
+        const allowNone = cat === "baro";
+        const hasNone = options.some((o) => o.id.endsWith("_NONE"));
+        return (
+          <Section
+            key={cat}
+            title={t(info.title)}
+            sub={
+              g.needs.length || g.better.length
+                ? [g.needs.length ? t("открывает: {l}", { l: g.needs.join(", ") }) : "", g.better.length ? t("улучшает: {l}", { l: g.better.join(", ") }) : ""]
+                    .filter(Boolean)
+                    .join(" · ")
+                : undefined
+            }
+          >
+            <div className="choices" onMouseEnter={() => setFocus([info.part])} onMouseLeave={() => setFocus([])}>
+              {allowNone && !hasNone && (
+                <Choice
+                  title={t("Нет")}
+                  desc={t(info.none ?? "")}
+                  selected={isNone(plane.sensors[cat])}
+                  onClick={() => updatePlane((p) => (p.sensors[cat] = "none"))}
+                />
+              )}
+              {options.map((o) => (
+                <Choice
+                  key={o.id}
+                  title={o.bus === "none" ? t("Нет") : o.title}
+                  desc={o.bus === "none" ? undefined : o.doc || o.note}
+                  badge={o.bus !== "none" ? <span className="badge">{o.bus.toUpperCase()}</span> : undefined}
+                  selected={plane.sensors[cat] === o.id}
+                  onClick={() => updatePlane((p) => (p.sensors[cat] = o.id))}
+                />
+              ))}
+            </div>
+            {cat === "imu" && <p className="hint">{t("IMU обязателен: без него работает только ручной режим.")}</p>}
+            {cat === "baro" && isNone(plane.sensors.baro) && (
+              <p className="hint">{t("В прошивке останется драйвер по умолчанию — он просто не найдёт датчик, полёту это не мешает.")}</p>
+            )}
+          </Section>
+        );
+      })}
+      {mode === "full" && (
+        <Section title={t("Установка и трубка Пито")} sub={t("полный режим")}>
+          <ParamField name="IMU_ROTATION_CW_DEG" label={t("Поворот IMU")} hint={t("Проще — калибровка установки тремя позами после прошивки (клавиша o в консоли).")} />
+          <ParamField name="MAG_ROTATION_CW_DEG" label={t("Поворот компаса")} />
+          <ParamField name="PITOT_SCALE" label={t("Поправка трубки Пито")} />
+          <ParamField name="PITOT_ZERO_SAMPLES" label={t("Отсчётов для нуля трубки")} />
+          <ParamField name="PITOT_FILTER_TAU_S" label={t("Фильтр трубки")} />
+        </Section>
+      )}
+    </>
+  );
+}
