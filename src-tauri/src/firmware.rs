@@ -61,29 +61,50 @@ pub fn apply(source: &Path, root: &Path, config: &Value) -> Res<Value> {
 
 pub const GITHUB_REPO: &str = "https://github.com/damir-lebedev/OpenPlaneProject.git";
 
-/// Исходники с GitHub: клон в папку приложения (первый раз) или обновление.
-/// Возвращает путь к исходникам.
-pub fn fetch_github(app: &AppHandle) -> Res<String> {
-    let dir = cache_dir(app)?.join("source").join("OpenPlaneProject");
-    let (args, what): (Vec<String>, &str) = if dir.join(".git").is_dir() {
-        (vec!["-C".into(), dir.to_string_lossy().into_owned(), "pull".into(), "--ff-only".into()], "git pull")
-    } else {
-        fs::create_dir_all(dir.parent().unwrap()).map_err(err("папка исходников"))?;
-        (
-            vec!["clone".into(), "--depth".into(), "1".into(), GITHUB_REPO.into(), dir.to_string_lossy().into_owned()],
-            "git clone",
-        )
-    };
+fn git(args: &[&str]) -> Res<String> {
     let mut cmd = command("git");
-    cmd.args(&args);
-    let out = run_capture(cmd, None).map_err(|e| format!("{what}: {e} — установлен ли git?"))?;
+    cmd.args(args);
+    let out = run_capture(cmd, None).map_err(|e| format!("git {}: {e} — установлен ли git?", args.first().unwrap_or(&"")))?;
     if out.code != 0 {
-        return Err(format!("{what}: {}", out.stderr.trim()));
+        return Err(format!("git {}: {}", args.first().unwrap_or(&""), out.stderr.trim()));
     }
+    Ok(out.stdout)
+}
+
+/// Выпуски прошивки на GitHub — теги vX.Y.Z, новые первыми.
+pub fn versions() -> Res<Vec<String>> {
+    let out = git(&["ls-remote", "--tags", "--refs", GITHUB_REPO])?;
+    let mut tags: Vec<String> = out
+        .lines()
+        .filter_map(|l| l.split("refs/tags/").nth(1))
+        .map(|t| t.trim().to_string())
+        .filter(|t| t.starts_with('v'))
+        .collect();
+    let key = |t: &String| -> Vec<u64> { t.trim_start_matches('v').split(|c: char| !c.is_ascii_digit()).filter_map(|p| p.parse().ok()).collect() };
+    tags.sort_by(|a, b| key(b).cmp(&key(a)));
+    Ok(tags)
+}
+
+/// Исходники с GitHub в папку приложения: выпуск (тег) или ветка main —
+/// только нужный снимок, без истории. Возвращает путь к исходникам.
+pub fn fetch_github(app: &AppHandle, version: Option<&str>) -> Res<String> {
+    let dir = cache_dir(app)?.join("source").join("OpenPlaneProject");
+    let d = dir.to_string_lossy().into_owned();
+    if !dir.join(".git").is_dir() {
+        fs::create_dir_all(&dir).map_err(err("папка исходников"))?;
+        git(&["init", "-q", &d])?;
+        git(&["-C", &d, "remote", "add", "origin", GITHUB_REPO])?;
+    }
+    let refspec = match version {
+        Some(v) if v != "main" => format!("refs/tags/{v}"),
+        _ => "main".to_string(),
+    };
+    git(&["-C", &d, "fetch", "-q", "--depth", "1", "origin", &refspec])?;
+    git(&["-C", &d, "checkout", "-q", "--force", "FETCH_HEAD"])?;
     if !dir.join("tools").join("opconfig.py").is_file() {
-        return Err("на GitHub пока старая версия прошивки — без tools/opconfig.py".into());
+        return Err("эта версия прошивки старая — без tools/opconfig.py, приложение с ней не работает".into());
     }
-    Ok(dir.to_string_lossy().into_owned())
+    Ok(d)
 }
 
 /// git-коммит исходников; "-dirty" — есть незакоммиченные правки в том, из

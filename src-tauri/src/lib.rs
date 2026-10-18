@@ -106,8 +106,13 @@ async fn firmware_commit(source: String) -> Res<Option<String>> {
 }
 
 #[tauri::command]
-async fn firmware_fetch_github(app: AppHandle) -> Res<String> {
-    blocking(move || firmware::fetch_github(&app)).await
+async fn firmware_fetch_github(app: AppHandle, version: Option<String>) -> Res<String> {
+    blocking(move || firmware::fetch_github(&app, version.as_deref())).await
+}
+
+#[tauri::command]
+async fn firmware_versions() -> Res<Vec<String>> {
+    blocking(firmware::versions).await
 }
 
 #[tauri::command]
@@ -211,6 +216,7 @@ pub fn run() {
             firmware_describe,
             firmware_commit,
             firmware_fetch_github,
+            firmware_versions,
             firmware_prepare,
             firmware_apply,
             firmware_build,

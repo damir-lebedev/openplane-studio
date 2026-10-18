@@ -123,14 +123,31 @@ export function Settings() {
   const [source, setSource] = useState(settings.firmwareSource ?? "");
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [versions, setVersions] = useState<string[] | null>(null);
+  const [version, setVersion] = useState(settings.firmwareVersion ?? "");
+
+  const loadVersions = async () => {
+    try {
+      setVersions(await api.firmwareVersions());
+    } catch (e) {
+      setFetchError(errorText(e));
+      setVersions([]);
+    }
+  };
 
   const fetchGithub = async () => {
     setFetching(true);
     setFetchError(null);
     try {
-      const dir = await api.firmwareFetchGithub();
+      // Пусто — последний выпуск; выпусков нет — main.
+      let want = version;
+      if (!want) {
+        const list = versions ?? (await api.firmwareVersions().catch(() => []));
+        want = list[0] ?? "main";
+      }
+      const dir = await api.firmwareFetchGithub(want);
       setSource(dir);
-      await saveSettings({ firmwareSource: dir });
+      await saveSettings({ firmwareSource: dir, firmwareVersion: version || undefined });
     } catch (e) {
       setFetchError(errorText(e));
     } finally {
@@ -162,12 +179,31 @@ export function Settings() {
               <RefreshCw size={15} className={loading ? "spin" : undefined} />
             </button>
           </div>
-          <div className="row" style={{ marginTop: 10 }}>
+          <div className="row" style={{ marginTop: 10, flexWrap: "wrap" }}>
+            <select
+              className="select"
+              value={version}
+              onFocus={() => versions === null && void loadVersions()}
+              onChange={(e) => setVersion(e.target.value)}
+              title={t("Какую версию прошивки взять")}
+            >
+              <option value="">{versions?.length ? t("последний выпуск ({v})", { v: versions[0] }) : t("последний выпуск")}</option>
+              {(versions ?? []).map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+              <option value="main">{t("main — самое свежее, без выпуска")}</option>
+            </select>
             <button className="btn small" disabled={fetching} onClick={() => void fetchGithub()}>
               <RefreshCw size={13} className={fetching ? "spin" : undefined} />
               {t("Взять с GitHub")}
             </button>
-            <span className="hint">{t("скачает OpenPlaneProject в папку приложения (нужен git) — если своей копии исходников нет")}</span>
+            <span className="hint">
+              {versions && !versions.length
+                ? t("выпусков пока нет — возьмётся main")
+                : t("скачает OpenPlaneProject в папку приложения (нужен git) — если своей копии исходников нет")}
+            </span>
           </div>
           {fetchError && <p className="locked-note">{fetchError}</p>}
           {info?.firmware_guess && info.firmware_guess !== source && (

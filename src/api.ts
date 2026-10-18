@@ -19,6 +19,8 @@ export interface AppInfo {
 
 export interface Settings {
   firmwareSource?: string;
+  /** какую версию брать с GitHub: тег выпуска, "main" или пусто — последний выпуск */
+  firmwareVersion?: string;
   mode?: "simple" | "full";
   currentPlane?: string;
 }
@@ -156,7 +158,9 @@ export const api = {
   hangarHistory: (id: string) => invoke<Snapshot[]>("hangar_history", { id }),
   firmwareDescribe: (source: string) => invoke<Manifest>("firmware_describe", { source }),
   firmwareCommit: (source: string) => invoke<string | null>("firmware_commit", { source }),
-  firmwareFetchGithub: () => invoke<string>("firmware_fetch_github"),
+  /** version — тег выпуска (v1.2.0) или "main"; без него — main */
+  firmwareFetchGithub: (version?: string) => invoke<string>("firmware_fetch_github", { version: version ?? null }),
+  firmwareVersions: () => invoke<string[]>("firmware_versions"),
   firmwarePrepare: (source: string, planeId: string) =>
     invoke<{ dir: string; copied: number; removed: number }>("firmware_prepare", { source, planeId }),
   firmwareApply: (source: string, dir: string, config: FirmwareConfig) =>
