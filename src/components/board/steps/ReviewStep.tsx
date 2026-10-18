@@ -8,6 +8,7 @@ import { runFlash } from "../../../flash";
 import { plural, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Section, StepHead } from "../../ui";
+import { PendingChanges } from "../HistoryDialog";
 import { safetyStory } from "./SafetyStep";
 
 const STEP_NAMES: Record<string, string> = {
@@ -77,6 +78,12 @@ export function ReviewStep() {
           <CircleCheck size={17} color="var(--ok)" />
           <div className="grow">{t("Замечаний нет.")}</div>
         </div>
+      )}
+
+      {plane.lastFlash && (
+        <Section title={t("Что изменится на плате")} sub={t("против последней прошивки")}>
+          <PendingChanges />
+        </Section>
       )}
 
       <Section title={t("Самолёт")}>

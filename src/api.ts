@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 import { Manifest } from "./core/manifest";
-import { FirmwareConfig, PlaneProject } from "./core/project";
+import { FirmwareConfig, FlashRecord, PlaneProject } from "./core/project";
 
 export interface AppInfo {
   version: string;
@@ -110,6 +110,22 @@ export interface LiveFrame {
   hz: number;
 }
 
+/** Снимок самолёта на прошивку (Hangar/<id>/history). Старые — без plane. */
+export interface Snapshot {
+  file: string;
+  record?: FlashRecord;
+  config?: FirmwareConfig;
+  plane?: PlaneProject;
+  /** калибровки на плате до прошивки и после */
+  calib?: { before: CalibFlags | null; after: CalibFlags | null };
+}
+
+export interface CalibFlags {
+  mount?: boolean;
+  park?: boolean;
+  magcal?: boolean;
+}
+
 export interface ScanResult {
   sensor?: { a: number; g: string }[];
   screen?: { a: number; g: string }[] | null;
@@ -134,6 +150,7 @@ export const api = {
   hangarSave: (plane: PlaneProject) => invoke<void>("hangar_save", { plane }),
   hangarRemove: (id: string) => invoke<void>("hangar_remove", { id }),
   hangarSnapshot: (id: string, label: string, data: unknown) => invoke<string>("hangar_snapshot", { id, label, data }),
+  hangarHistory: (id: string) => invoke<Snapshot[]>("hangar_history", { id }),
   firmwareDescribe: (source: string) => invoke<Manifest>("firmware_describe", { source }),
   firmwareCommit: (source: string) => invoke<string | null>("firmware_commit", { source }),
   firmwareFetchGithub: () => invoke<string>("firmware_fetch_github"),

@@ -19,6 +19,26 @@ export default function App() {
     void init();
   }, [init]);
 
+  // Ctrl+Z / Ctrl+Y (Ctrl+Shift+Z) — правки самолёта; в поле ввода — его собственная отмена.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || (el as HTMLElement | null)?.isContentEditable) return;
+      const key = e.key.toLowerCase();
+      const st = useApp.getState();
+      if (key === "z" && !e.shiftKey) {
+        if (st.canUndo()) st.undo();
+        e.preventDefault();
+      } else if (key === "y" || (key === "z" && e.shiftKey)) {
+        if (st.canRedo()) st.redo();
+        e.preventDefault();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   return (
     <div className="app">
       <Rail />

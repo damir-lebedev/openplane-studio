@@ -53,6 +53,31 @@ pub fn snapshot(app: &AppHandle, id: &str, label: &str, data: &Value) -> Res<Str
     Ok(file.to_string_lossy().into_owned())
 }
 
+/// Снимки самолёта (по одному на прошивку), новые сверху; в каждом — имя файла.
+pub fn history(app: &AppHandle, id: &str) -> Res<Vec<Value>> {
+    let dir = plane_dir(app, id)?.join("history");
+    let mut files: Vec<PathBuf> = fs::read_dir(&dir)
+        .map(|rd| {
+            rd.flatten()
+                .map(|e| e.path())
+                .filter(|p| p.extension().map(|x| x == "json").unwrap_or(false))
+                .collect()
+        })
+        .unwrap_or_default();
+    files.sort();
+    files.reverse();
+    let mut out = Vec::new();
+    for file in files.into_iter().take(100) {
+        let Ok(text) = fs::read_to_string(&file) else { continue };
+        let Ok(mut v) = serde_json::from_str::<Value>(&text) else { continue };
+        if let (Some(obj), Some(name)) = (v.as_object_mut(), file.file_name()) {
+            obj.insert("file".into(), Value::String(name.to_string_lossy().into_owned()));
+        }
+        out.push(v);
+    }
+    Ok(out)
+}
+
 /// Не стирает: переносит папку в Hangar/.trash/<id>-<время>.
 pub fn remove(app: &AppHandle, id: &str) -> Res<()> {
     let from = plane_dir(app, id)?;

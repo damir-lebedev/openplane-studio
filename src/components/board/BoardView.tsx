@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Cpu, Gauge, Lock, TriangleAlert, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Cpu, Gauge, History, Lock, Redo2, TriangleAlert, Undo2, Zap } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 
 import { itemLabel } from "../../core/labels";
@@ -12,6 +12,7 @@ import { stepsFor, useApp } from "../../store";
 import { PlanePreview } from "../PlanePreview";
 import { Modal, Seg } from "../ui";
 import { FlashDialog } from "./FlashDialog";
+import { HistoryDialog } from "./HistoryDialog";
 import { ParamsTable } from "./ParamsTable";
 import { AirframeStep } from "./steps/AirframeStep";
 import { BoardBadges, BoardStep } from "./steps/BoardStep";
@@ -179,7 +180,12 @@ export function BoardView() {
   const prevStep = useApp((s) => s.prevStep);
   useApp((s) => s.info);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const updatePlane = useApp((s) => s.updatePlane);
+  const undo = useApp((s) => s.undo);
+  const redo = useApp((s) => s.redo);
+  const canUndo = useApp((s) => s.canUndo);
+  const canRedo = useApp((s) => s.canRedo);
 
   const issues = useMemo(() => (manifest && plane ? validate(manifest, plane) : []), [manifest, plane]);
   const counts = countIssues(issues);
@@ -226,6 +232,18 @@ export function BoardView() {
           {t("Плата")} <span className="plane-name">· {plane.name}</span>
         </h1>
         <div className="grow" />
+        <div className="row" style={{ gap: 2 }}>
+          <button className="btn ghost small" disabled={!canUndo()} onClick={undo} title={t("Отменить (Ctrl+Z)")} aria-label={t("Отменить")}>
+            <Undo2 size={16} />
+          </button>
+          <button className="btn ghost small" disabled={!canRedo()} onClick={redo} title={t("Повторить (Ctrl+Y)")} aria-label={t("Повторить")}>
+            <Redo2 size={16} />
+          </button>
+          <button className="btn ghost small" onClick={() => setHistoryOpen(true)} title={t("История прошивок: что изменилось, вернуть как было")}>
+            <History size={16} />
+            {t("История")}
+          </button>
+        </div>
         {mode === "full" && (
           <Seg
             value={boardTab}
@@ -327,6 +345,7 @@ export function BoardView() {
         </Modal>
       )}
       {flash && <FlashDialog />}
+      {historyOpen && <HistoryDialog onClose={() => setHistoryOpen(false)} />}
     </div>
   );
 }

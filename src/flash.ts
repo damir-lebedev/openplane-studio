@@ -1,12 +1,43 @@
 // Кнопка «Прошить»: сборка → плата в загрузчик → заливка → проверка паспорта.
 // Каждая ошибка — одна фраза «что случилось» и действие «что сделать».
 
-import { api, Device, errorText, Identity, onTaskLog } from "./api";
+import { api, CalibFlags, Device, errorText, Identity, onTaskLog } from "./api";
+import { isFresh } from "./core/live";
 import { findBoard, Manifest } from "./core/manifest";
 import { configHash, FlashRecord, PlaneProject, toFirmwareConfig } from "./core/project";
 import { FlashAction, FlashState, FlashStep, useApp } from "./store";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const CALIB_NAMES: Record<keyof CalibFlags, string> = { mount: "установка IMU", park: "калибровка на земле", magcal: "компас" };
+
+/** Калибровки, о которых плата сказала в последнем живом кадре (null — кадров нет). */
+function calibNow(since = 0): CalibFlags | null {
+  const s = useApp.getState();
+  if (!s.live || !isFresh(s.liveAt) || s.liveAt < since) return null;
+  return { mount: s.live.mount, park: s.live.park, magcal: s.live.magcal };
+}
+
+/**
+ * После прошивки: калибровки, что были на плате, на месте? Плата хранит их
+ * отдельно от программы, прошивка их не трогает — но проверяем: связь
+ * переподключится сама, ждём первый живой кадр новой прошивки.
+ */
+async function checkCalibrations(before: CalibFlags | null) {
+  const start = Date.now();
+  let after: CalibFlags | null = null;
+  while (!after && Date.now() - start < 20000) {
+    await sleep(500);
+    after = calibNow(start);
+  }
+  if (!after) return;
+  const lost = before ? (Object.keys(CALIB_NAMES) as (keyof CalibFlags)[]).filter((k) => before[k] && !after![k]).map((k) => CALIB_NAMES[k]) : [];
+  const missing = (Object.keys(CALIB_NAMES) as (keyof CalibFlags)[]).filter((k) => after![k] === false).map((k) => CALIB_NAMES[k]);
+  const kept = before ? (Object.keys(CALIB_NAMES) as (keyof CalibFlags)[]).filter((k) => before[k] && after![k]).map((k) => CALIB_NAMES[k]) : [];
+  const app = useApp.getState();
+  if (app.flash && !app.flash.running) app.setFlash((f) => ({ ...f, calib: { before, after: after!, lost, kept, missing } }));
+  if (lost.length) app.toast("warn", `После прошивки пропало: ${lost.join(", ")} — повторите в «Наладке»`);
+}
 
 class FlashError extends Error {
   constructor(
@@ -220,6 +251,7 @@ export async function runFlash(planeId: string) {
   });
 
   let record: FlashRecord | null = null;
+  let calibBefore: CalibFlags | null = null;
   let current = "build";
   try {
     // 1. сборка
@@ -246,6 +278,7 @@ export async function runFlash(planeId: string) {
     // 2. плата
     current = "board";
     setStep("board", "run");
+    calibBefore = calibNow();
     const port = await prepareBoard(plane.board, dfu);
     if (dfu) await checkDriver();
     setStep("board", "ok", port ?? (dfu ? "STM32 BOOTLOADER" : undefined));
@@ -268,7 +301,8 @@ export async function runFlash(planeId: string) {
     setStep("verify", result.ok ? "ok" : "fail", result.ok ? undefined : "не подтверждено");
     record = { at: new Date().toISOString(), board: plane.board, commit, configHash: hash, ok: result.ok };
     flash().setFlash((f) => ({ ...f, running: false, progress: null, activity: "", done: { verified: result.ok, text: result.text } }));
-    void api.hangarSnapshot(plane.id, `flash-${hash}`, { record, config });
+    void api.hangarSnapshot(plane.id, `flash-${hash}`, { record, config, plane: structuredClone(plane), calib: { before: calibBefore, after: null } });
+    if (result.ok) void checkCalibrations(calibBefore);
   } catch (e) {
     const err =
       e instanceof FlashError ? e : new FlashError("Что-то пошло не так", errorText(e), "retry");

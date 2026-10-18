@@ -86,6 +86,11 @@ fn hangar_remove(app: AppHandle, id: String) -> Res<()> {
 }
 
 #[tauri::command]
+fn hangar_history(app: AppHandle, id: String) -> Res<Vec<Value>> {
+    hangar::history(&app, &id)
+}
+
+#[tauri::command]
 fn hangar_snapshot(app: AppHandle, id: String, label: String, data: Value) -> Res<String> {
     hangar::snapshot(&app, &id, &label, &data)
 }
@@ -202,6 +207,7 @@ pub fn run() {
             hangar_save,
             hangar_remove,
             hangar_snapshot,
+            hangar_history,
             firmware_describe,
             firmware_commit,
             firmware_fetch_github,

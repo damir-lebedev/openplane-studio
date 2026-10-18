@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-import { api, AppInfo, Device, errorText, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
+import { api, AppInfo, CalibFlags, Device, errorText, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
 import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
 import { Manifest } from "./core/manifest";
 import {
@@ -44,6 +44,8 @@ export interface FlashState {
   log: string[];
   error?: { title: string; text: string; action?: FlashAction; holders?: { pid: number; name: string }[] };
   done?: { verified: boolean; text: string };
+  /** калибровки на плате до и после прошивки: что пропало, чего нет */
+  calib?: { before: CalibFlags | null; after: CalibFlags; lost: string[]; kept: string[]; missing: string[] };
 }
 
 export interface LinkInfo {
@@ -104,6 +106,11 @@ interface AppState {
   duplicatePlane(id: string): void;
   removePlane(id: string): Promise<void>;
   updatePlane(update: (p: PlaneProject) => void): void;
+  /** Ctrl+Z / Ctrl+Y по правкам текущего самолёта */
+  undo(): void;
+  redo(): void;
+  canUndo(): boolean;
+  canRedo(): boolean;
   setStep(step: StepId): void;
   nextStep(): void;
   prevStep(): void;
@@ -127,6 +134,14 @@ interface AppState {
 }
 
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+// Отмена правок: по стопке на самолёт. Правки подряд быстрее UNDO_MERGE_MS
+// (набор числа в поле) — один шаг.
+const UNDO_LIMIT = 100;
+const UNDO_MERGE_MS = 700;
+const undoStacks = new Map<string, PlaneProject[]>();
+const redoStacks = new Map<string, PlaneProject[]>();
+let lastEdit = { id: "", at: 0 };
 let toastSeq = 0;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let eventsBound = false;
@@ -324,6 +339,7 @@ export const useApp = create<AppState>((set, get) => ({
     const id = get().currentId;
     if (!id) return;
     let saved: PlaneProject | null = null;
+    let before: PlaneProject | null = null;
     set((s) => ({
       planes: s.planes.map((p) => {
         if (p.id !== id) return p;
@@ -331,18 +347,39 @@ export const useApp = create<AppState>((set, get) => ({
         update(next);
         next.updatedAt = new Date().toISOString();
         saved = next;
+        before = p;
         return next;
       }),
     }));
-    if (!saved) return;
-    const plane: PlaneProject = saved;
-    clearTimeout(saveTimers.get(id));
-    saveTimers.set(
-      id,
-      setTimeout(() => {
-        api.hangarSave(plane).catch((e) => get().toast("err", `Не сохранилось: ${errorText(e)}`));
-      }, 400),
-    );
+    if (!saved || !before) return;
+    const now = Date.now();
+    const stack = undoStacks.get(id) ?? [];
+    if (!(lastEdit.id === id && now - lastEdit.at < UNDO_MERGE_MS && stack.length)) {
+      stack.push(before);
+      if (stack.length > UNDO_LIMIT) stack.shift();
+    }
+    undoStacks.set(id, stack);
+    redoStacks.set(id, []);
+    lastEdit = { id, at: now };
+    persistPlane(saved);
+  },
+
+  undo() {
+    stepHistory(undoStacks, redoStacks);
+  },
+
+  redo() {
+    stepHistory(redoStacks, undoStacks);
+  },
+
+  canUndo() {
+    const id = get().currentId;
+    return !!id && (undoStacks.get(id)?.length ?? 0) > 0;
+  },
+
+  canRedo() {
+    const id = get().currentId;
+    return !!id && (redoStacks.get(id)?.length ?? 0) > 0;
   },
 
   setStep(step) {
@@ -528,3 +565,32 @@ export const useApp = create<AppState>((set, get) => ({
     setTimeout(() => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })), 5000);
   },
 }));
+
+/** Сохранить самолёт в ангар через 0,4 с после последней правки. */
+function persistPlane(plane: PlaneProject) {
+  clearTimeout(saveTimers.get(plane.id));
+  saveTimers.set(
+    plane.id,
+    setTimeout(() => {
+      api.hangarSave(plane).catch((e) => useApp.getState().toast("err", `Не сохранилось: ${errorText(e)}`));
+    }, 400),
+  );
+}
+
+/** Шаг по истории правок: из одной стопки — в самолёт, нынешнее — в другую. */
+function stepHistory(from: Map<string, PlaneProject[]>, to: Map<string, PlaneProject[]>) {
+  const { currentId, planes } = useApp.getState();
+  if (!currentId) return;
+  const stack = from.get(currentId);
+  const target = stack?.pop();
+  const now = planes.find((p) => p.id === currentId);
+  if (!target || !now) return;
+  const other = to.get(currentId) ?? [];
+  other.push(now);
+  to.set(currentId, other);
+  lastEdit = { id: "", at: 0 };
+  // История прошивок и наладка — не правки: остаются нынешними.
+  const restored: PlaneProject = { ...target, history: now.history, lastFlash: now.lastFlash, setup: now.setup, updatedAt: new Date().toISOString() };
+  useApp.setState({ planes: planes.map((p) => (p.id === currentId ? restored : p)) });
+  persistPlane(restored);
+}

@@ -155,6 +155,24 @@ export function FlashDialog() {
           </div>
         </div>
       )}
+      {flash.done?.verified && !flash.calib && (
+        <div className="hint row" style={{ marginTop: 8, gap: 8 }}>
+          <LoaderCircle size={14} className="spin" />
+          {t("Смотрю, на месте ли калибровки…")}
+        </div>
+      )}
+      {flash.calib && (flash.calib.lost.length > 0 || flash.calib.kept.length > 0 || flash.calib.missing.length > 0) && (
+        <div className={`issue ${flash.calib.lost.length ? "warning" : ""}`} style={{ marginTop: 8 }}>
+          {flash.calib.lost.length ? <TriangleAlert size={17} color="var(--warn)" /> : <CircleCheck size={17} color="var(--ok)" />}
+          <div className="grow">
+            {flash.calib.lost.length > 0 && t("После прошивки пропало: {list}. Повторите в «Наладке».", { list: flash.calib.lost.join(", ") })}
+            {!flash.calib.lost.length && flash.calib.kept.length > 0 && t("Калибровки пережили прошивку: {list}.", { list: flash.calib.kept.join(", ") })}
+            {flash.calib.missing.length > 0 && !flash.calib.lost.length && (
+              <div className={flash.calib.kept.length ? "hint" : undefined}>{t("Ещё не сделано: {list} — это в «Наладке».", { list: flash.calib.missing.join(", ") })}</div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: 14 }}>
         <button className="link" onClick={() => setShowLog(!showLog)}>

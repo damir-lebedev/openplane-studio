@@ -599,3 +599,87 @@ button.pill.active {
   opacity: 0.35;
   filter: grayscale(1);
 }
+
+/* ---------- история прошивок ---------- */
+.history {
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  gap: 16px;
+  min-height: 300px;
+}
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 60vh;
+  overflow: auto;
+}
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.history-item:hover {
+  background: var(--panel);
+}
+.history-item.active {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.history-date {
+  display: block;
+  font-weight: 600;
+}
+.history-meta {
+  display: block;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.history-detail {
+  padding: 4px 4px 4px 16px;
+  border-left: 1px solid var(--line);
+  max-height: 60vh;
+  overflow: auto;
+}
+.changes {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.change-group .drawer-sub {
+  margin: 10px 0 4px;
+}
+.change {
+  display: grid;
+  grid-template-columns: minmax(120px, 34%) 1fr auto 1fr;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: 13px;
+}
+.change-what {
+  color: var(--text-2);
+  overflow-wrap: anywhere;
+}
+.change-from {
+  color: var(--text-3);
+  text-decoration: line-through;
+  text-decoration-color: rgba(248, 81, 73, 0.6);
+}
+.change-arrow {
+  color: var(--text-3);
+}
+.change-to {
+  color: var(--text);
+  font-weight: 600;
+}
+.card.pending {
+  padding: 12px 16px;
+}
