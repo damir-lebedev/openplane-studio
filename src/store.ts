@@ -3,6 +3,7 @@
 import { create } from "zustand";
 
 import { api, AppInfo, Device, errorText, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
+import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
 import { Manifest } from "./core/manifest";
 import {
   blankProject,
@@ -50,6 +51,8 @@ export interface LinkInfo {
   state: "idle" | "connecting" | "open" | "error";
   error?: string;
   attemptAt: number;
+  /** прошивка на плате живых данных не шлёт — старше приложения */
+  noLive?: boolean;
 }
 
 export interface Toast {
@@ -77,10 +80,17 @@ interface AppState {
   toasts: Toast[];
   focus: string[];
   link: LinkInfo;
+  /** порт, от которого отключились вручную: сами не подключаемся, пока плату не переткнут */
+  linkHold: string | null;
   live: LiveFrame | null;
   liveAt: number;
   consoleLines: string[];
+  /** сколько строк консоли пришло всего (consoleLines хранит последние) */
+  consoleSeq: number;
   scan: ScanResult | null;
+  scanAt: number;
+  /** калибровка, запущенная из приложения или с пульта, — по тексту консоли */
+  proc: Proc | null;
   boardPanel: boolean;
 
   init(): Promise<void>;
@@ -107,9 +117,12 @@ interface AppState {
   closeFlash(): void;
   toast(kind: Toast["kind"], text: string): void;
   connect(port: string, stm32: boolean): Promise<void>;
-  disconnect(): Promise<void>;
+  disconnect(manual?: boolean): Promise<void>;
   command(cmd: string): Promise<void>;
   sendRaw(text: string): Promise<void>;
+  requestScan(): Promise<void>;
+  startProc(kind: ProcKind): Promise<void>;
+  clearProc(): void;
   setBoardPanel(open: boolean): void;
 }
 
@@ -117,7 +130,11 @@ const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let toastSeq = 0;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let eventsBound = false;
+let procTimer: ReturnType<typeof setInterval> | null = null;
 const querying = new Set<string>();
+
+/** Сколько ждать конца процедуры, пока плата молчит. */
+const PROC_TIMEOUT_MS: Record<ProcKind, number> = { gyro: 10000, compass: 30000, mount: 120000, ground: 120000 };
 
 export function stepsFor(mode: Mode): StepId[] {
   return mode === "simple" ? SIMPLE_STEPS : FULL_STEPS;
@@ -142,10 +159,14 @@ export const useApp = create<AppState>((set, get) => ({
   toasts: [],
   focus: [],
   link: { port: null, state: "idle", attemptAt: 0 },
+  linkHold: null,
   live: null,
   liveAt: 0,
   consoleLines: [],
+  consoleSeq: 0,
   scan: null,
+  scanAt: 0,
+  proc: null,
   boardPanel: false,
 
   async init() {
@@ -185,17 +206,23 @@ export const useApp = create<AppState>((set, get) => ({
             get().toast("info", `Подключена плата с «${match.name}»`);
           }
         },
-        scan: (_port, data) => set({ scan: data }),
+        scan: (_port, data) => set({ scan: data, scanAt: Date.now() }),
         line: (_port, line) =>
           set((s) => {
             const lines = s.consoleLines.length > 600 ? s.consoleLines.slice(-500) : s.consoleLines.slice();
             lines.push(line);
-            return { consoleLines: lines };
+            let proc = s.proc;
+            // Калибровку на земле запустили с пульта (SwB 3 раза) — мастер тоже её покажет.
+            if ((!proc || proc.state !== "run") && /^Калибровка самолёта \(/.test(line.trim())) proc = procStart("ground");
+            else if (proc) proc = procLine(proc, line);
+            return { consoleLines: lines, consoleSeq: s.consoleSeq + 1, proc };
           }),
+        noLive: (port) => set((s) => (s.link.port === port ? { link: { ...s.link, noLive: true } } : {})),
         link: (st) =>
           set((s) => ({
             link: { ...s.link, port: st.state === "open" ? st.port : s.link.port, state: st.state === "open" ? "open" : st.state === "error" ? "error" : "idle", error: st.error ?? undefined },
             live: st.state === "open" ? s.live : null,
+            proc: st.state !== "open" && s.proc?.state === "run" ? { ...s.proc, state: "fail", text: "связь с платой пропала" } : s.proc,
           })),
       });
     }
@@ -374,13 +401,18 @@ export const useApp = create<AppState>((set, get) => ({
       // Наша прошивка на STM32 — подключаемся сами и держим связь.
       const cdc = devices.find((d) => d.kind === "stm32-cdc" && d.port);
       const link = get().link;
+      if (get().linkHold && !present.has(get().linkHold!)) set({ linkHold: null });
       if (cdc?.port) {
         const sameOpen = link.port === cdc.port && (link.state === "open" || link.state === "connecting");
         const cooling = link.state === "error" && Date.now() - link.attemptAt < 5000;
-        if (!sameOpen && !cooling) void get().connect(cdc.port, true);
+        const held = get().linkHold === cdc.port;
+        if (!sameOpen && !cooling && !held) void get().connect(cdc.port, true);
       } else if (link.state === "open" && link.port && !present.has(link.port)) {
         set({ link: { port: null, state: "idle", attemptAt: 0 }, live: null });
       }
+      // Связь есть, а паспорта нет (плата ещё загружалась, когда спросили) — спросить снова.
+      const now = get().link;
+      if (now.state === "open" && now.port && !get().ports[now.port]?.identity) void api.linkCommand("id").catch(() => {});
     } catch {
       /* список устройств недоступен — попробуем в следующий раз */
     }
@@ -420,12 +452,17 @@ export const useApp = create<AppState>((set, get) => ({
 
   closeFlash() {
     if (get().flash?.running) return;
-    set({ flash: null, ports: {} });
+    // Паспорта портов устарели (плата перепрошита), кроме того, что связь
+    // уже спросила заново; на всякий случай — спросить ещё раз.
+    const { link } = get();
+    const held = link.state === "open" ? link.port : null;
+    set((s) => ({ flash: null, ports: held && s.ports[held] ? { [held]: s.ports[held] } : {} }));
+    if (held) void api.linkCommand("id").catch(() => {});
     void get().pollDevices();
   },
 
   async connect(port, stm32) {
-    set({ link: { port, state: "connecting", attemptAt: Date.now() } });
+    set({ link: { port, state: "connecting", attemptAt: Date.now() }, linkHold: null });
     try {
       await api.linkStart(port, stm32);
       set((s) => ({ link: { ...s.link, port, state: "open" }, ports: { ...s.ports, [port]: { ...(s.ports[port] ?? { identity: null }), busy: false, error: undefined, at: Date.now() } } }));
@@ -438,9 +475,10 @@ export const useApp = create<AppState>((set, get) => ({
     }
   },
 
-  async disconnect() {
+  async disconnect(manual = false) {
+    const port = get().link.port;
     await api.linkStop().catch(() => {});
-    set({ link: { port: null, state: "idle", attemptAt: Date.now() }, live: null });
+    set({ link: { port: null, state: "idle", attemptAt: Date.now() }, live: null, linkHold: manual ? port : get().linkHold });
   },
 
   async command(cmd) {
@@ -449,6 +487,35 @@ export const useApp = create<AppState>((set, get) => ({
 
   async sendRaw(text) {
     await api.linkSend(text);
+  },
+
+  async requestScan() {
+    set({ scan: null });
+    await api.linkCommand("scan");
+  },
+
+  async startProc(kind) {
+    set({ proc: procStart(kind) });
+    try {
+      await api.linkCommand(`act ${PROC_KEY[kind]}`);
+    } catch (e) {
+      set({ proc: { ...procStart(kind), state: "fail", text: errorText(e) } });
+      return;
+    }
+    if (!procTimer) {
+      procTimer = setInterval(() => {
+        const p = get().proc;
+        if (!p || p.state !== "run") return;
+        // Калибровка на земле идёт сама, пока плата шлёт кадры; блокирующие — по таймауту.
+        if (Date.now() - p.startedAt > PROC_TIMEOUT_MS[p.kind]) {
+          set({ proc: { ...p, state: "fail", text: "плата не ответила — она на связи?" } });
+        }
+      }, 1000);
+    }
+  },
+
+  clearProc() {
+    set({ proc: null });
   },
 
   setBoardPanel(open) {

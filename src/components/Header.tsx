@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { Device } from "../api";
 import { t } from "../i18n";
 import { PortInfo, useApp } from "../store";
+import { useLive } from "./live/LiveWidgets";
 
 interface BoardStatus {
   level: "none" | "ok" | "warn";
@@ -44,7 +45,15 @@ export function Header() {
   const setSection = useApp((s) => s.setSection);
   const devices = useApp((s) => s.devices);
   const ports = useApp((s) => s.ports);
+  const link = useApp((s) => s.link);
+  const panel = useApp((s) => s.boardPanel);
+  const setBoardPanel = useApp((s) => s.setBoardPanel);
+  const live = useLive();
   const status = boardStatus(devices, ports);
+  if (link.state === "error" && link.error?.startsWith("PORT_BUSY") && status.level !== "none") {
+    status.level = "warn";
+    status.text = t("{port} занят монитором порта", { port: link.port ?? "" });
+  }
 
   return (
     <header className="header">
@@ -73,10 +82,16 @@ export function Header() {
         <span className="muted">{t("Ангар пуст")}</span>
       )}
       <div className="header-spacer" />
-      <div className={`pill ${status.level}`} title={status.title}>
-        <span className="dot" />
+      <button
+        className={`pill ${status.level}${panel ? " active" : ""}`}
+        title={status.title ?? t("Плата: связь, живые данные, консоль")}
+        onClick={() => setBoardPanel(!panel)}
+      >
+        <span className={`dot${live ? " live" : ""}`} />
         <span className="txt">{status.text}</span>
-      </div>
+        {live && <span className="pill-mode">{live.mode}</span>}
+        {live?.arm && <span className="pill-arm">ARM</span>}
+      </button>
     </header>
   );
 }

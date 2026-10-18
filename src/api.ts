@@ -87,12 +87,18 @@ export interface LiveFrame {
   out: [number, number, number, number, number, number, number];
   rev: boolean;
   imu: "ok" | "none" | "noresp" | "check";
+  /** крен, тангаж, курс, ° */
   att?: [number, number, number];
+  /** установка IMU измерена (три позы) */
+  mount?: boolean;
+  /** стоянка сохранена (наземная калибровка) */
+  park?: boolean;
   baro: "ok" | "none" | "noresp";
   alt?: number;
   vz?: number;
   mag: "ok" | "none" | "noresp";
   hdg?: number;
+  magcal?: boolean;
   gps: "ok" | "none" | "noresp";
   fix?: number;
   sats?: number;
@@ -160,6 +166,8 @@ export function onBoardEvents(handlers: {
   scan: (port: string, data: ScanResult) => void;
   line: (port: string, line: string) => void;
   link: (status: LinkStatus) => void;
+  /** прошивка на плате не умеет живые данные (старше приложения) */
+  noLive: (port: string) => void;
 }): Promise<UnlistenFn[]> {
   return Promise.all([
     listen<{ port: string; data: LiveFrame }>("board-live", (e) => handlers.live(e.payload.port, e.payload.data)),
@@ -167,6 +175,7 @@ export function onBoardEvents(handlers: {
     listen<{ port: string; data: ScanResult }>("board-scan", (e) => handlers.scan(e.payload.port, e.payload.data)),
     listen<{ port: string; line: string }>("board-line", (e) => handlers.line(e.payload.port, e.payload.line)),
     listen<LinkStatus>("board-link", (e) => handlers.link(e.payload)),
+    listen<{ port: string }>("board-nolive", (e) => handlers.noLive(e.payload.port)),
   ]);
 }
 

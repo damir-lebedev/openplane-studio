@@ -65,20 +65,36 @@ fn open(port: &str, stm32: bool) -> Res<Box<dyn serialport::SerialPort>> {
     Ok(p)
 }
 
-fn handle_line(app: &AppHandle, port: &str, line: &str) {
+#[derive(PartialEq)]
+enum Got {
+    Nothing,
+    Live,
+    Other,
+    /// Старая прошивка не знает команду приложения ("live", "scan"...).
+    Refused,
+}
+
+/// Так старая прошивка отвечает на незнакомую команду ПК (её разбирает чёрный ящик).
+const REFUSED: &str = "BB:ERR неизвестная команда";
+
+fn handle_line(app: &AppHandle, port: &str, line: &str) -> Got {
     let trimmed = line.trim();
     if trimmed.is_empty() {
-        return;
+        return Got::Nothing;
+    }
+    if trimmed == REFUSED {
+        return Got::Refused;
     }
     for (prefix, event) in [("@live ", "board-live"), ("@id ", "board-id"), ("@scan ", "board-scan")] {
         if let Some(json) = trimmed.strip_prefix(prefix) {
             if let Ok(data) = serde_json::from_str::<Value>(json) {
                 let _ = app.emit(event, BoardJson { port, data });
-                return;
+                return if event == "board-live" { Got::Live } else { Got::Other };
             }
         }
     }
     let _ = app.emit("board-line", BoardLine { port, line: trimmed.to_string() });
+    Got::Other
 }
 
 fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>, stop: Arc<AtomicBool>, rx: Receiver<Vec<u8>>) {
@@ -87,10 +103,14 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
     let mut pending: Vec<u8> = Vec::new();
     let mut next_live = Instant::now();
     let mut error: Option<String> = None;
+    // Прошивка без живых данных отвечает на "live" ошибкой — дважды, и больше не спрашиваем.
+    let mut live_seen = false;
+    let mut refused = 0u32;
+    let mut polling = true;
     // Сразу — паспорт и живые данные.
     let _ = serial.write_all(b"\x02id\n");
     while !stop.load(Ordering::Relaxed) {
-        if Instant::now() >= next_live {
+        if polling && Instant::now() >= next_live {
             if let Err(e) = serial.write_all(b"\x02live\n") {
                 error = Some(e.to_string());
                 break;
@@ -109,7 +129,17 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
                 pending.extend_from_slice(&buf[..n]);
                 while let Some(pos) = pending.iter().position(|&b| b == b'\n') {
                     let line: Vec<u8> = pending.drain(..=pos).collect();
-                    handle_line(&app, &port, &String::from_utf8_lossy(&line));
+                    match handle_line(&app, &port, &String::from_utf8_lossy(&line)) {
+                        Got::Live => live_seen = true,
+                        Got::Refused if !live_seen => {
+                            refused += 1;
+                            if refused >= 2 && polling {
+                                polling = false;
+                                let _ = app.emit("board-nolive", BoardLine { port: &port, line: REFUSED.into() });
+                            }
+                        }
+                        _ => {}
+                    }
                 }
                 if pending.len() > 16 * 1024 {
                     pending.clear();
@@ -123,7 +153,9 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
         }
     }
     // Прощание: плате больше не нужно слать живые данные.
-    let _ = serial.write_all(b"\x02live 0\n");
+    if polling {
+        let _ = serial.write_all(b"\x02live 0\n");
+    }
     let state = if error.is_some() { "error" } else { "closed" };
     let _ = app.emit("board-link", LinkStatus { port: &port, state, error });
 }

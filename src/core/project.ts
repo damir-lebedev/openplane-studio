@@ -43,6 +43,14 @@ export interface FlashRecord {
 
 export type StepId = "board" | "airframe" | "sensors" | "rc" | "switches" | "safety" | "system" | "review" | "setup";
 
+/** Проверка мастера наладки, пройденная на плате (не калибровки — те плата помнит сама). */
+export interface SetupRecord {
+  at: string;
+  /** хэш конфигурации на плате в тот момент */
+  config: string;
+  note?: string;
+}
+
 export interface PlaneProject {
   schema: 1;
   id: string;
@@ -63,6 +71,8 @@ export interface PlaneProject {
   reached: StepId;
   lastFlash?: FlashRecord;
   history: FlashRecord[];
+  /** пройденные проверки наладки: датчики, пульт, failsafe, рули, мотор */
+  setup?: Partial<Record<string, SetupRecord>>;
 }
 
 export const FULL_STEPS: StepId[] = ["board", "airframe", "sensors", "rc", "switches", "safety", "system", "review", "setup"];
@@ -178,9 +188,7 @@ export function effectiveParam(manifest: Manifest, project: PlaneProject, name: 
     return project.params[name];
   }
   if (name === "ESC_BIDIRECTIONAL") return project.airframe.esc === "bidirectional";
-  if (name === "LANDING_GEAR" && project.airframe.gear !== "none") {
-    return `LandingGear::${project.airframe.gear === "nose" ? "NOSE_WHEEL" : "TAIL_WHEEL"}`;
-  }
+  if (name === "LANDING_GEAR") return `LandingGear::${landingGear(project)}`;
   return p.value;
 }
 
@@ -194,15 +202,22 @@ export interface FirmwareConfig {
   project?: { plane: string; configHash: string; commit: string | null; boardEnv: string };
 }
 
+/**
+ * Шасси для прошивки. Без шасси самолёт лежит на брюхе ровно — для
+ * калибровки на земле это как носовое колесо (стоянка ≈ горизонт, шаг 2
+ * засчитывается сам); автовзлёта с полосы без шасси нет вовсе.
+ */
+export function landingGear(project: PlaneProject): "NOSE_WHEEL" | "TAIL_WHEEL" {
+  return project.airframe.gear === "tail" ? "TAIL_WHEEL" : "NOSE_WHEEL";
+}
+
 /** Конфигурация для opconfig apply. Без project — для хэша конфигурации. */
 export function toFirmwareConfig(manifest: Manifest, project: PlaneProject): FirmwareConfig {
   const board = findBoard(manifest, project.board);
   const params: Record<string, unknown> = {
     ESC_BIDIRECTIONAL: project.airframe.esc === "bidirectional",
+    LANDING_GEAR: landingGear(project),
   };
-  if (project.airframe.gear !== "none") {
-    params.LANDING_GEAR = project.airframe.gear === "nose" ? "NOSE_WHEEL" : "TAIL_WHEEL";
-  }
   Object.assign(params, project.params);
   if (board?.macro && project.boardParams[board.macro]) {
     Object.assign(params, project.boardParams[board.macro]);

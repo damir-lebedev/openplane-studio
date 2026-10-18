@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Cpu, Lock, TriangleAlert, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleAlert, CircleCheck, Cpu, Gauge, Lock, TriangleAlert, Zap } from "lucide-react";
 import { Fragment, useMemo, useState } from "react";
 
 import { itemLabel } from "../../core/labels";
-import { findBoard } from "../../core/manifest";
-import { isReached, StepId } from "../../core/project";
+import { findBoard, Manifest } from "../../core/manifest";
+import { setParamValue } from "../../core/params";
+import { effectiveParam, isReached, PlaneProject, StepId } from "../../core/project";
 import { availability, countIssues, haveTokens, Issue, tokenNames, validate } from "../../core/rules";
 import { runFlash } from "../../flash";
 import { plural, t } from "../../i18n";
@@ -14,7 +15,8 @@ import { FlashDialog } from "./FlashDialog";
 import { ParamsTable } from "./ParamsTable";
 import { AirframeStep } from "./steps/AirframeStep";
 import { BoardBadges, BoardStep } from "./steps/BoardStep";
-import { flashBlocker, IssueRow, ReviewStep, SetupStep } from "./steps/ReviewStep";
+import { SetupStep } from "./setup/SetupStep";
+import { flashBlocker, IssueRow, ReviewStep } from "./steps/ReviewStep";
 import { SafetyStep, safetyStory, SystemStep } from "./steps/SafetyStep";
 import { SensorsStep } from "./steps/SensorsStep";
 import { RcStep, SwitchesStep } from "./steps/SwitchesStep";
@@ -156,6 +158,11 @@ function StepBody() {
   }
 }
 
+function benchLimit(manifest: Manifest, plane: PlaneProject): number {
+  const v = Number(effectiveParam(manifest, plane, "THROTTLE_LIMIT_PCT"));
+  return Number.isFinite(v) ? v : 100;
+}
+
 export function BoardView() {
   const manifest = useApp((s) => s.manifest);
   const manifestError = useApp((s) => s.manifestError);
@@ -172,6 +179,7 @@ export function BoardView() {
   const prevStep = useApp((s) => s.prevStep);
   useApp((s) => s.info);
   const [issuesOpen, setIssuesOpen] = useState(false);
+  const updatePlane = useApp((s) => s.updatePlane);
 
   const issues = useMemo(() => (manifest && plane ? validate(manifest, plane) : []), [manifest, plane]);
   const counts = countIssues(issues);
@@ -243,6 +251,18 @@ export function BoardView() {
       </div>
 
       <Stepper issues={issues} />
+
+      {benchLimit(manifest, plane) < 100 && (
+        <div className="bench-banner">
+          <Gauge size={16} />
+          <span className="grow">
+            {t("Режим стенда: газ не больше {p} %. Перед полётом снимите и перепрошейте.", { p: benchLimit(manifest, plane) })}
+          </span>
+          <button className="btn small" onClick={() => updatePlane((p) => setParamValue(manifest, p, "THROTTLE_LIMIT_PCT", 100))}>
+            {t("Снять")}
+          </button>
+        </div>
+      )}
 
       <div className={`board-body${showSide ? "" : " single"}`}>
         {boardTab === "params" ? (

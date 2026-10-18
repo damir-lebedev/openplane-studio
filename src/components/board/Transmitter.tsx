@@ -3,14 +3,17 @@
 // нужны датчики: …» — и кнопкой к шагу, где это добавляется.
 
 import { Lock } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { channelIndex } from "../../core/channels";
 import { channelTitle, itemLabel, itemTitle } from "../../core/labels";
+import { switchPosition, SWITCH_ON_US } from "../../core/live";
 import { Binding, Manifest, ManifestChannel } from "../../core/manifest";
 import { PlaneProject, StepId } from "../../core/project";
 import { availability, haveTokens, ItemKind, needText, tokenNames } from "../../core/rules";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
+import { LiveStick, useLive } from "../live/LiveWidgets";
 import { Modal } from "../ui";
 
 type Role = "none" | "modes" | "mode" | "feature" | "knob";
@@ -55,6 +58,22 @@ function defaultBinding(manifest: Manifest, plane: PlaneProject, ch: ManifestCha
     default:
       return null;
   }
+}
+
+/** true на секунду после того, как канал резко сменился (щёлкнули тумблером). */
+function useFlip(us: number | undefined): boolean {
+  const prev = useRef<number | undefined>(undefined);
+  const [at, setAt] = useState(0);
+  useEffect(() => {
+    if (us !== undefined && prev.current !== undefined && Math.abs(us - prev.current) > 250) setAt(Date.now());
+    prev.current = us;
+  }, [us]);
+  useEffect(() => {
+    if (!at) return;
+    const id = setTimeout(() => setAt(0), 1000);
+    return () => clearTimeout(id);
+  }, [at]);
+  return at > 0;
 }
 
 interface PickTarget {
@@ -148,6 +167,7 @@ function Slot({
   label,
   bad,
   disabled,
+  live,
   onClick,
 }: {
   pos: string;
@@ -155,10 +175,17 @@ function Slot({
   label: string | null;
   bad?: boolean;
   disabled?: boolean;
+  /** тумблер на пульте сейчас в этом положении */
+  live?: boolean;
   onClick?: () => void;
 }) {
   return (
-    <button className={`slot${label ? " filled" : ""}${bad ? " bad" : ""}`} disabled={disabled} onClick={onClick}>
+    <button
+      className={`slot${label ? " filled" : ""}${bad ? " bad" : ""}${live ? " live" : ""}`}
+      disabled={disabled}
+      onClick={onClick}
+      title={live ? t("Тумблер сейчас здесь") : undefined}
+    >
       {lever && <span className={`lever ${lever}`} />}
       <span className="pos">{pos}</span>
       <span className="grow label" lang="ru" style={{ fontWeight: label ? 600 : 400 }} title={label ?? undefined}>
@@ -177,6 +204,11 @@ function SwitchCard({ ch, onPick }: { ch: ManifestChannel; onPick: (t: PickTarge
   const have = haveTokens(manifest, plane);
   const modeSwitchElsewhere = plane.bindings.find((b) => b.kind === "modes" && b.channel !== ch.name);
   const isKnob = ch.positions === "knob";
+  const live = useLive();
+  const us = live ? live.ch[channelIndex(manifest, plane, ch.name)] : undefined;
+  const flash = useFlip(us);
+  const down = us !== undefined && us >= SWITCH_ON_US;
+  const knobPct = us !== undefined ? Math.round(Math.max(0, Math.min(1, (us - 1000) / 1000)) * 100) : null;
 
   const isBad = (kind: ItemKind, id: string) => {
     const item = listFor(manifest, kind).find((i) => i.id === id);
@@ -193,16 +225,16 @@ function SwitchCard({ ch, onPick }: { ch: ManifestChannel; onPick: (t: PickTarge
   if (!ch.bindable) {
     // SwA — ARM: закреплён прошивкой
     return (
-      <div className="tx-switch">
+      <div className={`tx-switch${flash ? " flash" : ""}`}>
         <div className="tx-switch-head">
           <span className="tx-switch-name">{channelTitle(ch.name)}</span>
-          <span className="tx-switch-ch">CH{ch.index + 1}</span>
+          <span className="tx-switch-ch">CH{channelIndex(manifest, plane, ch.name) + 1}</span>
         </div>
         <div className="hint row" style={{ gap: 6, height: 30 }}>
           <Lock size={13} /> {t("ARM — закреплён")}
         </div>
-        <Slot pos={t("вверх")} lever="up" label="DISARM" disabled />
-        <Slot pos={t("вниз")} lever="down" label="ARM" disabled />
+        <Slot pos={t("вверх")} lever="up" label="DISARM" disabled live={us !== undefined && !down} />
+        <Slot pos={t("вниз")} lever="down" label="ARM" disabled live={down} />
       </div>
     );
   }
@@ -214,11 +246,12 @@ function SwitchCard({ ch, onPick }: { ch: ManifestChannel; onPick: (t: PickTarge
     : false;
 
   return (
-    <div className={`tx-switch${hasError ? " err" : ""}`}>
+    <div className={`tx-switch${hasError ? " err" : ""}${flash ? " flash" : ""}`}>
       <div className="tx-switch-head">
         <span className="tx-switch-name">{channelTitle(ch.name)}</span>
         <span className="tx-switch-ch">
-          CH{ch.index + 1} · {isKnob ? t("крутилка") : t("{n} пол.", { n: ch.positions ?? "?" })}
+          CH{channelIndex(manifest, plane, ch.name) + 1} ·{" "}
+          {isKnob ? (knobPct !== null ? `${knobPct} %` : t("крутилка")) : t("{n} пол.", { n: ch.positions ?? "?" })}
         </span>
       </div>
       <select className="select tx-role" value={role} onChange={(e) => setRole(e.target.value as Role)}>
@@ -246,18 +279,20 @@ function SwitchCard({ ch, onPick }: { ch: ManifestChannel; onPick: (t: PickTarge
               lever={lever}
               label={itemLabel("mode", m)}
               bad={isBad("mode", m)}
+              live={us !== undefined && switchPosition(us, three ? 3 : 2) === i}
               onClick={() => onPick({ channel: ch.name, kind: "mode", index: i })}
             />
           );
         })}
       {(binding?.kind === "mode" || binding?.kind === "feature") && (
         <>
-          <Slot pos={t("вверх")} lever="up" label={null} disabled />
+          <Slot pos={t("вверх")} lever="up" label={null} disabled live={us !== undefined && !down} />
           <Slot
             pos={t("вниз")}
             lever="down"
             label={binding.kind === "mode" ? itemLabel("mode", binding.mode) : itemLabel("feature", binding.feature)}
             bad={binding.kind === "mode" ? isBad("mode", binding.mode) : isBad("feature", binding.feature)}
+            live={down}
             onClick={() => onPick({ channel: ch.name, kind: binding.kind === "mode" ? "mode" : "feature", index: 0 })}
           />
         </>
@@ -277,6 +312,9 @@ function SwitchCard({ ch, onPick }: { ch: ManifestChannel; onPick: (t: PickTarge
 
 export function Transmitter() {
   const manifest = useApp((s) => s.manifest)!;
+  const plane = useApp((s) => s.current())!;
+  const live = useLive();
+  const chUs = (name: string) => (live ? live.ch[channelIndex(manifest, plane, name)] : undefined);
   const [pick, setPick] = useState<PickTarget | null>(null);
   const channels = manifest.channels.list.filter((c) => !c.stick && c.name !== "ARM");
   const switches = channels.filter((c) => c.positions !== "knob");
@@ -284,6 +322,7 @@ export function Transmitter() {
 
   return (
     <div className="tx">
+      {live && <div className="tx-live hint">{t("Плата на связи: щёлкните тумблером на пульте — его карточка подсветится, а текущее положение отмечено.")}</div>}
       <div className="tx-top">
         {switches.map((ch) => (
           <SwitchCard key={ch.name} ch={ch} onPick={setPick} />
@@ -297,18 +336,27 @@ export function Transmitter() {
         ))}
       </div>
       <div className="tx-sticks">
-        <div>
-          <div className="stick" />
-          <div className="stick-label">
-            <Lock size={11} /> {t("газ · руль направления")}
-          </div>
-        </div>
-        <div>
-          <div className="stick" />
-          <div className="stick-label">
-            <Lock size={11} /> {t("крен · тангаж")}
-          </div>
-        </div>
+        {live ? (
+          <>
+            <LiveStick x={chUs("RUDDER")} y={chUs("THROTTLE")} label={t("газ · руль направления")} />
+            <LiveStick x={chUs("AILERON")} y={chUs("ELEVATOR")} label={t("крен · тангаж")} />
+          </>
+        ) : (
+          <>
+            <div>
+              <div className="stick" />
+              <div className="stick-label">
+                <Lock size={11} /> {t("газ · руль направления")}
+              </div>
+            </div>
+            <div>
+              <div className="stick" />
+              <div className="stick-label">
+                <Lock size={11} /> {t("крен · тангаж")}
+              </div>
+            </div>
+          </>
+        )}
       </div>
       {pick && <Picker target={pick} onClose={() => setPick(null)} />}
     </div>

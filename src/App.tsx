@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 
 import { BoardView } from "./components/board/BoardView";
+import { BoardPanel } from "./components/BoardPanel";
 import { ComingSoon } from "./components/ComingSoon";
 import { Hangar } from "./components/Hangar";
 import { Header } from "./components/Header";
@@ -33,6 +34,7 @@ export default function App() {
           <ComingSoon section={section} />
         )}
       </main>
+      <BoardPanel />
       <Toasts />
     </div>
   );

@@ -2,6 +2,7 @@
 // метки @needs/@better в прошивке (AutopilotTypes.h, Config.h), правила
 // привязок — те же, что static_assert в Controls.h.
 
+import { channelClashes } from "./channels";
 import { Binding, findBoard, isNone, Manifest, ManifestItem } from "./manifest";
 import { effectiveParam, PlaneProject, StepId } from "./project";
 
@@ -150,6 +151,7 @@ export function validate(manifest: Manifest, project: PlaneProject): Issue[] {
     }
   }
   if (modeSwitches > 1) add("error", "switches", "Тумблер выбора режимов может быть только один");
+  for (const clash of channelClashes(manifest, project)) add("error", "rc", `Два органа пульта на одном канале: ${clash}`);
   if (modeSwitches === 0 && project.bindings.length) {
     add("warning", "switches", "Нет тумблера режимов: самолёт всё время в MANUAL, кроме режимов «поверх»");
   }
