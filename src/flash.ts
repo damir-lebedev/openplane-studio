@@ -3,6 +3,7 @@
 
 import { api, CalibFlags, Device, errorText, Identity, onTaskLog } from "./api";
 import { isFresh } from "./core/live";
+import { fingerprint } from "./core/migrate";
 import { findBoard, Manifest } from "./core/manifest";
 import { configHash, FlashRecord, PlaneProject, toFirmwareConfig } from "./core/project";
 import { FlashAction, FlashState, FlashStep, useApp } from "./store";
@@ -301,7 +302,13 @@ export async function runFlash(planeId: string) {
     setStep("verify", result.ok ? "ok" : "fail", result.ok ? undefined : "не подтверждено");
     record = { at: new Date().toISOString(), board: plane.board, commit, configHash: hash, ok: result.ok };
     flash().setFlash((f) => ({ ...f, running: false, progress: null, activity: "", done: { verified: result.ok, text: result.text } }));
-    void api.hangarSnapshot(plane.id, `flash-${hash}`, { record, config, plane: structuredClone(plane), calib: { before: calibBefore, after: null } });
+    void api.hangarSnapshot(plane.id, `flash-${hash}`, {
+      record,
+      config,
+      plane: structuredClone(plane),
+      calib: { before: calibBefore, after: null },
+      firmware: fingerprint(manifest),
+    });
     if (result.ok) void checkCalibrations(calibBefore);
   } catch (e) {
     const err =

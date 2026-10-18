@@ -6,7 +6,10 @@ import { CircleCheck, Cpu, History, RotateCcw, TriangleAlert } from "lucide-reac
 import { useEffect, useState } from "react";
 
 import { api, Snapshot } from "../../api";
-import { Change, diffProjects, restoreConfig } from "../../core/diff";
+import { Change, diffProjects, paramTitle, restoreConfig } from "../../core/diff";
+import { itemLabel } from "../../core/labels";
+import { isEmptyReport, migrationReport } from "../../core/migrate";
+import { formatValue, setParamValue } from "../../core/params";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { useBoardIdentity } from "./setup/common";
@@ -170,6 +173,69 @@ export function PendingChanges() {
         empty={t("Ничего не изменится: на плате уже эта конфигурация (прошита {when}).", { when: when(last.record!.at) })}
       />
       {changes.length > 0 && <div className="hint" style={{ marginTop: 8 }}>{t("Против прошивки {when}.", { when: when(last.record!.at) })}</div>}
+    </div>
+  );
+}
+
+/** Прошивка обновилась с последней прошивки самолёта: что нового, что убрали, какие числа поменялись. */
+export function FirmwareUpdateNotice() {
+  const manifest = useApp((s) => s.manifest)!;
+  const plane = useApp((s) => s.current())!;
+  const updatePlane = useApp((s) => s.updatePlane);
+  const snaps = useSnapshots(plane.id);
+  const [hidden, setHidden] = useState(false);
+  const last = snaps?.find((s) => s.firmware);
+  if (hidden || !last?.firmware || last.firmware.sourceHash === manifest.sourceHash) return null;
+  const r = migrationReport(last.firmware, manifest, plane);
+  if (isEmptyReport(r)) return null;
+  const names = (kind: "mode" | "feature" | "knob", ids: string[]) => ids.map((id) => itemLabel(kind, id));
+  const added = [...names("mode", r.addedModes), ...names("feature", r.addedFeatures), ...names("knob", r.addedKnobs)];
+  const removed = [...names("mode", r.removedModes), ...names("feature", r.removedFeatures), ...names("knob", r.removedKnobs)];
+  const unit = (u: string | null) => (u ? ` ${u}` : "");
+  return (
+    <div className="card fw-update">
+      <div className="row" style={{ alignItems: "flex-start" }}>
+        <div className="grow">
+          <b>{t("Прошивка обновилась с прошивки {when}", { when: when(last.record!.at) })}</b>
+          <div className="hint">{t("Что это значит для этого самолёта — до того, как прошить:")}</div>
+        </div>
+        <button className="btn small ghost" onClick={() => setHidden(true)}>
+          {t("Понятно")}
+        </button>
+      </div>
+      {added.length > 0 && <p className="fw-line">{t("Появилось: {list}", { list: added.join(", ") })}</p>}
+      {r.addedSensors.length > 0 && <p className="fw-line">{t("Новые датчики: {n}", { n: r.addedSensors.length })}</p>}
+      {r.addedParams.length > 0 && <p className="fw-line">{t("Новых чисел: {n} — у них значения прошивки", { n: r.addedParams.length })}</p>}
+      {removed.length > 0 && <p className="fw-line bad">{t("Убрали: {list}", { list: removed.join(", ") })}</p>}
+      {r.removedParams.length > 0 && <p className="fw-line">{t("Убрали чисел: {n}", { n: r.removedParams.length })}</p>}
+      {r.changedDefaults.length > 0 && (
+        <>
+          <div className="drawer-sub">{t("Поменялись значения по умолчанию")}</div>
+          {r.changedDefaults.map((c) => (
+            <div key={c.name} className="change">
+              <span className="change-what">{paramTitle(c.name)}</span>
+              <span className="change-from">
+                {formatValue(c.from)}
+                {unit(c.unit)}
+              </span>
+              <span className="change-arrow">→</span>
+              <span className="change-to">
+                {c.overridden ? (
+                  <span className="hint">{t("у самолёта своё значение")}</span>
+                ) : (
+                  <>
+                    {formatValue(c.to)}
+                    {unit(c.unit)}{" "}
+                    <button className="link" onClick={() => updatePlane((p) => setParamValue(manifest, p, c.name, c.from))}>
+                      {t("оставить {v}", { v: formatValue(c.from) })}
+                    </button>
+                  </>
+                )}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
     </div>
   );
 }

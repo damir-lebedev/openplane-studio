@@ -8,7 +8,7 @@ import { runFlash } from "../../../flash";
 import { plural, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Section, StepHead } from "../../ui";
-import { PendingChanges } from "../HistoryDialog";
+import { FirmwareUpdateNotice, PendingChanges } from "../HistoryDialog";
 import { safetyStory } from "./SafetyStep";
 
 const STEP_NAMES: Record<string, string> = {
@@ -79,6 +79,8 @@ export function ReviewStep() {
           <div className="grow">{t("Замечаний нет.")}</div>
         </div>
       )}
+
+      <FirmwareUpdateNotice />
 
       {plane.lastFlash && (
         <Section title={t("Что изменится на плате")} sub={t("против последней прошивки")}>

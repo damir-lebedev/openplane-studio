@@ -804,3 +804,16 @@ button.pill.active {
 .hint.pin-bad {
   color: #ff8f88;
 }
+
+/* ---------- прошивка обновилась ---------- */
+.fw-update {
+  margin-bottom: 20px;
+  border-color: var(--accent-line);
+  background: linear-gradient(180deg, rgba(57, 208, 255, 0.07), rgba(18, 28, 39, 0.9));
+}
+.fw-line {
+  margin: 8px 0 0;
+}
+.fw-line.bad {
+  color: #ff8f88;
+}

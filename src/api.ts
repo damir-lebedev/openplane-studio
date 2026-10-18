@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 import { Manifest } from "./core/manifest";
+import { FirmwareFingerprint } from "./core/migrate";
 import { FirmwareConfig, FlashRecord, PlaneProject } from "./core/project";
 
 export interface AppInfo {
@@ -118,6 +119,8 @@ export interface Snapshot {
   plane?: PlaneProject;
   /** калибровки на плате до прошивки и после */
   calib?: { before: CalibFlags | null; after: CalibFlags | null };
+  /** отпечаток прошивки, которой прошит самолёт: по нему видно, что поменялось в новой */
+  firmware?: FirmwareFingerprint;
 }
 
 export interface CalibFlags {
