@@ -2,6 +2,7 @@ import { RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { formatValue, outOfRange, paramState, parseInput, rangeText, setParamValue } from "../../core/params";
+import { pinChoices } from "../../core/pins";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Toggle } from "../ui";
@@ -31,6 +32,59 @@ export function ParamEditor({ name }: { name: string }) {
         {formatValue(st.value)} 🔒
       </span>
     );
+  }
+  if (p.kind === "pin") {
+    const choices = pinChoices(manifest, plane, name);
+    if (choices) {
+      const current = String(st.value);
+      const good = choices.filter((c) => c.ok && !c.usedBy);
+      const busy = choices.filter((c) => c.ok && c.usedBy);
+      const bad = choices.filter((c) => !c.ok);
+      const known = choices.some((c) => String(c.value) === current) || current === "-1";
+      const mine = choices.find((c) => String(c.value) === current);
+      return (
+        <div className="row" style={{ gap: 6 }}>
+          <select
+            className="select mono pin-select"
+            value={current}
+            onChange={(e) => {
+              const v = e.target.value;
+              set(/^-?\d+$/.test(v) ? Number(v) : v);
+            }}
+          >
+            <option value="-1">{t("— не разведён")}</option>
+            {!known && <option value={current}>{current}</option>}
+            <optgroup label={t("Подходят")}>
+              {good.map((c) => (
+                <option key={String(c.value)} value={String(c.value)} title={c.note}>
+                  {c.label}
+                  {c.note ? " ⚠" : ""}
+                </option>
+              ))}
+            </optgroup>
+            {busy.length > 0 && (
+              <optgroup label={t("Подходят, но заняты")}>
+                {busy.map((c) => (
+                  <option key={String(c.value)} value={String(c.value)} title={c.note}>
+                    {c.label} · {c.usedBy}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {bad.length > 0 && (
+              <optgroup label={t("Не подходят")}>
+                {bad.map((c) => (
+                  <option key={String(c.value)} value={String(c.value)} disabled title={c.note}>
+                    {c.label} — {c.note}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+          </select>
+          {mine?.note && <span className={`hint${mine.ok ? "" : " pin-bad"}`}>{mine.note}</span>}
+        </div>
+      );
+    }
   }
   switch (p.kind) {
     case "bool":

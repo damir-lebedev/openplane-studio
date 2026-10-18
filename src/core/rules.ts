@@ -3,6 +3,7 @@
 // привязок — те же, что static_assert в Controls.h.
 
 import { channelClashes } from "./channels";
+import { pinIssues } from "./pins";
 import { Binding, findBoard, isNone, Manifest, ManifestItem } from "./manifest";
 import { formatValue, outOfRange, rangeText } from "./params";
 import { effectiveParam, PlaneProject, StepId } from "./project";
@@ -173,6 +174,13 @@ export function validate(manifest: Manifest, project: PlaneProject): Issue[] {
   const throttle = Number(effectiveParam(manifest, project, "THROTTLE_LIMIT_PCT"));
   if (Number.isFinite(throttle) && throttle < 100) {
     add("warning", "safety", `Газ ограничен ${throttle} % — режим стенда. Перед полётом верните 100 %`, "THROTTLE_LIMIT_PCT");
+  }
+
+  // --- пины платы: ошибки — всегда, предупреждения — только у пинов, что поменял пилот
+  // (заводские пины прошивки выбраны с оглядкой — не засорять замечания)
+  const ownPins = board.macro ? project.boardParams[board.macro] ?? {} : {};
+  for (const pi of pinIssues(manifest, project)) {
+    if (pi.level === "error" || pi.target in ownPins) add(pi.level, "board", pi.text, pi.target);
   }
 
   // --- правки параметров

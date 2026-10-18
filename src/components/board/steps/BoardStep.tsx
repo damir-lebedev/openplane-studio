@@ -1,10 +1,24 @@
 import { Cpu, Usb } from "lucide-react";
 
 import { findBoard, ManifestBoard } from "../../../core/manifest";
-import { formatValue } from "../../../core/params";
+import { pinRole, pinTable } from "../../../core/pins";
 import { t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Choice, Section, StepHead } from "../../ui";
+import { ParamEditor } from "../ParamField";
+
+const PIN_ROLE_TEXT: Record<string, string> = {
+  pwm: "ШИМ — серво или ESC",
+  uart_rx: "приём UART",
+  uart_tx: "передача UART",
+  i2c_sda: "I2C, данные",
+  i2c_scl: "I2C, такт",
+  spi_sck: "SPI, такт",
+  spi_miso: "SPI, приём",
+  spi_mosi: "SPI, передача",
+  adc: "аналоговый вход",
+  gpio: "цифровой выход",
+};
 
 function boardDesc(b: ManifestBoard): string {
   const chip = b.macro?.includes("STM32") ? "STM32H743" : b.macro?.replace("BOARD_", "").replace("_", "-") ?? "";
@@ -85,17 +99,25 @@ export function BoardStep() {
         </div>
       </Section>
       {board && (
-        <Section title={t("Пины этой платы")} sub={t("как в Config.h — менять не нужно, если плата разведена по документации")}>
+        <Section
+          title={t("Пины этой платы")}
+          sub={
+            pinTable(board.env)
+              ? t("как в Config.h; в списке — только пины, что умеют нужное ({mcu})", { mcu: pinTable(board.env)!.mcu })
+              : t("как в Config.h — менять не нужно, если плата разведена по документации")
+          }
+        >
           <div className="card" style={{ padding: 0 }}>
-            <table className="table">
+            <table className="table pins-table">
               <tbody>
                 {pins.map((p) => (
                   <tr key={p.name}>
-                    <td className="mono" style={{ width: 210 }}>
+                    <td className="mono" style={{ width: 200 }}>
                       {p.name}
+                      {pinRole(p.name) && <div className="hint pin-role">{PIN_ROLE_TEXT[pinRole(p.name)!]}</div>}
                     </td>
-                    <td className="mono" style={{ width: 90 }}>
-                      {p.value === -1 ? t("нет") : formatValue(plane.boardParams[board.macro ?? ""]?.[p.name] ?? p.value)}
+                    <td style={{ width: 300 }}>
+                      <ParamEditor name={p.name} />
                     </td>
                     <td className="hint">{p.note || p.doc.split("\n")[0]}</td>
                   </tr>
@@ -104,7 +126,7 @@ export function BoardStep() {
             </table>
           </div>
           <p className="hint">
-            {t("Поменять пин можно в таблице «Все параметры» полного режима.")}{" "}
+            {t("Всё сразу — в таблице «Все параметры» полного режима.")}{" "}
             <button
               className="link"
               onClick={() => {

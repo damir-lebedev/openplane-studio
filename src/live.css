@@ -795,3 +795,12 @@ button.pill.active {
 .mount-3d .plane3d {
   height: 200px;
 }
+
+/* ---------- выбор пина ---------- */
+.pin-select {
+  min-width: 190px;
+  max-width: 260px;
+}
+.hint.pin-bad {
+  color: #ff8f88;
+}
