@@ -1,8 +1,9 @@
-import { Copy, Plus, Trash, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Copy, FileCode, GraduationCap, Package, Plane, Plus, Trash, Triangle, Wind, Zap } from "lucide-react";
+import { ReactNode, useEffect, useState } from "react";
 
 import { findBoard, SENSOR_CATEGORIES } from "../core/manifest";
 import { configHash, PlaneProject, sensorLabel, toFirmwareConfig } from "../core/project";
+import { TEMPLATES } from "../core/templates";
 import { t } from "../i18n";
 import { useApp } from "../store";
 import { PlanePreview } from "./PlanePreview";
@@ -82,15 +83,27 @@ function PlaneCard({ plane, onDelete }: { plane: PlaneProject; onDelete: () => v
   );
 }
 
+const TEMPLATE_ICONS: Record<string, ReactNode> = {
+  trainer: <Plane size={18} />,
+  student: <GraduationCap size={18} />,
+  thermal: <Wind size={18} />,
+  delivery: <Package size={18} />,
+};
+
 function NewPlaneDialog({ onClose }: { onClose: () => void }) {
   const createPlane = useApp((s) => s.createPlane);
   const manifest = useApp((s) => s.manifest);
   const planes = useApp((s) => s.planes);
-  const [kind, setKind] = useState<"import" | "blank">(planes.length ? "blank" : "import");
+  const [kind, setKind] = useState<string>(planes.length ? "tpl:trainer" : "import");
   const [name, setName] = useState(planes.length ? "" : "Astro-Cargo");
   const valid = name.trim().length > 0 && !!manifest;
+  const create = () => {
+    if (!valid) return;
+    createPlane(kind, name.trim());
+    onClose();
+  };
   return (
-    <Modal onClose={onClose} width={640}>
+    <Modal onClose={onClose} width={760}>
       <h2>{t("Новый самолёт")}</h2>
       <p className="muted" style={{ marginTop: 0 }}>
         {t("Самолёт — это настройки платы, датчиков и тумблеров. Хранится в папке ангара, прошивается в плату.")}
@@ -103,17 +116,46 @@ function NewPlaneDialog({ onClose }: { onClose: () => void }) {
           value={name}
           placeholder={t("Например, Astro-Cargo #2")}
           onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && valid && (createPlane(kind, name.trim()), onClose())}
+          onKeyDown={(e) => e.key === "Enter" && create()}
         />
       </div>
+      <div className="section-title" style={{ marginBottom: 8 }}>
+        {t("С чего начать")}
+        <small>{t("шаблон только заполняет ответы — мастер всё равно проведёт по шагам")}</small>
+      </div>
       <div className="choices wide">
+        {TEMPLATES.map((tpl) => (
+          <Choice
+            key={tpl.id}
+            icon={TEMPLATE_ICONS[tpl.id]}
+            title={t(tpl.title)}
+            desc={
+              <>
+                {t(tpl.desc)}
+                <span className="tpl-for">{t(tpl.forWhom)}</span>
+              </>
+            }
+            selected={kind === `tpl:${tpl.id}`}
+            onClick={() => setKind(`tpl:${tpl.id}`)}
+          />
+        ))}
         <Choice
+          icon={<Triangle size={18} />}
+          title={t("Летающее крыло")}
+          desc={t("Элевоны вместо элеронов и руля высоты — скоро в прошивке.")}
+          disabled
+        />
+      </div>
+      <div className="choices wide" style={{ marginTop: 10 }}>
+        <Choice
+          icon={<FileCode size={18} />}
           title={t("Из прошивки как есть")}
           desc={t("Берёт всё из твоих Config.h, Controls.h и SensorSelection.h: плату, датчики, тумблеры, числа.")}
           selected={kind === "import"}
           onClick={() => setKind("import")}
         />
         <Choice
+          icon={<Plus size={18} />}
           title={t("С нуля")}
           desc={t("Плата по умолчанию, простые датчики, тумблер режимов MANUAL / STABILIZE / ALT_HOLD. Пройдёшь все шаги.")}
           selected={kind === "blank"}
@@ -127,14 +169,7 @@ function NewPlaneDialog({ onClose }: { onClose: () => void }) {
         <button className="btn ghost" onClick={onClose}>
           {t("Отмена")}
         </button>
-        <button
-          className="btn primary"
-          disabled={!valid}
-          onClick={() => {
-            createPlane(kind, name.trim());
-            onClose();
-          }}
-        >
+        <button className="btn primary" disabled={!valid} onClick={create}>
           {t("Создать")}
         </button>
       </div>

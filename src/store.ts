@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { api, AppInfo, CalibFlags, Device, errorText, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
 import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
 import { Manifest } from "./core/manifest";
+import { findTemplate, fromTemplate } from "./core/templates";
 import {
   blankProject,
   FULL_STEPS,
@@ -102,7 +103,8 @@ interface AppState {
   reloadManifest(): Promise<void>;
   current(): PlaneProject | null;
   selectPlane(id: string | null): void;
-  createPlane(kind: "import" | "blank", name: string): PlaneProject | null;
+  /** "import" — из прошивки как есть, "blank" — с нуля, "tpl:<id>" — по шаблону */
+  createPlane(kind: string, name: string): PlaneProject | null;
   duplicatePlane(id: string): void;
   removePlane(id: string): Promise<void>;
   updatePlane(update: (p: PlaneProject) => void): void;
@@ -302,7 +304,8 @@ export const useApp = create<AppState>((set, get) => ({
   createPlane(kind, name) {
     const manifest = get().manifest;
     if (!manifest) return null;
-    const plane = kind === "import" ? importFromFirmware(manifest, name) : blankProject(manifest, name);
+    const tpl = kind.startsWith("tpl:") ? findTemplate(kind.slice(4)) : undefined;
+    const plane = tpl ? fromTemplate(manifest, tpl, name) : kind === "import" ? importFromFirmware(manifest, name) : blankProject(manifest, name);
     set((s) => ({ planes: [plane, ...s.planes] }));
     void api.hangarSave(plane);
     get().selectPlane(plane.id);
