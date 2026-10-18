@@ -226,7 +226,9 @@ function SwitchCard({ ch, onPick }: { ch: ManifestChannel; onPick: (t: PickTarge
   const have = haveTokens(manifest, plane);
   const modeSwitchElsewhere = plane.bindings.find((b) => b.kind === "modes" && b.channel !== ch.name);
   const isKnob = ch.positions === "knob";
-  const live = useLive();
+  const frame = useLive();
+  // Нет кадров от приёмника — в каналах значения по умолчанию, а не положения пульта.
+  const live = frame && frame.rx === "ok" ? frame : null;
   const us = live ? live.ch[channelIndex(manifest, plane, ch.name)] : undefined;
   const flash = useFlip(us);
   const down = us !== undefined && us >= SWITCH_ON_US;
@@ -335,7 +337,9 @@ function SwitchCard({ ch, onPick }: { ch: ManifestChannel; onPick: (t: PickTarge
 export function Transmitter() {
   const manifest = useApp((s) => s.manifest)!;
   const plane = useApp((s) => s.current())!;
-  const live = useLive();
+  const frame = useLive();
+  // Нет кадров от приёмника — в каналах значения по умолчанию, а не положения пульта.
+  const live = frame && frame.rx === "ok" ? frame : null;
   const chUs = (name: string) => (live ? live.ch[channelIndex(manifest, plane, name)] : undefined);
   const [pick, setPick] = useState<PickTarget | null>(null);
   const channels = manifest.channels.list.filter((c) => !c.stick && c.name !== "ARM");

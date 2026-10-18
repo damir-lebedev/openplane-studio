@@ -18,7 +18,8 @@ export default defineConfig({
     chunkSizeWarningLimit: 2000,
   },
   test: {
-    include: ["src/**/*.test.ts"],
+    // .test.tsx — интерфейс на фейковой плате (окружение jsdom — в самом файле)
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     environment: "node",
   },
 });
