@@ -5,7 +5,8 @@ import { Binding } from "../../../core/manifest";
 import { availability, bindingItems, haveTokens, itemById, ItemKind, needText } from "../../../core/rules";
 import { t } from "../../../i18n";
 import { useApp } from "../../../store";
-import { Section, StepHead } from "../../ui";
+import { itemParams } from "../../../core/itemParams";
+import { Advanced, Section, StepHead } from "../../ui";
 import { ParamField } from "../ParamField";
 import { Transmitter } from "../Transmitter";
 
@@ -97,6 +98,34 @@ function Suggestions() {
   );
 }
 
+/** Числа режимов, функций и крутилок, что стоят на тумблерах, — по одному блоку на каждый. */
+function BoundNumbers() {
+  const manifest = useApp((s) => s.manifest)!;
+  const plane = useApp((s) => s.current())!;
+  const mode = useApp((s) => s.mode);
+  const seen = new Set<string>();
+  const items = plane.bindings
+    .flatMap((b) => bindingItems(b))
+    .filter(({ kind, id }) => {
+      const key = `${kind}:${id}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return itemParams(manifest, kind, id).length > 0;
+    });
+  if (!items.length) return null;
+  return (
+    <Advanced title={t("числа того, что на тумблерах: {list}", { list: items.map((x) => itemLabel(x.kind, x.id)).join(", ") })} defaultOpen={mode === "full"}>
+      {items.map(({ kind, id }) => (
+        <Section key={`${kind}:${id}`} title={itemLabel(kind, id)}>
+          {itemParams(manifest, kind, id).map((name) => (
+            <ParamField key={name} name={name} />
+          ))}
+        </Section>
+      ))}
+    </Advanced>
+  );
+}
+
 export function SwitchesStep() {
   const mode = useApp((s) => s.mode);
   return (
@@ -109,6 +138,7 @@ export function SwitchesStep() {
       <div style={{ marginTop: 22 }}>
         <Suggestions />
       </div>
+      <BoundNumbers />
       {mode === "simple" && (
         <p className="hint">
           {t("Пульт FlySky FS-i6, приёмник iBUS, раскладка каналов — как в Channels.h. Изменить — шаг «Пульт» полного режима.")}

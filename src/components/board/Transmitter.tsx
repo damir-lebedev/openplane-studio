@@ -14,7 +14,9 @@ import { availability, haveTokens, ItemKind, needText, tokenNames } from "../../
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { LiveStick, useLive } from "../live/LiveWidgets";
+import { itemParams } from "../../core/itemParams";
 import { Modal } from "../ui";
+import { ParamField } from "./ParamField";
 
 type Role = "none" | "modes" | "mode" | "feature" | "knob";
 
@@ -89,6 +91,7 @@ function Picker({ target, onClose }: { target: PickTarget; onClose: () => void }
   const setStep = useApp((s) => s.setStep);
   const have = haveTokens(manifest, plane);
   const items = listFor(manifest, target.kind);
+  const [numbersOf, setNumbersOf] = useState<string | null>(null);
   const title =
     target.kind === "mode" ? t("Режим для {ch}", { ch: channelTitle(target.channel) }) :
     target.kind === "feature" ? t("Функция для {ch}", { ch: channelTitle(target.channel) }) :
@@ -150,6 +153,25 @@ function Picker({ target, onClose }: { target: PickTarget; onClose: () => void }
                 {av.state === "degraded" && (
                   <div className="hint" style={{ color: "#9fd4ff" }}>
                     {t("Работает, но лучше с: {list}", { list: tokenNames(manifest, av.better) })}
+                  </div>
+                )}
+                {!disabled && itemParams(manifest, target.kind, item.id).length > 0 && (
+                  <button
+                    className="link"
+                    style={{ marginTop: 4 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setNumbersOf(numbersOf === item.id ? null : item.id);
+                    }}
+                  >
+                    {numbersOf === item.id ? t("Скрыть числа") : t("Числа ({n})", { n: itemParams(manifest, target.kind, item.id).length })}
+                  </button>
+                )}
+                {numbersOf === item.id && (
+                  <div className="pick-numbers" onClick={(e) => e.stopPropagation()}>
+                    {itemParams(manifest, target.kind, item.id).map((name) => (
+                      <ParamField key={name} name={name} />
+                    ))}
                   </div>
                 )}
               </div>

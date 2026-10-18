@@ -1,5 +1,7 @@
-import { Check } from "lucide-react";
-import { ReactNode, useEffect } from "react";
+import { Check, ChevronDown, ChevronRight } from "lucide-react";
+import { ReactNode, useEffect, useState } from "react";
+
+import { t } from "../i18n";
 
 export function Modal({
   children,
@@ -113,6 +115,21 @@ export function Section({ title, sub, children }: { title: ReactNode; sub?: Reac
         {sub && <small>{sub}</small>}
       </div>
       {children}
+    </div>
+  );
+}
+
+/** «Дополнительно: …» — свёрнутые настройки шага; в полном режиме раскрыты. */
+export function Advanced({ title, defaultOpen, children }: { title: string; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(!!defaultOpen);
+  return (
+    <div className={`advanced${open ? " open" : ""}`}>
+      <button className="advanced-head" onClick={() => setOpen(!open)} aria-expanded={open}>
+        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        <span>{t("Дополнительно")}</span>
+        <span className="advanced-title">{title}</span>
+      </button>
+      {open && <div className="advanced-body">{children}</div>}
     </div>
   );
 }

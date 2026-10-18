@@ -2,7 +2,7 @@ import { findBoard } from "../../../core/manifest";
 import { Airframe, setGear } from "../../../core/project";
 import { t } from "../../../i18n";
 import { useApp } from "../../../store";
-import { Choice, Section, StepHead, Toggle } from "../../ui";
+import { Advanced, Choice, Section, StepHead, Toggle } from "../../ui";
 import { ParamField } from "../ParamField";
 
 const REVERSE = [
@@ -108,17 +108,15 @@ export function AirframeStep() {
         ))}
       </Section>
 
-      {mode === "full" && (
-        <Section title={t("Ходы рулей")} sub={t("полный режим")}>
-          <ParamField name="AILERON_MAX_US" label={t("Ход элеронов")} />
-          <ParamField name="ELEVATOR_MAX_US" label={t("Ход руля высоты")} />
-          <ParamField name="RUDDER_MAX_US" label={t("Ход руля направления")} />
-          <ParamField name="FLAPS_DEPLOYED_US" label={t("Закрылки: отклонение")} />
-          <ParamField name="FLAPS_TRANSITION_MS" label={t("Закрылки: время выпуска")} />
-          <ParamField name="AIRBRAKE_US" label={t("Воздушный тормоз")} />
-          <ParamField name="REVERSE_THROTTLE_LIMIT_PCT" label={t("Предел газа назад")} />
-        </Section>
-      )}
+      <Advanced title={t("ходы рулей, закрылки, тормоз, газ назад")} defaultOpen={mode === "full"}>
+        <ParamField name="AILERON_MAX_US" label={t("Ход элеронов")} />
+        <ParamField name="ELEVATOR_MAX_US" label={t("Ход руля высоты")} />
+        <ParamField name="RUDDER_MAX_US" label={t("Ход руля направления")} />
+        <ParamField name="FLAPS_DEPLOYED_US" label={t("Закрылки: отклонение")} />
+        <ParamField name="FLAPS_TRANSITION_MS" label={t("Закрылки: время выпуска")} />
+        <ParamField name="AIRBRAKE_US" label={t("Воздушный тормоз")} />
+        <ParamField name="REVERSE_THROTTLE_LIMIT_PCT" label={t("Предел газа назад")} />
+      </Advanced>
     </>
   );
 }

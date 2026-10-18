@@ -25,3 +25,13 @@ describe("разумные пределы из @range прошивки", () => {
     expect(issues[0].text).toContain("обычно 15…120 м");
   });
 });
+
+describe("числа режима, функции, крутилки", () => {
+  it("по префиксам прошивки; неизвестное — пусто", async () => {
+    const { itemParams } = await import("./itemParams");
+    expect(itemParams(manifest, "mode", "MODE_CRUISE")).toContain("CRUISE_AIRSPEED_MS");
+    expect(itemParams(manifest, "mode", "MODE_LOITER")).toEqual(["LOITER_RADIUS_M", "LOITER_RADIUS_MIN_M", "LOITER_RADIUS_MAX_M", "LOITER_CONVERGENCE"]);
+    expect(itemParams(manifest, "knob", "MAX_BANK")).toEqual(["MAX_BANK_MIN_DEG", "MAX_BANK_MAX_DEG"]);
+    expect(itemParams(manifest, "mode", "MODE_MANUAL")).toEqual([]);
+  });
+});

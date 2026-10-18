@@ -2,7 +2,7 @@ import { itemLabel } from "../../../core/labels";
 import { isNone, SensorCategory, SENSOR_CATEGORIES } from "../../../core/manifest";
 import { t } from "../../../i18n";
 import { useApp } from "../../../store";
-import { Choice, Section, StepHead } from "../../ui";
+import { Advanced, Choice, Section, StepHead } from "../../ui";
 import { ParamField } from "../ParamField";
 
 const TITLES: Record<SensorCategory, { title: string; part: string; token: string; none?: string }> = {
@@ -101,15 +101,13 @@ export function SensorsStep() {
           </Section>
         );
       })}
-      {mode === "full" && (
-        <Section title={t("Установка и трубка Пито")} sub={t("полный режим")}>
-          <ParamField name="IMU_ROTATION_CW_DEG" label={t("Поворот IMU")} hint={t("Проще — калибровка установки тремя позами после прошивки (клавиша o в консоли).")} />
-          <ParamField name="MAG_ROTATION_CW_DEG" label={t("Поворот компаса")} />
-          <ParamField name="PITOT_SCALE" label={t("Поправка трубки Пито")} />
-          <ParamField name="PITOT_ZERO_SAMPLES" label={t("Отсчётов для нуля трубки")} />
-          <ParamField name="PITOT_FILTER_TAU_S" label={t("Фильтр трубки")} />
-        </Section>
-      )}
+      <Advanced title={t("установка IMU и компаса, трубка Пито")} defaultOpen={mode === "full"}>
+        <ParamField name="IMU_ROTATION_CW_DEG" label={t("Поворот IMU")} hint={t("Проще — калибровка установки тремя позами после прошивки («Наладка» → «Установка IMU»).")} />
+        <ParamField name="MAG_ROTATION_CW_DEG" label={t("Поворот компаса")} />
+        <ParamField name="PITOT_SCALE" label={t("Поправка трубки Пито")} />
+        <ParamField name="PITOT_ZERO_SAMPLES" label={t("Отсчётов для нуля трубки")} />
+        <ParamField name="PITOT_FILTER_TAU_S" label={t("Фильтр трубки")} />
+      </Advanced>
     </>
   );
 }
