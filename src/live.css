@@ -691,3 +691,12 @@ button.pill.active {
   font-size: 11.5px;
   color: var(--accent);
 }
+
+/* ---------- разумные пределы параметров ---------- */
+.hint.range {
+  white-space: nowrap;
+}
+.hint.range.out {
+  color: #f0c967;
+  font-weight: 600;
+}

@@ -1,7 +1,7 @@
 import { RotateCcw } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { formatValue, paramState, parseInput, setParamValue } from "../../core/params";
+import { formatValue, outOfRange, paramState, parseInput, rangeText, setParamValue } from "../../core/params";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Toggle } from "../ui";
@@ -103,6 +103,14 @@ export function ParamEditor({ name }: { name: string }) {
           />
           {p.unit && <span className="hint">{p.unit}</span>}
           {error && <span className="hint" style={{ color: "#ff8f88" }}>{error}</span>}
+          {!error && p.range && (
+            <span
+              className={`hint range${outOfRange(p, st.value) ? " out" : ""}`}
+              title={outOfRange(p, st.value) ? t("За разумными пределами — прошивка соберётся, но проверьте, что так и задумано") : t("Разумные пределы из прошивки")}
+            >
+              {outOfRange(p, st.value) ? t("обычно {r}!", { r: rangeText(p, false) ?? "" }) : t("обычно {r}", { r: rangeText(p, false) ?? "" })}
+            </span>
+          )}
         </div>
       );
     default:

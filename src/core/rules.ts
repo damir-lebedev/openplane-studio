@@ -4,6 +4,7 @@
 
 import { channelClashes } from "./channels";
 import { Binding, findBoard, isNone, Manifest, ManifestItem } from "./manifest";
+import { formatValue, outOfRange, rangeText } from "./params";
 import { effectiveParam, PlaneProject, StepId } from "./project";
 
 export type Have = Record<string, boolean>;
@@ -179,6 +180,9 @@ export function validate(manifest: Manifest, project: PlaneProject): Issue[] {
     const p = manifest.params.find((x) => x.name === name && x.board === null);
     if (!p) add("error", "system", `Параметра ${name} нет в этой версии прошивки`, name);
     else if (p.fixed) add("error", "system", `${name} — параметр протокола, его менять нельзя`, name);
+    else if (outOfRange(p, project.params[name])) {
+      add("warning", "system", `${name} = ${formatValue(project.params[name])}${p.unit ? ` ${p.unit}` : ""} — обычно ${rangeText(p)}: так и задумано?`, name);
+    }
   }
   return issues;
 }

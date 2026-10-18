@@ -83,6 +83,19 @@ export function parseInput(param: ManifestParam, text: string): { ok: true; valu
   }
 }
 
+/** «обычно 15…120 м» — разумные пределы из метки @range прошивки. */
+export function rangeText(param: ManifestParam, withUnit = true): string | null {
+  if (!param.range) return null;
+  const [lo, hi] = param.range;
+  return `${formatValue(lo)}…${formatValue(hi)}${withUnit && param.unit ? ` ${param.unit}` : ""}`;
+}
+
+/** Значение за разумными пределами — не ошибка (прошивка соберётся), но повод проверить. */
+export function outOfRange(param: ManifestParam, value: unknown): boolean {
+  if (!param.range || typeof value !== "number") return false;
+  return value < param.range[0] || value > param.range[1];
+}
+
 export function formatValue(value: unknown): string {
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : String(+value.toPrecision(6));
   if (typeof value === "boolean") return value ? "да" : "нет";
