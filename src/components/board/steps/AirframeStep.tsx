@@ -56,8 +56,8 @@ export function AirframeStep() {
           <Choice title={t("Три и больше")} desc={t("скоро в прошивке")} disabled />
         </div>
         <div className="choices" style={{ marginTop: 10 }} {...hover(["motor"])}>
-          <Choice title={t("Тянущий")} desc={t("винт впереди")} selected={a.motorPosition === "tractor"} onClick={() => set("motorPosition", "tractor")} />
-          <Choice title={t("Толкающий")} desc={t("винт сзади")} selected={a.motorPosition === "pusher"} onClick={() => set("motorPosition", "pusher")} />
+          <Choice title={t("Тянущий")} desc={t("винт впереди")} selected={a.motorPosition === "tractor"} onClick={() => set("motorPosition", "tractor")} onHover={(on) => setFocus(on ? ["motor-tractor"] : [])} />
+          <Choice title={t("Толкающий")} desc={t("винт сзади")} selected={a.motorPosition === "pusher"} onClick={() => set("motorPosition", "pusher")} onHover={(on) => setFocus(on ? ["motor-pusher"] : [])} />
         </div>
       </Section>
 
@@ -87,8 +87,8 @@ export function AirframeStep() {
 
       <Section title={t("Шасси")}>
         <div className="choices" {...hover(["gear"])}>
-          <Choice title={t("Хвостовое колесо")} desc={t("Два спереди, рулевое сзади — как у Astro-Cargo")} selected={a.gear === "tail"} onClick={() => gear("tail")} />
-          <Choice title={t("Носовое колесо")} desc={t("Трёхколёсное, стоит почти ровно")} selected={a.gear === "nose"} onClick={() => gear("nose")} />
+          <Choice title={t("Хвостовое колесо")} desc={t("Два спереди, рулевое сзади — как у Astro-Cargo")} selected={a.gear === "tail"} onClick={() => gear("tail")} onHover={(on) => setFocus(on ? ["gear-tail"] : [])} />
+          <Choice title={t("Носовое колесо")} desc={t("Трёхколёсное, стоит почти ровно")} selected={a.gear === "nose"} onClick={() => gear("nose")} onHover={(on) => setFocus(on ? ["gear-nose"] : [])} />
           <Choice title={t("Без шасси")} desc={t("Запуск с руки: есть автовзлёт с руки — мотор сам включается после броска")} selected={a.gear === "none"} onClick={() => gear("none")} />
         </div>
       </Section>

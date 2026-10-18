@@ -11,6 +11,7 @@ import { effectiveParam } from "../../../core/project";
 import { t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Horizon, useLive } from "../../live/LiveWidgets";
+import { PlaneView } from "../../PlaneView";
 import { PoseArt } from "./common";
 
 function ProcResult({ kind }: { kind: ProcKind }) {
@@ -44,6 +45,7 @@ function useStart(kind: ProcKind) {
 }
 
 export function MountCheck() {
+  const plane = useApp((s) => s.current())!;
   const proc = useApp((s) => s.proc);
   const live = useLive();
   const { start, running, disabled, why } = useStart("mount");
@@ -78,6 +80,9 @@ export function MountCheck() {
       </div>
       {live?.mount && !running && (
         <div className="row horizon-check">
+          <div className="mount-3d">
+            <PlaneView plane={plane} focus={[]} />
+          </div>
           <Horizon roll={live.att?.[0]} pitch={live.att?.[1]} size={130} />
           <div className="hint">
             {t("Проверка: нос вверх — горизонт уходит вниз, правое крыло вниз — горизонт наклоняется влево.")}

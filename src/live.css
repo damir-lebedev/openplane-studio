@@ -737,3 +737,61 @@ button.pill.active {
   margin-top: 8px;
   cursor: default;
 }
+
+/* ---------- 3D: подпись детали ---------- */
+.plane3d-label {
+  width: max-content;
+  max-width: 230px;
+  white-space: normal;
+  line-height: 1.35;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(10, 16, 23, 0.86);
+  border: 1px solid var(--accent-line);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+  transform: translateY(-18px);
+}
+
+.plane3d {
+  height: 290px;
+  margin: -8px;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: grab;
+}
+.plane3d:active {
+  cursor: grabbing;
+}
+
+.plane3d {
+  position: relative;
+}
+.plane3d-caption {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  background: rgba(10, 16, 23, 0.82);
+  border: 1px solid var(--accent-line);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.35;
+  pointer-events: none;
+  animation: fade 0.2s ease-out;
+}
+
+.mount-3d {
+  width: 300px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: radial-gradient(420px 260px at 50% 30%, #13283c, #0b131b 75%);
+  padding: 8px;
+}
+.mount-3d .plane3d {
+  height: 200px;
+}

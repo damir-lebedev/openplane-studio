@@ -9,7 +9,7 @@ import { availability, countIssues, haveTokens, Issue, tokenNames, validate } fr
 import { runFlash } from "../../flash";
 import { plural, t } from "../../i18n";
 import { stepsFor, useApp } from "../../store";
-import { PlanePreview } from "../PlanePreview";
+import { PlaneView } from "../PlaneView";
 import { Modal, Seg } from "../ui";
 import { FlashDialog } from "./FlashDialog";
 import { HistoryDialog } from "./HistoryDialog";
@@ -36,7 +36,6 @@ const STEP_TITLES: Record<StepId, string> = {
 
 const DEFAULT_FOCUS: Partial<Record<StepId, string[]>> = {
   board: ["board"],
-  airframe: ["motor", "gear", "ailerons"],
   safety: ["gps"],
 };
 
@@ -88,7 +87,7 @@ function SidePanel() {
   return (
     <aside className="side">
       <div className="preview">
-        <PlanePreview plane={plane} focus={parts} />
+        <PlaneView plane={plane} focus={parts} />
       </div>
       {step === "board" && board && (
         <div className="side-block">
