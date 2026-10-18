@@ -145,6 +145,27 @@ export function blankProject(manifest: Manifest, name: string): PlaneProject {
   return p;
 }
 
+/**
+ * Шасси. Без шасси взлёт с полосы невозможен — его место на тумблере
+ * занимает автовзлёт с руки (MODE_LAUNCH). Возвращает, что заменено, или null.
+ */
+export function setGear(project: PlaneProject, gear: Airframe["gear"]): string | null {
+  project.airframe.gear = gear;
+  if (gear !== "none") return null;
+  let swapped = false;
+  const swap = (m: string) => {
+    if (m !== "MODE_AUTO_TAKEOFF") return m;
+    swapped = true;
+    return "MODE_LAUNCH";
+  };
+  project.bindings = project.bindings.map((b) => {
+    if (b.kind === "modes") return { ...b, modes: b.modes.map(swap) };
+    if (b.kind === "mode") return { ...b, mode: swap(b.mode) };
+    return b;
+  });
+  return swapped ? "Без шасси автовзлёт с полосы заменён на автовзлёт с руки" : null;
+}
+
 /** Значение параметра для этой конфигурации: правка самолёта или значение прошивки. */
 export function effectiveParam(manifest: Manifest, project: PlaneProject, name: string): unknown {
   const board = findBoard(manifest, project.board);

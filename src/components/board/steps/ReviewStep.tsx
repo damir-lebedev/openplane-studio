@@ -44,7 +44,7 @@ export function flashBlocker(): string | null {
   const s = useApp.getState();
   const plane = s.current();
   if (!s.manifest || !plane) return t("Нет описания прошивки");
-  if (!s.info?.pio) return t("Не найден PlatformIO — установите его");
+  if (!s.info?.pio) return t("Не найден PlatformIO — поставьте его в «Настройках» одной кнопкой");
   const errors = validate(s.manifest, plane).filter((i) => i.level === "error").length;
   if (errors) return t("Исправьте {n} {w}", { n: errors, w: plural(errors, "ошибку", "ошибки", "ошибок") });
   return null;

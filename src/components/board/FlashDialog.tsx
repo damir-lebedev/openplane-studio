@@ -41,13 +41,12 @@ function BootloaderHelp() {
 function DriverHelp() {
   return (
     <div className="card" style={{ marginTop: 12 }}>
-      <h3>{t("Как поставить драйвер (один раз)")}</h3>
-      <ol style={{ margin: "8px 0 0", paddingLeft: 20, lineHeight: 1.7 }}>
-        <li>{t("Плата в режиме прошивки: в «Диспетчере устройств» — «STM32 BOOTLOADER».")}</li>
-        <li>{t("Запустите Zadig (у вас он в ~/tools/zadig.exe), Options → List All Devices.")}</li>
-        <li>{t("Выберите «STM32 BOOTLOADER», драйвер WinUSB → Install Driver.")}</li>
-        <li>{t("Нажмите «Повторить». Установка в один клик прямо из приложения — следующим шагом.")}</li>
-      </ol>
+      <h3>{t("Драйвер нужен один раз на этот компьютер")}</h3>
+      <p className="sub">
+        {t(
+          "Windows видит плату в режиме прошивки, но без драйвера WinUSB прошивальщик не может с ней говорить. Кнопка «Установить драйвер» поставит его сама — как Zadig, только без настроек. Windows спросит разрешение (окно с щитом) — нажмите «Да».",
+        )}
+      </p>
     </div>
   );
 }
@@ -66,6 +65,18 @@ export function FlashDialog() {
   }, [flash.log.length, showLog]);
 
   const retry = () => void runFlash(flash.planeId);
+  const installDriver = async () => {
+    setBusy(true);
+    try {
+      const r = await api.dfuDriverInstall();
+      toast(r.ok ? "ok" : "err", t(r.message));
+      if (r.ok) retry();
+    } catch (e) {
+      toast("err", errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
   const killAndRetry = async () => {
     setBusy(true);
     try {
@@ -162,8 +173,13 @@ export function FlashDialog() {
             {t("Закрыть монитор и продолжить")}
           </button>
         )}
+        {flash.error?.action === "driver" && (
+          <button className="btn primary" disabled={busy} onClick={() => void installDriver()}>
+            {busy ? t("Ставлю драйвер…") : t("Установить драйвер")}
+          </button>
+        )}
         {flash.error && flash.error.action !== "kill-monitor" && (
-          <button className="btn primary" onClick={retry}>
+          <button className={flash.error.action === "driver" ? "btn" : "btn primary"} disabled={busy} onClick={retry}>
             {t("Повторить")}
           </button>
         )}

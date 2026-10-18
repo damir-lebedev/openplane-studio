@@ -73,6 +73,7 @@ interface AppState {
   init(): Promise<void>;
   setSection(section: Section): void;
   saveSettings(patch: Partial<Settings>): Promise<void>;
+  refreshInfo(): Promise<void>;
   reloadManifest(): Promise<void>;
   current(): PlaneProject | null;
   selectPlane(id: string | null): void;
@@ -163,6 +164,14 @@ export const useApp = create<AppState>((set, get) => ({
     set({ settings });
     await api.settingsSave(settings);
     if ("firmwareSource" in patch) await get().reloadManifest();
+  },
+
+  async refreshInfo() {
+    try {
+      set({ info: await api.appInfo() });
+    } catch {
+      /* останется прежнее */
+    }
   },
 
   async reloadManifest() {

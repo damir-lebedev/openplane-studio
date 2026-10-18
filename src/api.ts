@@ -102,6 +102,8 @@ export const api = {
   portHolders: () => invoke<PortHolder[]>("port_holders"),
   portHoldersKill: (pids: number[]) => invoke<number>("port_holders_kill", { pids }),
   dfuDriverStatus: () => invoke<DriverStatus>("dfu_driver_status"),
+  dfuDriverInstall: () => invoke<{ ok: boolean; code: number; message: string }>("dfu_driver_install"),
+  platformioInstall: () => invoke<string>("platformio_install"),
 };
 
 export function onTaskLog(handler: (line: LogLine) => void): Promise<UnlistenFn> {

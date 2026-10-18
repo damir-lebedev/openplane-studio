@@ -1,10 +1,116 @@
-import { RefreshCw } from "lucide-react";
-import { useState } from "react";
+import { Download, RefreshCw } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import { api, errorText } from "../api";
+import { api, DriverStatus, errorText, onTaskLog } from "../api";
 import { t } from "../i18n";
 import { useApp } from "../store";
 import { Section } from "./ui";
+
+function PlatformioCard() {
+  const info = useApp((s) => s.info);
+  const refreshInfo = useApp((s) => s.refreshInfo);
+  const toast = useApp((s) => s.toast);
+  const [installing, setInstalling] = useState(false);
+  const [line, setLine] = useState("");
+
+  const install = async () => {
+    setInstalling(true);
+    setLine(t("Готовлю установку…"));
+    const unlisten = await onTaskLog((l) => l.task === "pio-install" && setLine(l.line));
+    try {
+      await api.platformioInstall();
+      toast("ok", t("PlatformIO установлен. Первая сборка докачает компилятор — это несколько минут."));
+      await refreshInfo();
+    } catch (e) {
+      toast("err", errorText(e));
+    } finally {
+      unlisten();
+      setInstalling(false);
+    }
+  };
+
+  if (info?.pio) {
+    return (
+      <div className="kv">
+        <span>PlatformIO</span>
+        <span className="mono">{info.pio}</span>
+        <span>Python</span>
+        <span className="mono">{info.python ?? t("не найден")}</span>
+      </div>
+    );
+  }
+  return (
+    <div>
+      <div className="row">
+        <div className="grow">
+          <div style={{ fontWeight: 600 }}>{t("PlatformIO не найден")}</div>
+          <div className="hint">
+            {t("Им приложение собирает прошивку. Поставит сам: официальный установщик, а если нет Python — сначала Python. Нужен интернет, ~5 минут.")}
+          </div>
+        </div>
+        <button className="btn primary" disabled={installing} onClick={() => void install()}>
+          <Download size={15} className={installing ? "spin" : undefined} />
+          {installing ? t("Ставлю…") : t("Установить PlatformIO")}
+        </button>
+      </div>
+      {installing && (
+        <div className="log mono" style={{ maxHeight: 60 }}>
+          {line}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DriverCard() {
+  const devices = useApp((s) => s.devices);
+  const toast = useApp((s) => s.toast);
+  const [status, setStatus] = useState<DriverStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const dfuPresent = devices.some((d) => d.kind === "stm32-dfu");
+
+  useEffect(() => {
+    if (!dfuPresent) {
+      setStatus(null);
+      return;
+    }
+    void api.dfuDriverStatus().then(setStatus).catch(() => setStatus(null));
+  }, [dfuPresent]);
+
+  const install = async () => {
+    setBusy(true);
+    try {
+      const r = await api.dfuDriverInstall();
+      toast(r.ok ? "ok" : "err", t(r.message));
+      setStatus(await api.dfuDriverStatus());
+    } catch (e) {
+      toast("err", errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="row">
+      <div className="grow">
+        <div style={{ fontWeight: 600 }}>{t("Драйвер режима прошивки STM32")}</div>
+        <div className="hint">
+          {!dfuPresent
+            ? t("Нужен один раз на компьютер. Проверить можно, когда плата в режиме прошивки — приложение само предложит его поставить при прошивке.")
+            : status?.ok
+              ? t("Установлен — плата в режиме прошивки видна прошивальщику.")
+              : t("Плата в режиме прошивки видна Windows, но драйвера нет — без него не прошить.")}
+        </div>
+      </div>
+      {dfuPresent && status && !status.ok && (
+        <button className="btn primary" disabled={busy} onClick={() => void install()}>
+          {busy ? t("Ставлю…") : t("Установить драйвер")}
+        </button>
+      )}
+      {dfuPresent && status?.ok && <span className="badge ok">{t("установлен")}</span>}
+    </div>
+  );
+}
 
 export function Settings() {
   const info = useApp((s) => s.info);
@@ -45,7 +151,11 @@ export function Settings() {
         <div className="card">
           <div className="row">
             <input className="input grow mono" value={source} onChange={(e) => setSource(e.target.value)} />
-            <button className="btn" disabled={!source.trim() || source === settings.firmwareSource} onClick={() => void saveSettings({ firmwareSource: source.trim() })}>
+            <button
+              className="btn"
+              disabled={!source.trim() || source === settings.firmwareSource}
+              onClick={() => void saveSettings({ firmwareSource: source.trim() })}
+            >
               {t("Сохранить")}
             </button>
             <button className="btn ghost" onClick={() => void reloadManifest()} title={t("Перечитать описание прошивки")}>
@@ -82,22 +192,23 @@ export function Settings() {
             )}
           </div>
           <p className="hint">
-            {t(
-              "Приложение не меняет файлы в этой папке: для сборки оно копирует исходники в свою папку и записывает конфигурацию туда.",
-            )}
+            {t("Приложение не меняет файлы в этой папке: для сборки оно копирует исходники в свою папку и записывает конфигурацию туда.")}
           </p>
         </div>
       </Section>
 
-      <Section title={t("Инструменты")}>
+      <Section title={t("Сборка и прошивка")}>
+        <div className="card" style={{ display: "grid", gap: 16 }}>
+          <PlatformioCard />
+          <DriverCard />
+        </div>
+      </Section>
+
+      <Section title={t("Папки")}>
         <div className="card kv">
-          <span>PlatformIO</span>
-          <span className="mono">{info?.pio ?? t("не найден — установите PlatformIO")}</span>
-          <span>Python</span>
-          <span className="mono">{info?.python ?? t("не найден")}</span>
-          <span>{t("Папка ангара")}</span>
+          <span>{t("Ангар")}</span>
           <span className="mono">{info?.hangar_dir}</span>
-          <span>{t("Папка сборок")}</span>
+          <span>{t("Сборки")}</span>
           <span className="mono">{info?.cache_dir}</span>
           <span>{t("Версия")}</span>
           <span>OpenPlane Studio {info?.version}</span>

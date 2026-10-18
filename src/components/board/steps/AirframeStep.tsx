@@ -1,5 +1,5 @@
 import { findBoard } from "../../../core/manifest";
-import { Airframe } from "../../../core/project";
+import { Airframe, setGear } from "../../../core/project";
 import { t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Choice, Section, StepHead, Toggle } from "../../ui";
@@ -24,7 +24,13 @@ export function AirframeStep() {
   const mode = useApp((s) => s.mode);
   const board = findBoard(manifest, plane.board);
   const a = plane.airframe;
+  const toast = useApp((s) => s.toast);
   const set = <K extends keyof Airframe>(key: K, value: Airframe[K]) => updatePlane((p) => (p.airframe[key] = value));
+  const gear = (value: Airframe["gear"]) => {
+    let note: string | null = null;
+    updatePlane((p) => (note = setGear(p, value)));
+    if (note) toast("info", t(note));
+  };
   const hover = (parts: string[]) => ({ onMouseEnter: () => setFocus(parts), onMouseLeave: () => setFocus([]) });
 
   const extra = (key: "payload" | "camera" | "buzzer" | "rudder", title: string, desc: string, available: boolean, part: string) => (
@@ -81,9 +87,9 @@ export function AirframeStep() {
 
       <Section title={t("Шасси")}>
         <div className="choices" {...hover(["gear"])}>
-          <Choice title={t("Хвостовое колесо")} desc={t("Два спереди, рулевое сзади — как у Astro-Cargo")} selected={a.gear === "tail"} onClick={() => set("gear", "tail")} />
-          <Choice title={t("Носовое колесо")} desc={t("Трёхколёсное, стоит почти ровно")} selected={a.gear === "nose"} onClick={() => set("gear", "nose")} />
-          <Choice title={t("Без шасси")} desc={t("Запуск с руки — без автовзлёта с полосы")} selected={a.gear === "none"} onClick={() => set("gear", "none")} />
+          <Choice title={t("Хвостовое колесо")} desc={t("Два спереди, рулевое сзади — как у Astro-Cargo")} selected={a.gear === "tail"} onClick={() => gear("tail")} />
+          <Choice title={t("Носовое колесо")} desc={t("Трёхколёсное, стоит почти ровно")} selected={a.gear === "nose"} onClick={() => gear("nose")} />
+          <Choice title={t("Без шасси")} desc={t("Запуск с руки: есть автовзлёт с руки — мотор сам включается после броска")} selected={a.gear === "none"} onClick={() => gear("none")} />
         </div>
       </Section>
 

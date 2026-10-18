@@ -154,6 +154,16 @@ async fn dfu_driver_status() -> Res<system::DriverStatus> {
     blocking(system::dfu_driver).await
 }
 
+#[tauri::command]
+async fn dfu_driver_install(app: AppHandle) -> Res<system::DriverInstall> {
+    blocking(move || system::install_dfu_driver(&app)).await
+}
+
+#[tauri::command]
+async fn platformio_install(app: AppHandle) -> Res<String> {
+    blocking(move || system::install_platformio(&app)).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -178,6 +188,8 @@ pub fn run() {
             port_holders,
             port_holders_kill,
             dfu_driver_status,
+            dfu_driver_install,
+            platformio_install,
         ])
         .run(tauri::generate_context!())
         .expect("OpenPlane Studio не запустился");

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import manifestJson from "./__fixtures__/manifest.json";
 import { Manifest } from "./manifest";
-import { blankProject, configHash, effectiveParam, importFromFirmware, PlaneProject, toFirmwareConfig } from "./project";
+import { blankProject, configHash, effectiveParam, importFromFirmware, PlaneProject, setGear, toFirmwareConfig } from "./project";
 import { availability, haveTokens, itemById, needText, validate } from "./rules";
 
 // Описание прошивки из репозитория plane: npm run fixture.
@@ -43,10 +43,21 @@ describe("что чему нужно", () => {
     expect(av.better).toEqual(expect.arrayContaining(["gps", "mag"]));
   });
 
-  it("автовзлёт с полосы — только с шасси", () => {
+  it("автовзлёт с полосы — только с шасси, автовзлёт с руки — и без него", () => {
     const p = plane((p) => (p.airframe.gear = "none"));
     const av = availability(itemById(manifest, "mode", "MODE_AUTO_TAKEOFF")!, haveTokens(manifest, p));
     expect(av.missing).toContain("wheels");
+    expect(availability(itemById(manifest, "mode", "MODE_LAUNCH")!, haveTokens(manifest, p)).state).not.toBe("unavailable");
+  });
+
+  it("без шасси автовзлёт с полосы на тумблере сам меняется на автовзлёт с руки", () => {
+    const p = plane();
+    expect(p.bindings.some((b) => b.kind === "modes" && b.modes.includes("MODE_AUTO_TAKEOFF"))).toBe(true);
+    expect(setGear(p, "none")).toContain("автовзлёт с руки");
+    const modes = p.bindings.find((b) => b.kind === "modes");
+    expect(modes && modes.kind === "modes" && modes.modes).toContain("MODE_LAUNCH");
+    expect(errors(p)).toEqual([]);
+    expect(setGear(p, "tail")).toBeNull(); // с колёсами взлёт с руки тоже работает — не трогаем
   });
 });
 
