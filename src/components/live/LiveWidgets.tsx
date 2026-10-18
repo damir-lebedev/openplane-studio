@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { LiveFrame } from "../../api";
 import { isFresh, switchPosition } from "../../core/live";
+import { t } from "../../i18n";
 import { useApp } from "../../store";
 
 /** Живой кадр или null, если плата молчит дольше 1,5 с (перерисовка раз в 0,5 с). */
@@ -95,7 +96,7 @@ export function Horizon({ roll, pitch, size = 150 }: { roll?: number; pitch?: nu
   const p = has ? Math.max(-45, Math.min(45, pitch!)) : 0;
   const shift = p * 1.6; // px на градус при viewBox 200
   return (
-    <svg className="horizon" width={size} height={size} viewBox="-100 -100 200 200" aria-label="Авиагоризонт">
+    <svg className="horizon" width={size} height={size} viewBox="-100 -100 200 200" aria-label={t("Авиагоризонт")}>
       <defs>
         <clipPath id="hz-clip">
           <circle r="96" />
@@ -126,7 +127,7 @@ export function Horizon({ roll, pitch, size = 150 }: { roll?: number; pitch?: nu
 /** Значок состояния датчика из живого кадра. */
 export function SensorChip({ name, state, value }: { name: string; state: string | undefined; value?: string }) {
   const cls = state === "ok" ? "ok" : state === "none" ? "" : state === "check" ? "warn" : state ? "err" : "";
-  const text = state === "ok" ? value ?? "ок" : state === "none" ? "нет" : state === "check" ? "проверка" : state === "noresp" ? "молчит" : "—";
+  const text = state === "ok" ? value ?? t("ок") : state === "none" ? t("нет") : state === "check" ? t("проверка") : state === "noresp" ? t("молчит") : "—";
   return (
     <span className={`badge ${cls}`} title={state ?? ""}>
       {name}: {text}

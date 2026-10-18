@@ -1,52 +1,53 @@
 // Короткие русские имена режимов, функций и крутилок для карточек. Новый
 // режим в прошивке без имени здесь покажется как есть (имя из прошивки).
 
+import { N_, t } from "../i18n";
 import { Binding, Manifest } from "./manifest";
 import { ItemKind, itemById } from "./rules";
 
 const MODES: Record<string, string> = {
-  MODE_MANUAL: "Ручной",
-  MODE_STABILIZE: "Стабилизация",
-  MODE_AUTO_TAKEOFF: "Автовзлёт с полосы",
-  MODE_ALT_HOLD: "Удержание высоты",
-  MODE_ACRO: "Акро",
-  MODE_CRUISE: "Круиз",
-  MODE_LOITER: "Круги",
-  MODE_RTH: "Домой",
-  MODE_LAUNCH: "Автовзлёт с руки",
-  MODE_AUTO_LAND: "Автопосадка",
-  MODE_SOARING: "Парение",
-  MODE_RESCUE: "Спасите",
+  MODE_MANUAL: N_("Ручной"),
+  MODE_STABILIZE: N_("Стабилизация"),
+  MODE_AUTO_TAKEOFF: N_("Автовзлёт с полосы"),
+  MODE_ALT_HOLD: N_("Удержание высоты"),
+  MODE_ACRO: N_("Акро"),
+  MODE_CRUISE: N_("Круиз"),
+  MODE_LOITER: N_("Круги"),
+  MODE_RTH: N_("Домой"),
+  MODE_LAUNCH: N_("Автовзлёт с руки"),
+  MODE_AUTO_LAND: N_("Автопосадка"),
+  MODE_SOARING: N_("Парение"),
+  MODE_RESCUE: N_("Спасите"),
 };
 
 const FEATURES: Record<string, string> = {
-  FLAPS: "Закрылки",
-  AIRBRAKE: "Воздушный тормоз",
-  AUTO_TRIM: "Автотриммер",
-  TURN_COORDINATION: "Координация разворота",
-  MOTOR_KILL: "Мотор выключен",
-  BEEPER: "Пищалка «я здесь»",
-  PAYLOAD_DROP: "Сброс груза",
-  GEOFENCE: "Геозабор",
-  HOME_RESET: "Дом здесь",
-  CAMERA_STAB: "Стабилизация камеры",
-  MOTOR_REVERSE: "Реверс мотора",
+  FLAPS: N_("Закрылки"),
+  AIRBRAKE: N_("Воздушный тормоз"),
+  AUTO_TRIM: N_("Автотриммер"),
+  TURN_COORDINATION: N_("Координация разворота"),
+  MOTOR_KILL: N_("Мотор выключен"),
+  BEEPER: N_("Пищалка «я здесь»"),
+  PAYLOAD_DROP: N_("Сброс груза"),
+  GEOFENCE: N_("Геозабор"),
+  HOME_RESET: N_("Дом здесь"),
+  CAMERA_STAB: N_("Стабилизация камеры"),
+  MOTOR_REVERSE: N_("Реверс мотора"),
 };
 
 const KNOBS: Record<string, string> = {
-  STAB_GAIN: "Сила стабилизации",
-  MAX_BANK: "Предельный крен",
-  CRUISE_SPEED: "Скорость круиза",
-  FLAPS: "Закрылки плавно",
-  CAMERA_TILT: "Наклон камеры",
-  RATES: "Чувствительность стиков",
-  LOITER_RADIUS: "Радиус кругов",
-  THROTTLE_LIMIT: "Предел газа",
+  STAB_GAIN: N_("Сила стабилизации"),
+  MAX_BANK: N_("Предельный крен"),
+  CRUISE_SPEED: N_("Скорость круиза"),
+  FLAPS: N_("Закрылки плавно"),
+  CAMERA_TILT: N_("Наклон камеры"),
+  RATES: N_("Чувствительность стиков"),
+  LOITER_RADIUS: N_("Радиус кругов"),
+  THROTTLE_LIMIT: N_("Предел газа"),
 };
 
 export function itemLabel(kind: ItemKind, id: string): string {
   const map = kind === "mode" ? MODES : kind === "feature" ? FEATURES : KNOBS;
-  return map[id] ?? id.replace(/^MODE_/, "");
+  return map[id] ? t(map[id]) : id.replace(/^MODE_/, "");
 }
 
 /** «Домой (RTH)». */
@@ -61,13 +62,13 @@ export function bindingText(_manifest: Manifest, b: Binding): string {
   const ch = b.channel.replace(/^SW/, "Sw").replace(/^VR/, "Vr");
   switch (b.kind) {
     case "modes": {
-      const pos = b.modes.length === 3 ? ["вверх", "середина", "вниз"] : ["вверх", "вниз"];
+      const pos = b.modes.length === 3 ? [t("вверх"), t("середина"), t("вниз")] : [t("вверх"), t("вниз")];
       return `${ch}: ${b.modes.map((m, i) => `${pos[i]} — ${itemLabel("mode", m)}`).join(", ")}`;
     }
     case "mode":
-      return `${ch} вниз: ${itemLabel("mode", b.mode)} поверх любого режима`;
+      return t("{ch} вниз: {m} поверх любого режима", { ch, m: itemLabel("mode", b.mode) });
     case "feature":
-      return `${ch} вниз: ${itemLabel("feature", b.feature)}`;
+      return t("{ch} вниз: {f}", { ch, f: itemLabel("feature", b.feature) });
     case "knob":
       return `${ch}: ${itemLabel("knob", b.knob).toLowerCase()}`;
   }

@@ -4,6 +4,7 @@
 // GPIO почти любой пин умеет всё, но есть пины флеша, входы-только,
 // strapping и АЦП2, который не работает при включённом Wi-Fi.
 
+import { N_, t } from "../i18n";
 import { findBoard, Manifest } from "./manifest";
 import { effectiveParam, PlaneProject } from "./project";
 import devebox from "./pins/stm32h743-devebox.json";
@@ -12,16 +13,16 @@ import weact from "./pins/stm32h743.json";
 export type PinRole = "pwm" | "uart_rx" | "uart_tx" | "i2c_sda" | "i2c_scl" | "spi_sck" | "spi_miso" | "spi_mosi" | "adc" | "gpio";
 
 const ROLE_TEXT: Record<PinRole, string> = {
-  pwm: "ШИМ (серво, ESC)",
-  uart_rx: "UART RX",
-  uart_tx: "UART TX",
-  i2c_sda: "I2C SDA",
-  i2c_scl: "I2C SCL",
-  spi_sck: "SPI SCK",
-  spi_miso: "SPI MISO",
-  spi_mosi: "SPI MOSI",
-  adc: "АЦП",
-  gpio: "цифровой выход",
+  pwm: N_("ШИМ (серво, ESC)"),
+  uart_rx: N_("UART RX"),
+  uart_tx: N_("UART TX"),
+  i2c_sda: N_("I2C SDA"),
+  i2c_scl: N_("I2C SCL"),
+  spi_sck: N_("SPI SCK"),
+  spi_miso: N_("SPI MISO"),
+  spi_mosi: N_("SPI MOSI"),
+  adc: N_("АЦП"),
+  gpio: N_("цифровой выход"),
 };
 
 /** Роль пина — по имени параметра Config.h. */
@@ -85,12 +86,12 @@ const ESP32_S3: EspTable = {
   mcu: "ESP32-S3 (N16R8)",
   gpio: [...range(0, 21), ...range(26, 48)],
   reserved: {
-    ...Object.fromEntries(range(26, 32).map((n) => [n, "флеш SPI"])),
-    ...Object.fromEntries(range(33, 37).map((n) => [n, "восьмибитная PSRAM (N16R8)"])),
-    43: "консоль TX (USB-UART)",
-    44: "консоль RX (USB-UART)",
+    ...Object.fromEntries(range(26, 32).map((n) => [n, N_("флеш SPI")])),
+    ...Object.fromEntries(range(33, 37).map((n) => [n, N_("восьмибитная PSRAM (N16R8)")])),
+    43: N_("консоль TX (USB-UART)"),
+    44: N_("консоль RX (USB-UART)"),
   },
-  connector: { 19: "второй USB (OTG) D−", 20: "второй USB (OTG) D+" },
+  connector: { 19: N_("второй USB (OTG) D−"), 20: N_("второй USB (OTG) D+") },
   strapping: [0, 3, 45, 46],
   inputOnly: [],
   adc1: range(1, 10),
@@ -101,7 +102,7 @@ const ESP32_CLASSIC: EspTable = {
   family: "esp32",
   mcu: "ESP32 (WROOM-32)",
   gpio: [...range(0, 19), 21, 22, 23, 25, 26, 27, ...range(32, 39)],
-  reserved: { ...Object.fromEntries(range(6, 11).map((n) => [n, "флеш SPI"])), 1: "консоль TX", 3: "консоль RX" },
+  reserved: { ...Object.fromEntries(range(6, 11).map((n) => [n, N_("флеш SPI")])), 1: N_("консоль TX"), 3: N_("консоль RX") },
   connector: {},
   strapping: [0, 2, 5, 12, 15],
   inputOnly: range(34, 39),
@@ -113,7 +114,7 @@ const ESP32_C3: EspTable = {
   family: "esp32",
   mcu: "ESP32-C3 (SuperMini)",
   gpio: [...range(0, 10), 18, 19, 20, 21],
-  reserved: { 18: "USB D− (консоль)", 19: "USB D+ (консоль)" },
+  reserved: { 18: N_("USB D− (консоль)"), 19: N_("USB D+ (консоль)") },
   connector: {},
   strapping: [2, 8, 9],
   inputOnly: [],
@@ -150,24 +151,24 @@ export function judgePin(table: PinTable, role: PinRole, value: unknown): PinVer
     const pin = String(value);
     const caps = table.pins[pin];
     // Занятое на плате (USB, µSD, флеш, кварц, SWD) подключено к своей микросхеме — второе на нём сломает первое.
-    if (table.reserved[pin]) return { ok: false, error: `занят на плате: ${table.reserved[pin]}` };
-    const warn = table.connector[pin] ? `выведен на разъём: ${table.connector[pin]} — можно, если разъём не нужен` : undefined;
-    if (role === "gpio") return { ok: /^P[A-K]\d+$/.test(pin), warn, error: /^P[A-K]\d+$/.test(pin) ? undefined : "нет такого пина" };
+    if (table.reserved[pin]) return { ok: false, error: t("занят на плате: {what}", { what: table.reserved[pin] }) };
+    const warn = table.connector[pin] ? t("выведен на разъём: {what} — можно, если разъём не нужен", { what: table.connector[pin] }) : undefined;
+    if (role === "gpio") return { ok: /^P[A-K]\d+$/.test(pin), warn, error: /^P[A-K]\d+$/.test(pin) ? undefined : t("нет такого пина") };
     const entries = caps?.[role];
-    if (!entries?.length) return { ok: false, warn, error: `${pin} не умеет ${ROLE_TEXT[role]}` };
+    if (!entries?.length) return { ok: false, warn, error: t("{pin} не умеет {role}", { pin, role: t(ROLE_TEXT[role]) }) };
     return { ok: true, what: entries.map((e) => (role === "pwm" || role === "adc" ? e.label : e.inst)).join(", "), warn };
   }
   const n = Number(value);
-  if (!Number.isInteger(n) || !table.gpio.includes(n)) return { ok: false, error: `GPIO${value} у ${table.mcu} нет` };
-  if (table.reserved[n]) return { ok: false, error: `GPIO${n} занят: ${table.reserved[n]}` };
+  if (!Number.isInteger(n) || !table.gpio.includes(n)) return { ok: false, error: t("GPIO{n} у {mcu} нет", { n: String(value), mcu: table.mcu }) };
+  if (table.reserved[n]) return { ok: false, error: t("GPIO{n} занят: {what}", { n, what: t(table.reserved[n]) }) };
   const output = !["uart_rx", "spi_miso", "adc"].includes(role);
-  if (output && table.inputOnly.includes(n)) return { ok: false, error: `GPIO${n} — только вход, а ${ROLE_TEXT[role]} — выход` };
-  if (role === "adc" && !table.adc1.includes(n) && !table.adc2.includes(n)) return { ok: false, error: `GPIO${n} — не АЦП` };
+  if (output && table.inputOnly.includes(n)) return { ok: false, error: t("GPIO{n} — только вход, а {role} — выход", { n, role: t(ROLE_TEXT[role]) }) };
+  if (role === "adc" && !table.adc1.includes(n) && !table.adc2.includes(n)) return { ok: false, error: t("GPIO{n} — не АЦП", { n }) };
   const warns: string[] = [];
-  if (role === "adc" && table.adc2.includes(n)) warns.push("АЦП2 не работает, пока включён Wi-Fi");
-  if (table.strapping.includes(n)) warns.push("strapping-пин: подтяжка на нём при включении может не дать плате загрузиться");
-  if (table.connector[n]) warns.push(`выведен на разъём: ${table.connector[n]}`);
-  return { ok: true, what: role === "adc" ? (table.adc1.includes(n) ? "АЦП1" : "АЦП2") : undefined, warn: warns.join("; ") || undefined };
+  if (role === "adc" && table.adc2.includes(n)) warns.push(t("АЦП2 не работает, пока включён Wi-Fi"));
+  if (table.strapping.includes(n)) warns.push(t("strapping-пин: подтяжка на нём при включении может не дать плате загрузиться"));
+  if (table.connector[n]) warns.push(t("выведен на разъём: {what}", { what: t(table.connector[n]) }));
+  return { ok: true, what: role === "adc" ? (table.adc1.includes(n) ? t("АЦП1") : t("АЦП2")) : undefined, warn: warns.join("; ") || undefined };
 }
 
 export interface PinIssue {
@@ -193,7 +194,7 @@ export function pinIssues(manifest: Manifest, project: PlaneProject): PinIssue[]
     if (v === -1 || v === "-1" || v === undefined) continue;
     const key = String(v);
     const prev = used.get(key);
-    if (prev) out.push({ level: "warning", text: `${p.name} и ${prev} на одном пине ${key} — работать будет что-то одно`, target: p.name });
+    if (prev) out.push({ level: "warning", text: t("{a} и {b} на одном пине {pin} — работать будет что-то одно", { a: p.name, b: prev, pin: key }), target: p.name });
     else used.set(key, p.name);
     if (!role) continue;
     const verdict = judgePin(table, role, v);
@@ -203,7 +204,7 @@ export function pinIssues(manifest: Manifest, project: PlaneProject): PinIssue[]
     if (role === "pwm" && table.family === "stm32" && verdict.what) {
       const ch = verdict.what;
       const other = channels.get(ch);
-      if (other) out.push({ level: "error", text: `${p.name} и ${other} — один канал таймера ${ch}: сигнал будет один на двоих`, target: p.name });
+      if (other) out.push({ level: "error", text: t("{a} и {b} — один канал таймера {ch}: сигнал будет один на двоих", { a: p.name, b: other, ch }), target: p.name });
       else channels.set(ch, p.name);
     }
   }
@@ -222,7 +223,10 @@ export function pinIssues(manifest: Manifest, project: PlaneProject): PinIssue[]
       if (!common.length && sets.every((s) => s.size)) {
         out.push({
           level: "error",
-          text: `${live.join(", ")} — на разных экземплярах (${live.map((n, i) => `${n}: ${[...sets[i]].join("/")}`).join("; ")}): нужны пины одного`,
+          text: t("{pins} — на разных экземплярах ({detail}): нужны пины одного", {
+            pins: live.join(", "),
+            detail: live.map((n, i) => `${n}: ${[...sets[i]].join("/")}`).join("; "),
+          }),
           target: live[0],
         });
       }
@@ -267,7 +271,7 @@ export function pinChoices(manifest: Manifest, project: PlaneProject, name: stri
     const v = judgePin(table, role, pin);
     const label = table.family === "stm32" ? String(pin) : `GPIO${pin}`;
     const channelOwner = v.what ? channels.get(v.what) : undefined;
-    const usedBy = used.get(String(pin)) ?? (channelOwner ? `${channelOwner} (тот же канал)` : undefined);
+    const usedBy = used.get(String(pin)) ?? (channelOwner ? t("{owner} (тот же канал)", { owner: channelOwner }) : undefined);
     return { value: pin, label: v.what ? `${label} — ${v.what}` : label, ok: v.ok, usedBy, note: v.error ?? v.warn };
   });
 }

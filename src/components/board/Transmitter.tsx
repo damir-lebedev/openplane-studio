@@ -11,7 +11,7 @@ import { switchPosition, SWITCH_ON_US } from "../../core/live";
 import { Binding, Manifest, ManifestChannel } from "../../core/manifest";
 import { PlaneProject, StepId } from "../../core/project";
 import { availability, haveTokens, ItemKind, needText, tokenNames } from "../../core/rules";
-import { t } from "../../i18n";
+import { getLanguage, t } from "../../i18n";
 import { useApp } from "../../store";
 import { LiveStick, useLive } from "../live/LiveWidgets";
 import { itemParams } from "../../core/itemParams";
@@ -132,7 +132,7 @@ function Picker({ target, onClose }: { target: PickTarget; onClose: () => void }
             >
               <div className="grow">
                 <div className="pick-name">{itemTitle(manifest, target.kind, item.id)}</div>
-                <div className="hint">{item.doc}</div>
+                <div className="hint">{t(item.doc)}</div>
                 {disabled && (
                   <div className="locked-note">
                     <span>
@@ -210,7 +210,7 @@ function Slot({
     >
       {lever && <span className={`lever ${lever}`} />}
       <span className="pos">{pos}</span>
-      <span className="grow label" lang="ru" style={{ fontWeight: label ? 600 : 400 }} title={label ?? undefined}>
+      <span className="grow label" lang={getLanguage()} style={{ fontWeight: label ? 600 : 400 }} title={label ?? undefined}>
         {label ?? t("— ничего")}
       </span>
     </button>

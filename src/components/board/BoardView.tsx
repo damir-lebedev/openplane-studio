@@ -7,7 +7,7 @@ import { setParamValue } from "../../core/params";
 import { effectiveParam, isReached, PlaneProject, StepId } from "../../core/project";
 import { availability, countIssues, haveTokens, Issue, tokenNames, validate } from "../../core/rules";
 import { runFlash } from "../../flash";
-import { plural, t } from "../../i18n";
+import { N_, plural, t } from "../../i18n";
 import { stepsFor, useApp } from "../../store";
 import { PlaneView } from "../PlaneView";
 import { Modal, Seg } from "../ui";
@@ -23,15 +23,15 @@ import { SensorsStep } from "./steps/SensorsStep";
 import { RcStep, SwitchesStep } from "./steps/SwitchesStep";
 
 const STEP_TITLES: Record<StepId, string> = {
-  board: "Плата",
-  airframe: "Самолёт",
-  sensors: "Датчики",
-  rc: "Пульт",
-  switches: "Тумблеры",
-  safety: "Безопасность",
-  system: "Система",
-  review: "Проверка",
-  setup: "Наладка",
+  board: N_("Плата"),
+  airframe: N_("Самолёт"),
+  sensors: N_("Датчики"),
+  rc: N_("Пульт"),
+  switches: N_("Тумблеры"),
+  safety: N_("Безопасность"),
+  system: N_("Система"),
+  review: N_("Проверка"),
+  setup: N_("Наладка"),
 };
 
 const DEFAULT_FOCUS: Partial<Record<StepId, string[]>> = {
@@ -94,7 +94,7 @@ function SidePanel() {
           <h4>{t("Плата")}</h4>
           <div className="row" style={{ gap: 8 }}>
             <Cpu size={16} color="var(--accent)" />
-            <b>{board.title}</b>
+            <b>{t(board.title)}</b>
           </div>
           <BoardBadges b={board} />
         </div>
@@ -296,7 +296,7 @@ export function BoardView() {
         <button className="issues-btn" onClick={() => setIssuesOpen(true)}>
           {counts.errors > 0 && (
             <span className="e">
-              <CircleAlert size={14} /> {counts.errors} {plural(counts.errors, "ошибка", "ошибки", "ошибок")}
+              <CircleAlert size={14} /> {counts.errors} {plural(counts.errors, N_("ошибка"), N_("ошибки"), N_("ошибок"))}
             </span>
           )}
           {counts.warnings > 0 && (

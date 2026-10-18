@@ -1,16 +1,16 @@
 import { Cpu, HardDrive, Package, RadioTower, Route, Settings, Warehouse } from "lucide-react";
 import { ReactNode } from "react";
 
-import { t } from "../i18n";
+import { N_, t } from "../i18n";
 import { Section, useApp } from "../store";
 
 const ITEMS: { id: Section; label: string; icon: ReactNode; soon?: boolean }[] = [
-  { id: "hangar", label: "Ангар", icon: <Warehouse size={21} /> },
-  { id: "board", label: "Плата", icon: <Cpu size={21} /> },
-  { id: "flights", label: "Полёты", icon: <Route size={21} />, soon: true },
-  { id: "live", label: "Онлайн", icon: <RadioTower size={21} />, soon: true },
-  { id: "blackbox", label: "Ящик", icon: <HardDrive size={21} />, soon: true },
-  { id: "cargo", label: "Грузы", icon: <Package size={21} />, soon: true },
+  { id: "hangar", label: N_("Ангар"), icon: <Warehouse size={21} /> },
+  { id: "board", label: N_("Плата"), icon: <Cpu size={21} /> },
+  { id: "flights", label: N_("Полёты"), icon: <Route size={21} />, soon: true },
+  { id: "live", label: N_("Онлайн"), icon: <RadioTower size={21} />, soon: true },
+  { id: "blackbox", label: N_("Ящик"), icon: <HardDrive size={21} />, soon: true },
+  { id: "cargo", label: N_("Грузы"), icon: <Package size={21} />, soon: true },
 ];
 
 export function Logo({ size = 40 }: { size?: number }) {

@@ -11,16 +11,16 @@ import { channelTitle } from "../../../core/labels";
 import { ChannelWatch, switchPosition } from "../../../core/live";
 import { ManifestChannel } from "../../../core/manifest";
 import { effectiveParam } from "../../../core/project";
-import { t } from "../../../i18n";
+import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { LiveKnob, LiveLever, LiveStick, useLive } from "../../live/LiveWidgets";
 import { CheckState, usePassed, when } from "./common";
 
 const STICKS = [
-  { name: "AILERON", text: "Правый стик ВПРАВО до упора" },
-  { name: "ELEVATOR", text: "Правый стик ОТ СЕБЯ (вверх) до упора" },
-  { name: "THROTTLE", text: "Газ — левый стик ВВЕРХ до упора" },
-  { name: "RUDDER", text: "Левый стик ВПРАВО до упора" },
+  { name: "AILERON", text: N_("Правый стик ВПРАВО до упора") },
+  { name: "ELEVATOR", text: N_("Правый стик ОТ СЕБЯ (вверх) до упора") },
+  { name: "THROTTLE", text: N_("Газ — левый стик ВВЕРХ до упора") },
+  { name: "RUDDER", text: N_("Левый стик ВПРАВО до упора") },
 ] as const;
 
 type StickResult = "ok" | "reversed" | "fixed" | "skipped";
@@ -212,9 +212,9 @@ export function TxCheck({ onState }: { onState?: (s: CheckState) => void }) {
   const restNotes: { ok: boolean; text: string }[] = [];
   if (phase === "rest" && live) {
     for (const [name, label] of [
-      ["AILERON", "крена"],
-      ["ELEVATOR", "тангажа"],
-      ["RUDDER", "руля направления"],
+      ["AILERON", N_("крена")],
+      ["ELEVATOR", N_("тангажа")],
+      ["RUDDER", N_("руля направления")],
     ] as const) {
       const off = watch.current.trimOffset(idx(name));
       if (off !== null) restNotes.push({ ok: false, text: t("Триммер {w} сдвинут на {v} мкс — верните в центр (до двойного писка).", { w: t(label), v: off > 0 ? `+${off}` : off }) });

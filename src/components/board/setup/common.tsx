@@ -7,6 +7,7 @@ import { ReactNode, useEffect, useState } from "react";
 import { Identity } from "../../../api";
 import { SetupCheckId } from "../../../core/live";
 import { configHash, PlaneProject, toFirmwareConfig } from "../../../core/project";
+import { locale, t } from "../../../i18n";
 import { useApp } from "../../../store";
 
 export type CheckState = "ok" | "warn" | "fail" | "todo" | "off" | "run";
@@ -109,7 +110,7 @@ export function usePassed(id: SetupCheckId) {
 }
 
 export function when(iso: string): string {
-  return new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleString(locale(), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 }
 
 /** Самолёт сбоку или спереди для поз калибровки: level, nose-up, right-down, tail-up, park. */
@@ -145,14 +146,14 @@ export function PoseArt({ pose, active, done }: { pose: "level" | "nose-up" | "r
             <circle cx="0" cy="0" r="7" fill="var(--panel-3)" stroke="var(--accent)" strokeWidth="1.5" />
             <path d="M-1.5 -7 L-1.5 -22 L1.5 -22 L1.5 -7 Z" fill="var(--accent)" />
             <text x="46" y="-8" fontSize="9" fill="var(--text-2)">
-              П
+              {t("П")}
             </text>
           </>
         )}
       </g>
       {pose === "tail-up" && (
         <text x="-58" y="-28" fontSize="9" fill="var(--text-2)">
-          хвост поднят
+          {t("хвост поднят")}
         </text>
       )}
     </svg>

@@ -1,6 +1,7 @@
 // «Что изменилось» между двумя версиями самолёта — словами, а не JSON:
 // для истории прошивок, отката и «что изменится на плате» перед прошивкой.
 
+import { N_, t } from "../i18n";
 import { bindingText, channelTitle } from "./labels";
 import { findBoard, Manifest, SENSOR_CATEGORIES } from "./manifest";
 import { formatValue, sameValue } from "./params";
@@ -13,45 +14,46 @@ export interface Change {
   to: string;
 }
 
+const yesNo = (v: unknown) => (v ? t("есть") : t("нет"));
 const AIRFRAME: Record<string, [string, (v: unknown) => string]> = {
-  motors: ["Моторов", (v) => String(v)],
-  motorPosition: ["Мотор", (v) => (v === "pusher" ? "толкающий" : "тянущий")],
-  esc: ["Регулятор", (v) => (v === "bidirectional" ? "двунаправленный" : "обычный")],
-  ailerons: ["Элероны", (v) => (v === "one" ? "одна серва" : "по серве на элерон")],
-  rudder: ["Руль направления", (v) => (v ? "есть" : "нет")],
-  gear: ["Шасси", (v) => (v === "tail" ? "хвостовое колесо" : v === "nose" ? "носовое колесо" : "нет, с руки")],
-  payload: ["Сброс груза", (v) => (v ? "есть" : "нет")],
-  camera: ["Камера", (v) => (v ? "есть" : "нет")],
-  buzzer: ["Пищалка", (v) => (v ? "есть" : "нет")],
+  motors: [N_("Моторов"), (v) => String(v)],
+  motorPosition: [N_("Мотор"), (v) => (v === "pusher" ? t("толкающий") : t("тянущий"))],
+  esc: [N_("Регулятор"), (v) => (v === "bidirectional" ? t("двунаправленный") : t("обычный"))],
+  ailerons: [N_("Элероны"), (v) => (v === "one" ? t("одна серва") : t("по серве на элерон"))],
+  rudder: [N_("Руль направления"), yesNo],
+  gear: [N_("Шасси"), (v) => (v === "tail" ? t("хвостовое колесо") : v === "nose" ? t("носовое колесо") : t("нет, с руки"))],
+  payload: [N_("Сброс груза"), yesNo],
+  camera: [N_("Камера"), yesNo],
+  buzzer: [N_("Пищалка"), yesNo],
 };
 
-const SENSOR_TITLES: Record<string, string> = { imu: "IMU", baro: "Барометр", mag: "Компас", airspeed: "Трубка Пито", gps: "GPS" };
+const SENSOR_TITLES: Record<string, string> = { imu: "IMU", baro: N_("Барометр"), mag: N_("Компас"), airspeed: N_("Трубка Пито"), gps: "GPS" };
 
 /** Имена частых параметров словами; остальные — как в Config.h. */
 const PARAM_TITLES: Record<string, string> = {
-  AILERON_LEFT_REVERSED: "Реверс: левый элерон",
-  AILERON_RIGHT_REVERSED: "Реверс: правый элерон",
-  ELEVATOR_REVERSED: "Реверс: руль высоты",
-  RUDDER_REVERSED: "Реверс: руль направления",
-  FLAPS_REVERSED: "Реверс: закрылки",
-  MOTOR_REVERSED: "Реверс: мотор",
-  AUX1_REVERSED: "Реверс: сброс груза",
-  AUX2_REVERSED: "Реверс: камера",
-  CHANNEL_REVERSED: "Каналы пульта наоборот",
-  THROTTLE_LIMIT_PCT: "Предел газа, %",
-  FAILSAFE_RTH: "Без связи — домой",
-  GEOFENCE_ALWAYS_ON: "Геозабор всегда",
+  AILERON_LEFT_REVERSED: N_("Реверс: левый элерон"),
+  AILERON_RIGHT_REVERSED: N_("Реверс: правый элерон"),
+  ELEVATOR_REVERSED: N_("Реверс: руль высоты"),
+  RUDDER_REVERSED: N_("Реверс: руль направления"),
+  FLAPS_REVERSED: N_("Реверс: закрылки"),
+  MOTOR_REVERSED: N_("Реверс: мотор"),
+  AUX1_REVERSED: N_("Реверс: сброс груза"),
+  AUX2_REVERSED: N_("Реверс: камера"),
+  CHANNEL_REVERSED: N_("Каналы пульта наоборот"),
+  THROTTLE_LIMIT_PCT: N_("Предел газа, %"),
+  FAILSAFE_RTH: N_("Без связи — домой"),
+  GEOFENCE_ALWAYS_ON: N_("Геозабор всегда"),
 };
 
 export function paramTitle(name: string): string {
-  return PARAM_TITLES[name] ?? name;
+  return PARAM_TITLES[name] ? t(PARAM_TITLES[name]) : name;
 }
 
 /** Значение для людей: у массива флагов — номера включённых каналов. */
 function showValue(value: unknown): string {
   if (Array.isArray(value) && value.every((v) => typeof v === "boolean")) {
     const on = value.map((v, i) => (v ? `CH${i + 1}` : "")).filter(Boolean);
-    return on.length ? on.join(", ") : "нет";
+    return on.length ? on.join(", ") : t("нет");
   }
   return formatValue(value);
 }
@@ -61,18 +63,18 @@ export function diffProjects(manifest: Manifest, a: PlaneProject, b: PlaneProjec
   const out: Change[] = [];
 
   if (a.board !== b.board) {
-    out.push({ group: "Плата", what: "Плата", from: findBoard(manifest, a.board)?.title ?? a.board, to: findBoard(manifest, b.board)?.title ?? b.board });
+    out.push({ group: N_("Плата"), what: t("Плата"), from: findBoard(manifest, a.board)?.title ?? a.board, to: findBoard(manifest, b.board)?.title ?? b.board });
   }
 
   for (const [key, [title, show]] of Object.entries(AIRFRAME)) {
     const va = (a.airframe as unknown as Record<string, unknown>)[key];
     const vb = (b.airframe as unknown as Record<string, unknown>)[key];
-    if (va !== vb) out.push({ group: "Самолёт", what: title, from: show(va), to: show(vb) });
+    if (va !== vb) out.push({ group: N_("Самолёт"), what: t(title), from: show(va), to: show(vb) });
   }
 
   for (const cat of SENSOR_CATEGORIES) {
     if (a.sensors[cat] !== b.sensors[cat]) {
-      out.push({ group: "Датчики", what: SENSOR_TITLES[cat], from: sensorLabel(manifest, cat, a.sensors[cat]), to: sensorLabel(manifest, cat, b.sensors[cat]) });
+      out.push({ group: N_("Датчики"), what: t(SENSOR_TITLES[cat]), from: sensorLabel(manifest, cat, a.sensors[cat]), to: sensorLabel(manifest, cat, b.sensors[cat]) });
     }
   }
 
@@ -84,7 +86,7 @@ export function diffProjects(manifest: Manifest, a: PlaneProject, b: PlaneProjec
     const tb = bb ? bindingText(manifest, bb) : "";
     if (ta !== tb) {
       const strip = (t: string) => t.replace(/^[^:]+:\s*/, "");
-      out.push({ group: "Тумблеры", what: channelTitle(ch), from: ba ? strip(ta) : "не используется", to: bb ? strip(tb) : "не используется" });
+      out.push({ group: N_("Тумблеры"), what: channelTitle(ch), from: ba ? strip(ta) : t("не используется"), to: bb ? strip(tb) : t("не используется") });
     }
   }
 
@@ -93,7 +95,7 @@ export function diffProjects(manifest: Manifest, a: PlaneProject, b: PlaneProjec
     const ia = a.channels[name] ?? manifest.channels.list.find((c) => c.name === name)?.index;
     const ib = b.channels[name] ?? manifest.channels.list.find((c) => c.name === name)?.index;
     if (ia !== ib && name !== "SWA") {
-      out.push({ group: "Каналы", what: name === "ARM" ? "SwA (ARM)" : channelTitle(name), from: `CH${(ia ?? 0) + 1}`, to: `CH${(ib ?? 0) + 1}` });
+      out.push({ group: N_("Каналы"), what: name === "ARM" ? "SwA (ARM)" : channelTitle(name), from: `CH${(ia ?? 0) + 1}`, to: `CH${(ib ?? 0) + 1}` });
     }
   }
 
@@ -102,7 +104,7 @@ export function diffProjects(manifest: Manifest, a: PlaneProject, b: PlaneProjec
   for (const name of names) {
     const va = effectiveParam(manifest, a, name);
     const vb = effectiveParam(manifest, b, name);
-    if (!sameValue(va, vb)) out.push({ group: "Параметры", what: paramTitle(name), from: showValue(va), to: showValue(vb) });
+    if (!sameValue(va, vb)) out.push({ group: N_("Параметры"), what: paramTitle(name), from: showValue(va), to: showValue(vb) });
   }
 
   const macros = new Set([...Object.keys(a.boardParams), ...Object.keys(b.boardParams)]);
@@ -113,7 +115,7 @@ export function diffProjects(manifest: Manifest, a: PlaneProject, b: PlaneProjec
       const def = manifest.params.find((p) => p.name === name && p.board === macro)?.value;
       const va = name in pa ? pa[name] : def;
       const vb = name in pb ? pb[name] : def;
-      if (!sameValue(va, vb)) out.push({ group: "Пины", what: name, from: formatValue(va), to: formatValue(vb) });
+      if (!sameValue(va, vb)) out.push({ group: N_("Пины"), what: name, from: formatValue(va), to: formatValue(vb) });
     }
   }
   return out;

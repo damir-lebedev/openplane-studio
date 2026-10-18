@@ -2,7 +2,7 @@ import { Download, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api, DriverStatus, errorText, onTaskLog } from "../api";
-import { t } from "../i18n";
+import { getLanguage, LANGUAGES, t } from "../i18n";
 import { useApp } from "../store";
 import { Section } from "./ui";
 
@@ -163,6 +163,20 @@ export function Settings() {
           <p>{t("Где лежат исходники прошивки и чем её собирать.")}</p>
         </div>
       </div>
+
+      <Section title={t("Язык")} sub={getLanguage() === "ru" ? "Language" : "Язык"}>
+        <div className="card row" style={{ gap: 8 }}>
+          {Object.entries(LANGUAGES).map(([code, name]) => (
+            <button
+              key={code}
+              className={`btn${getLanguage() === code ? " primary" : ""}`}
+              onClick={() => void saveSettings({ language: code })}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      </Section>
 
       <Section title={t("Исходники прошивки")} sub={t("папка репозитория plane (OpenPlaneProject)")}>
         <div className="card">

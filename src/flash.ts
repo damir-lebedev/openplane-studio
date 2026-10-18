@@ -6,11 +6,13 @@ import { isFresh } from "./core/live";
 import { fingerprint } from "./core/migrate";
 import { findBoard, Manifest } from "./core/manifest";
 import { configHash, FlashRecord, PlaneProject, toFirmwareConfig } from "./core/project";
+import { N_, t } from "./i18n";
 import { FlashAction, FlashState, FlashStep, useApp } from "./store";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const CALIB_NAMES: Record<keyof CalibFlags, string> = { mount: "установка IMU", park: "калибровка на земле", magcal: "компас" };
+const CALIB_NAMES: Record<keyof CalibFlags, string> = { mount: N_("установка IMU"), park: N_("калибровка на земле"), magcal: N_("компас") };
+const calibName = (k: keyof CalibFlags) => t(CALIB_NAMES[k]);
 
 /** Калибровки, о которых плата сказала в последнем живом кадре (null — кадров нет). */
 function calibNow(since = 0): CalibFlags | null {
@@ -32,12 +34,12 @@ async function checkCalibrations(before: CalibFlags | null) {
     after = calibNow(start);
   }
   if (!after) return;
-  const lost = before ? (Object.keys(CALIB_NAMES) as (keyof CalibFlags)[]).filter((k) => before[k] && !after![k]).map((k) => CALIB_NAMES[k]) : [];
-  const missing = (Object.keys(CALIB_NAMES) as (keyof CalibFlags)[]).filter((k) => after![k] === false).map((k) => CALIB_NAMES[k]);
-  const kept = before ? (Object.keys(CALIB_NAMES) as (keyof CalibFlags)[]).filter((k) => before[k] && after![k]).map((k) => CALIB_NAMES[k]) : [];
+  const lost = before ? (Object.keys(CALIB_NAMES) as (keyof CalibFlags)[]).filter((k) => before[k] && !after![k]).map(calibName) : [];
+  const missing = (Object.keys(CALIB_NAMES) as (keyof CalibFlags)[]).filter((k) => after![k] === false).map(calibName);
+  const kept = before ? (Object.keys(CALIB_NAMES) as (keyof CalibFlags)[]).filter((k) => before[k] && after![k]).map(calibName) : [];
   const app = useApp.getState();
   if (app.flash && !app.flash.running) app.setFlash((f) => ({ ...f, calib: { before, after: after!, lost, kept, missing } }));
-  if (lost.length) app.toast("warn", `После прошивки пропало: ${lost.join(", ")} — повторите в «Наладке»`);
+  if (lost.length) app.toast("warn", t("После прошивки пропало: {list} — повторите в «Наладке»", { list: lost.join(", ") }));
 }
 
 class FlashError extends Error {
@@ -53,10 +55,10 @@ class FlashError extends Error {
 
 function initialSteps(dfu: boolean): FlashStep[] {
   return [
-    { id: "build", title: "Сборка прошивки", status: "wait" },
-    { id: "board", title: dfu ? "Плата в режим прошивки" : "Поиск платы", status: "wait" },
-    { id: "upload", title: "Заливка", status: "wait" },
-    { id: "verify", title: "Проверка: на плате то, что в проекте", status: "wait" },
+    { id: "build", title: t("Сборка прошивки"), status: "wait" },
+    { id: "board", title: dfu ? t("Плата в режим прошивки") : t("Поиск платы"), status: "wait" },
+    { id: "upload", title: t("Заливка"), status: "wait" },
+    { id: "verify", title: t("Проверка: на плате то, что в проекте"), status: "wait" },
   ];
 }
 
@@ -83,40 +85,40 @@ function appendLog(line: string) {
 
 /** Понятная причина по хвосту вывода PlatformIO / dfu-util / esptool. */
 export function explainFailure(tail: string, task: "build" | "upload"): { title: string; text: string; action?: FlashAction } {
-  const t = tail.toLowerCase();
+  const low = tail.toLowerCase();
   if (task === "build") {
     const err = tail.split("\n").find((l) => /\berror:/.test(l) && /\.(h|cpp|c)\b/.test(l));
-    if (err) return { title: "Прошивка не собралась", text: err.trim().slice(0, 400) };
-    if (t.includes("unknownpackageerror") || t.includes("could not install") || t.includes("httpclienterror")) {
-      return { title: "PlatformIO не скачал инструменты", text: "Проверьте интернет: первая сборка качает компилятор и библиотеки." };
+    if (err) return { title: t("Прошивка не собралась"), text: err.trim().slice(0, 400) };
+    if (low.includes("unknownpackageerror") || low.includes("could not install") || low.includes("httpclienterror")) {
+      return { title: t("PlatformIO не скачал инструменты"), text: t("Проверьте интернет: первая сборка качает компилятор и библиотеки.") };
     }
-    return { title: "Прошивка не собралась", text: "Подробности — в журнале ниже." };
+    return { title: t("Прошивка не собралась"), text: t("Подробности — в журнале ниже.") };
   }
-  if (t.includes("no dfu capable usb device")) {
+  if (low.includes("no dfu capable usb device")) {
     return {
-      title: "Плата не в режиме прошивки",
-      text: "dfu-util не нашёл STM32 в загрузчике. Включите режим прошивки и повторите.",
+      title: t("Плата не в режиме прошивки"),
+      text: t("dfu-util не нашёл STM32 в загрузчике. Включите режим прошивки и повторите."),
       action: "bootloader",
     };
   }
-  if (t.includes("libusb_error_not_supported") || t.includes("cannot open dfu device") || t.includes("libusb_error_access")) {
+  if (low.includes("libusb_error_not_supported") || low.includes("cannot open dfu device") || low.includes("libusb_error_access")) {
     return {
-      title: "Нет драйвера для режима прошивки",
-      text: "Windows видит «STM32 BOOTLOADER», но без драйвера WinUSB dfu-util его не открывает.",
+      title: t("Нет драйвера для режима прошивки"),
+      text: t("Windows видит «STM32 BOOTLOADER», но без драйвера WinUSB dfu-util его не открывает."),
       action: "driver",
     };
   }
-  if (t.includes("could not open port") || t.includes("access is denied") || t.includes("permissionerror")) {
-    return { title: "Порт занят", text: "COM-порт держит другая программа — чаще всего монитор порта.", action: "kill-monitor" };
+  if (low.includes("could not open port") || low.includes("access is denied") || low.includes("permissionerror")) {
+    return { title: t("Порт занят"), text: t("COM-порт держит другая программа — чаще всего монитор порта."), action: "kill-monitor" };
   }
-  if (t.includes("failed to connect to esp32") || t.includes("wrong boot mode")) {
+  if (low.includes("failed to connect to esp32") || low.includes("wrong boot mode")) {
     return {
-      title: "ESP32 не вошла в режим прошивки",
-      text: "Зажмите кнопку BOOT на плате, нажмите и отпустите RESET (EN), отпустите BOOT и повторите.",
+      title: t("ESP32 не вошла в режим прошивки"),
+      text: t("Зажмите кнопку BOOT на плате, нажмите и отпустите RESET (EN), отпустите BOOT и повторите."),
       action: "retry",
     };
   }
-  return { title: "Заливка не удалась", text: "Подробности — в журнале ниже.", action: "retry" };
+  return { title: t("Заливка не удалась"), text: t("Подробности — в журнале ниже."), action: "retry" };
 }
 
 async function waitDevice(match: (d: Device) => boolean, timeoutMs: number): Promise<Device | null> {
@@ -133,10 +135,10 @@ async function waitDevice(match: (d: Device) => boolean, timeoutMs: number): Pro
 async function busyError(port: string): Promise<FlashError> {
   const holders = await api.portHolders().catch(() => []);
   return new FlashError(
-    "Порт занят",
+    t("Порт занят"),
     holders.length
-      ? `${port} держит монитор порта PlatformIO. Закрыть его и продолжить? Потом откройте монитор снова.`
-      : `${port} занят другой программой. Закройте её и повторите.`,
+      ? t("{port} держит монитор порта PlatformIO. Закрыть его и продолжить? Потом откройте монитор снова.", { port })
+      : t("{port} занят другой программой. Закройте её и повторите.", { port }),
     holders.length ? "kill-monitor" : "retry",
     holders.map((h) => ({ pid: h.pid, name: h.name })),
   );
@@ -148,7 +150,7 @@ async function prepareBoard(env: string, dfu: boolean): Promise<string | null> {
     if (devices.some((d) => d.kind === "stm32-dfu")) return null;
     const cdc = devices.find((d) => d.kind === "stm32-cdc");
     if (cdc?.port) {
-      activity(`Перезагружаю плату в режим прошивки (${cdc.port})…`);
+      activity(t("Перезагружаю плату в режим прошивки ({port})…", { port: cdc.port }));
       const app = useApp.getState();
       if (app.link.state === "open" && app.link.port === cdc.port) {
         // Порт держит связь приложения — клавиша D идёт через неё.
@@ -167,19 +169,19 @@ async function prepareBoard(env: string, dfu: boolean): Promise<string | null> {
       const dfuDevice = await waitDevice((d) => d.kind === "stm32-dfu", 12000);
       if (dfuDevice) return null;
       throw new FlashError(
-        "Плата не перешла в режим прошивки",
-        "Команда отправлена, но загрузчик не появился. Если плата заармлена — снимите ARM. Или включите режим вручную.",
+        t("Плата не перешла в режим прошивки"),
+        t("Команда отправлена, но загрузчик не появился. Если плата заармлена — снимите ARM. Или включите режим вручную."),
         "bootloader",
       );
     }
     throw new FlashError(
-      "Плата не найдена",
-      "Подключите плату по USB. Если на ней ещё нет нашей прошивки — включите режим прошивки вручную.",
+      t("Плата не найдена"),
+      t("Подключите плату по USB. Если на ней ещё нет нашей прошивки — включите режим прошивки вручную."),
       "bootloader",
     );
   }
   const port = devices.find((d) => d.kind === "usb-serial" || d.kind === "esp32-usb")?.port ?? null;
-  if (!port) throw new FlashError("Плата не найдена", `Подключите плату ${env} по USB и повторите.`, "retry");
+  if (!port) throw new FlashError(t("Плата не найдена"), t("Подключите плату {env} по USB и повторите.", { env }), "retry");
   if (useApp.getState().link.port === port) await useApp.getState().disconnect();   // порт нужен esptool
   return port;
 }
@@ -188,8 +190,10 @@ async function checkDriver() {
   const drv = await api.dfuDriverStatus().catch(() => null);
   if (drv && drv.present && !drv.ok) {
     throw new FlashError(
-      "Нет драйвера для режима прошивки",
-      `Windows видит «STM32 BOOTLOADER», но драйвер не установлен (${drv.status}${drv.problem ? `, код ${drv.problem}` : ""}).`,
+      t("Нет драйвера для режима прошивки"),
+      t("Windows видит «STM32 BOOTLOADER», но драйвер не установлен ({status}).", {
+        status: drv.problem ? t("{status}, код {code}", { status: drv.status, code: drv.problem }) : drv.status,
+      }),
       "driver",
     );
   }
@@ -198,12 +202,12 @@ async function checkDriver() {
 async function verify(manifest: Manifest, project: PlaneProject, hash: string, dfu: boolean): Promise<{ ok: boolean; text: string }> {
   const board = findBoard(manifest, project.board);
   if (!dfu) {
-    return { ok: true, text: `Прошивка залита в ${board?.title ?? project.board}.` };
+    return { ok: true, text: t("Прошивка залита в {board}.", { board: board ? t(board.title) : project.board }) };
   }
   activity("Жду, пока плата загрузится…");
   const cdc = await waitDevice((d) => d.kind === "stm32-cdc", 20000);
   if (!cdc?.port) {
-    return { ok: false, text: "Прошивка залита, но плата не появилась как COM-порт. Переподключите USB и проверьте." };
+    return { ok: false, text: t("Прошивка залита, но плата не появилась как COM-порт. Переподключите USB и проверьте.") };
   }
   await sleep(800);
   let identity: Identity | null = null;
@@ -211,11 +215,11 @@ async function verify(manifest: Manifest, project: PlaneProject, hash: string, d
     identity = await api.boardIdentity(cdc.port, true).catch(() => null);
     if (!identity) await sleep(700);
   }
-  if (!identity) return { ok: false, text: `Прошивка залита, плата на ${cdc.port}, но паспорт не прочитался.` };
+  if (!identity) return { ok: false, text: t("Прошивка залита, плата на {port}, но паспорт не прочитался.", { port: cdc.port }) };
   if (identity.config !== hash) {
-    return { ok: false, text: `Плата ответила, но хэш конфигурации другой: ${identity.config || "пусто"} вместо ${hash}.` };
+    return { ok: false, text: t("Плата ответила, но хэш конфигурации другой: {got} вместо {want}.", { got: identity.config || t("пусто"), want: hash }) };
   }
-  return { ok: true, text: `На плате ровно то, что в проекте: «${identity.plane}», хэш ${hash}, ${cdc.port}.` };
+  return { ok: true, text: t("На плате ровно то, что в проекте: «{plane}», хэш {hash}, {port}.", { plane: identity.plane, hash, port: cdc.port }) };
 }
 
 export async function runFlash(planeId: string) {
@@ -232,7 +236,7 @@ export async function runFlash(planeId: string) {
     running: true,
     steps: initialSteps(dfu),
     progress: null,
-    activity: "Готовлю исходники…",
+    activity: t("Готовлю исходники…"),
     log: [],
   };
   app.startFlash(state);
@@ -242,12 +246,12 @@ export async function runFlash(planeId: string) {
     appendLog(l.line);
     if (l.task === "build" && /^(Compiling|Archiving|Linking|Indexing)/.test(l.line)) {
       compiled++;
-      const what = l.line.startsWith("Linking") ? "Компоновка" : `Компилирую (${compiled})`;
+      const what = l.line.startsWith("Linking") ? t("Компоновка") : t("Компилирую ({n})", { n: compiled });
       activity(`${what}…`);
     }
     if (l.task === "upload") {
       const m = l.line.match(/(?:Download|Erase)[^\d]*(\d{1,3})%/) ?? l.line.match(/\((\d{1,3}) ?%\)/);
-      if (m) activity(l.line.includes("Erase") ? "Стираю…" : "Заливаю…", Number(m[1]) / 100);
+      if (m) activity(l.line.includes("Erase") ? t("Стираю…") : t("Заливаю…"), Number(m[1]) / 100);
     }
   });
 
@@ -262,12 +266,12 @@ export async function runFlash(planeId: string) {
     const hash = await configHash(config, commit);
     config.project = { plane: plane.name, configHash: hash, commit, boardEnv: plane.board };
     const prepared = await api.firmwarePrepare(source, plane.id);
-    appendLog(`Исходники: ${source} → ${prepared.dir} (скопировано ${prepared.copied})`);
+    appendLog(t("Исходники: {src} → {dir} (скопировано {n})", { src: source, dir: prepared.dir, n: prepared.copied }));
     const applied = await api.firmwareApply(source, prepared.dir, config);
     if (!applied.ok) {
       throw new FlashError("Конфигурация не записалась", (applied.errors ?? []).join("\n"));
     }
-    appendLog(`Конфигурация записана: ${(applied.changed ?? []).join(", ") || "без изменений"}`);
+    appendLog(t("Конфигурация записана: {list}", { list: (applied.changed ?? []).join(", ") || t("без изменений") }));
     activity("Собираю прошивку…");
     const built = await api.firmwareBuild(prepared.dir, plane.board);
     if (!built.ok) {
@@ -299,7 +303,7 @@ export async function runFlash(planeId: string) {
     current = "verify";
     setStep("verify", "run");
     const result = await verify(manifest, plane, hash, dfu);
-    setStep("verify", result.ok ? "ok" : "fail", result.ok ? undefined : "не подтверждено");
+    setStep("verify", result.ok ? "ok" : "fail", result.ok ? undefined : t("не подтверждено"));
     record = { at: new Date().toISOString(), board: plane.board, commit, configHash: hash, ok: result.ok };
     flash().setFlash((f) => ({ ...f, running: false, progress: null, activity: "", done: { verified: result.ok, text: result.text } }));
     void api.hangarSnapshot(plane.id, `flash-${hash}`, {

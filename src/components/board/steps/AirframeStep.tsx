@@ -1,19 +1,19 @@
 import { findBoard } from "../../../core/manifest";
 import { Airframe, setGear } from "../../../core/project";
-import { t } from "../../../i18n";
+import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Advanced, Choice, Section, StepHead, Toggle } from "../../ui";
 import { ParamField } from "../ParamField";
 
 const REVERSE = [
-  ["AILERON_LEFT_REVERSED", "Левый элерон"],
-  ["AILERON_RIGHT_REVERSED", "Правый элерон"],
-  ["ELEVATOR_REVERSED", "Руль высоты"],
-  ["RUDDER_REVERSED", "Руль направления и колесо"],
-  ["FLAPS_REVERSED", "Закрылки и тормоз"],
-  ["MOTOR_REVERSED", "Мотор (только двунаправленный ESC)"],
-  ["AUX1_REVERSED", "Серво сброса груза"],
-  ["AUX2_REVERSED", "Серво камеры"],
+  ["AILERON_LEFT_REVERSED", N_("Левый элерон")],
+  ["AILERON_RIGHT_REVERSED", N_("Правый элерон")],
+  ["ELEVATOR_REVERSED", N_("Руль высоты")],
+  ["RUDDER_REVERSED", N_("Руль направления и колесо")],
+  ["FLAPS_REVERSED", N_("Закрылки и тормоз")],
+  ["MOTOR_REVERSED", N_("Мотор (только двунаправленный ESC)")],
+  ["AUX1_REVERSED", N_("Серво сброса груза")],
+  ["AUX2_REVERSED", N_("Серво камеры")],
 ] as const;
 
 export function AirframeStep() {
@@ -37,7 +37,7 @@ export function AirframeStep() {
     <div className="card row" style={{ padding: "12px 14px" }} {...hover([part])}>
       <div className="grow">
         <div style={{ fontWeight: 600 }}>{title}</div>
-        <div className="hint">{available ? desc : t("У платы {b} нет этого выхода", { b: board?.title ?? plane.board })}</div>
+        <div className="hint">{available ? desc : t("У платы {b} нет этого выхода", { b: board ? t(board.title) : plane.board })}</div>
       </div>
       <Toggle on={a[key] && available} disabled={!available} onChange={(v) => set(key, v)} />
     </div>

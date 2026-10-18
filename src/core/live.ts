@@ -3,6 +3,7 @@
 // почему не армится. Всё — из того, что прислала настоящая плата.
 
 import { LiveFrame, ScanResult } from "../api";
+import { N_, t } from "../i18n";
 import { isNone, Manifest, SensorCategory, SENSOR_CATEGORIES } from "./manifest";
 import { PlaneProject, sensorLabel } from "./project";
 
@@ -110,9 +111,9 @@ export function hex(a: number): string {
 
 const CAT_TITLES: Record<SensorCategory, string> = {
   imu: "IMU",
-  baro: "Барометр",
-  mag: "Компас",
-  airspeed: "Трубка Пито",
+  baro: N_("Барометр"),
+  mag: N_("Компас"),
+  airspeed: N_("Трубка Пито"),
   gps: "GPS",
 };
 
@@ -134,42 +135,42 @@ export function sensorRows(manifest: Manifest, project: PlaneProject, live: Live
   const found = new Set((scan?.sensor ?? []).map((d) => d.a));
   return SENSOR_CATEGORIES.map((cat): SensorRow => {
     const id = project.sensors[cat];
-    const title = CAT_TITLES[cat];
+    const title = t(CAT_TITLES[cat]);
     const chip = sensorLabel(manifest, cat, id);
-    if (isNone(id)) return { cat, title, chip, state: "off", text: "нет в проекте" };
+    if (isNone(id)) return { cat, title, chip, state: "off", text: t("нет в проекте") };
     const st = liveState(live, cat);
     const addrs = expectedAddresses(project, cat);
     const at = addrs?.find((a) => found.has(a));
     if (st === "ok") {
       if (cat === "gps" && live) {
         const sats = live.sats ?? 0;
-        return { cat, title, chip, state: "ok", text: live.fix && live.fix >= 3 ? `работает, спутников ${sats}` : `отвечает, ищет спутники (${sats})` };
+        return { cat, title, chip, state: "ok", text: live.fix && live.fix >= 3 ? t("работает, спутников {n}", { n: sats }) : t("отвечает, ищет спутники ({n})", { n: sats }) };
       }
-      return { cat, title, chip, state: "ok", text: at !== undefined ? `работает, на ${hex(at)}` : "работает" };
+      return { cat, title, chip, state: "ok", text: at !== undefined ? t("работает, на {a}", { a: hex(at) }) : t("работает") };
     }
     if (st === "check") {
-      return { cat, title, chip, state: "warn", text: "отвечает, но предполётная проверка не пройдена — см. «ARM»" };
+      return { cat, title, chip, state: "warn", text: t("отвечает, но предполётная проверка не пройдена — см. «ARM»") };
     }
     if (st === "none") {
-      return { cat, title, chip, state: "warn", text: "в прошивке на плате его нет — перепрошейте этот проект" };
+      return { cat, title, chip, state: "warn", text: t("в прошивке на плате его нет — перепрошейте этот проект") };
     }
     if (addrs) {
-      if (!scan) return { cat, title, chip, state: st ? "bad" : "wait", text: st ? "не отвечает — нажмите «Опросить шину»" : "ждём плату" };
+      if (!scan) return { cat, title, chip, state: st ? "bad" : "wait", text: st ? t("не отвечает — нажмите «Опросить шину»") : t("ждём плату") };
       if (at !== undefined) {
-        return { cat, title, chip, state: "warn", text: `на шине есть ${hex(at)}, но прошивка его не видит: другой чип с тем же адресом?` };
+        return { cat, title, chip, state: "warn", text: t("на шине есть {a}, но прошивка его не видит: другой чип с тем же адресом?", { a: hex(at) }) };
       }
       return {
         cat,
         title,
         chip,
         state: "bad",
-        text: `не отвечает на ${addrs.map(hex).join(" / ")}: проверьте питание 3,3 В, провода SDA и SCL`,
+        text: t("не отвечает на {a}: проверьте питание 3,3 В, провода SDA и SCL", { a: addrs.map(hex).join(" / ") }),
       };
     }
     if (cat === "gps") {
-      return { cat, title, chip, state: st ? "bad" : "wait", text: st ? "молчит: TX модуля — на RX платы (крест-накрест), питание 5 В" : "ждём плату" };
+      return { cat, title, chip, state: st ? "bad" : "wait", text: st ? t("молчит: TX модуля — на RX платы (крест-накрест), питание 5 В") : t("ждём плату") };
     }
-    return { cat, title, chip, state: st ? "bad" : "wait", text: st ? "не отвечает (SPI): проверьте CS, SCK, MISO, MOSI" : "ждём плату" };
+    return { cat, title, chip, state: st ? "bad" : "wait", text: st ? t("не отвечает (SPI): проверьте CS, SCK, MISO, MOSI") : t("ждём плату") };
   });
 }
 
@@ -216,8 +217,8 @@ export function procLine(p: Proc, raw: string): Proc {
       if (step) return { ...p, step: Number(step[1]) };
       if (/установка сохранена/.test(line)) return { ...p, state: "ok", step: p.steps, text: line.replace(/^.*?установка сохранена:\s*/, "") };
       if (/калибровка установки отклонена/.test(line)) return { ...p, state: "fail", text: line.replace(/^.*?отклонена\s*—\s*/, "") };
-      if (/поза не дождалась/.test(line)) return { ...p, state: "fail", text: "поза не дождалась за 30 с — самолёт не держали неподвижно?" };
-      if (/калибровка установки невозможна/.test(line)) return { ...p, state: "fail", text: "IMU не отвечает" };
+      if (/поза не дождалась/.test(line)) return { ...p, state: "fail", text: t("поза не дождалась за 30 с — самолёт не держали неподвижно?") };
+      if (/калибровка установки невозможна/.test(line)) return { ...p, state: "fail", text: t("IMU не отвечает") };
       return p;
     case "ground":
       if (step) return { ...p, step: Number(step[1]) };
@@ -225,7 +226,7 @@ export function procLine(p: Proc, raw: string): Proc {
       if (/Калибровка самолёта: ОШИБКА/.test(line)) {
         return { ...p, state: "fail", text: line.replace(/^.*?ОШИБКА\s*—\s*/, "").replace(/\.\s*Ничего не сохранено\.?$/, "") };
       }
-      if (/Калибровка самолёта отменена/.test(line)) return { ...p, state: "fail", text: line.replace(/^.*?отменена:\s*/, "отменена: ") };
+      if (/Калибровка самолёта отменена/.test(line)) return { ...p, state: "fail", text: t("отменена: {why}", { why: line.replace(/^.*?отменена:\s*/, "") }) };
       if (/Стоянка: нос/.test(line)) return { ...p, text: line.replace(/^Стоянка:\s*/, "") };
       return p;
     case "gyro":
@@ -247,6 +248,8 @@ export type SetupCheckId = "sensors" | "tx" | "failsafe" | "mount" | "ground" | 
 
 export interface ArmHint {
   text: string;
+  /** причина коротко, на языке интерфейса (прошивка пишет по-русски и подробнее) */
+  what?: string;
   check?: SetupCheckId;
   /** процедура, которая это чинит */
   fix?: ProcKind;
@@ -255,18 +258,18 @@ export interface ArmHint {
 /** Причина запрета ARM (FlightController::armBlockNow) → что сделать. */
 export function armBlockHint(reason: string): ArmHint {
   const r = reason.toLowerCase();
-  if (r.includes("газ не на минимуме")) return { text: "Опустите газ до упора; триммер газа — в центр.", check: "tx" };
-  if (r.includes("нет связи с пультом")) return { text: "Включите пульт; проверьте, что приёмник светится ровно (привязан).", check: "tx" };
-  if (r.includes("двигали во время калибровки")) return { text: "Поставьте самолёт неподвижно и откалибруйте гироскоп.", fix: "gyro" };
+  if (r.includes("газ не на минимуме")) return { what: t("газ не на минимуме"), text: t("Опустите газ до упора; триммер газа — в центр."), check: "tx" };
+  if (r.includes("нет связи с пультом")) return { what: t("нет связи с пультом"), text: t("Включите пульт; проверьте, что приёмник светится ровно (привязан)."), check: "tx" };
+  if (r.includes("двигали во время калибровки")) return { what: t("самолёт двигали во время калибровки гироскопа"), text: t("Поставьте самолёт неподвижно и откалибруйте гироскоп."), fix: "gyro" };
   if (r.includes("не совпадает с калибровкой установки") || r.includes("установк")) {
-    return { text: "Плату переставили — повторите установку IMU тремя позами.", check: "mount", fix: "mount" };
+    return { what: t("плата стоит не так, как при установке IMU"), text: t("Плату переставили — повторите установку IMU тремя позами."), check: "mount", fix: "mount" };
   }
-  if (r.includes("не 1g")) return { text: "Акселерометр врёт в покое — поставьте ровно и откалибруйте гироскоп; не помогло — датчик неисправен.", fix: "gyro" };
-  if (r.includes("imu не отвечает")) return { text: "IMU пропал — проверьте провода датчика.", check: "sensors" };
-  if (r.includes("калибровки шасси")) return { text: "Нужна калибровка на земле: горизонт и стоянка.", check: "ground", fix: "ground" };
-  if (r.includes("барометр не отвечает")) return { text: "Барометр пропал — проверьте провода датчика или выберите режим без высоты.", check: "sensors" };
-  if (r.includes("идёт калибровка")) return { text: "Дождитесь конца калибровки на земле или отмените её.", check: "ground" };
-  if (r.includes("отменена калибровка")) return { text: "Верните тумблер ARM вверх и снова вниз." };
-  if (r.includes("сигнал") || r.includes("направление мотора")) return { text: "Подождите пару секунд." };
+  if (r.includes("не 1g")) return { what: t("акселерометр в покое показывает не 1g"), text: t("Акселерометр врёт в покое — поставьте ровно и откалибруйте гироскоп; не помогло — датчик неисправен."), fix: "gyro" };
+  if (r.includes("imu не отвечает")) return { what: t("IMU не отвечает"), text: t("IMU пропал — проверьте провода датчика."), check: "sensors" };
+  if (r.includes("калибровки шасси")) return { what: t("нет калибровки на земле"), text: t("Нужна калибровка на земле: горизонт и стоянка."), check: "ground", fix: "ground" };
+  if (r.includes("барометр не отвечает")) return { what: t("барометр не отвечает"), text: t("Барометр пропал — проверьте провода датчика или выберите режим без высоты."), check: "sensors" };
+  if (r.includes("идёт калибровка")) return { what: t("идёт калибровка на земле"), text: t("Дождитесь конца калибровки на земле или отмените её."), check: "ground" };
+  if (r.includes("отменена калибровка")) return { what: t("этим щелчком калибровка отменена"), text: t("Верните тумблер ARM вверх и снова вниз.") };
+  if (r.includes("сигнал") || r.includes("направление мотора")) return { what: t("звучит сигнал или меняется направление мотора"), text: t("Подождите пару секунд.") };
   return { text: "" };
 }

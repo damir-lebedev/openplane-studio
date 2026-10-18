@@ -4,7 +4,7 @@ import { CircleAlert, CircleCheck, CircleDashed, RefreshCw, TriangleAlert } from
 import { useEffect, useRef } from "react";
 
 import { extraDevices, hex, SensorRow, sensorRows } from "../../../core/live";
-import { t } from "../../../i18n";
+import { locale, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { useLive } from "../../live/LiveWidgets";
 import { CheckState, usePassed, when } from "./common";
@@ -97,7 +97,7 @@ export function SensorsCheck() {
           <RefreshCw size={14} />
           {t("Опросить шину")}
         </button>
-        {scanAt > 0 && <span className="hint">{t("опрос в {time}", { time: new Date(scanAt).toLocaleTimeString("ru-RU") })}</span>}
+        {scanAt > 0 && <span className="hint">{t("опрос в {time}", { time: new Date(scanAt).toLocaleTimeString(locale()) })}</span>}
         <div className="grow" />
         {record && <span className="hint">{t("всё отвечало {when}", { when: when(record.at) })}</span>}
       </div>

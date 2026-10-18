@@ -1,5 +1,6 @@
 // Правка параметров Config.h из мастера и таблицы «Все параметры».
 
+import { t } from "../i18n";
 import { findBoard, findParam, Manifest, ManifestParam } from "./manifest";
 import { effectiveParam, PlaneProject } from "./project";
 
@@ -57,29 +58,29 @@ export function parseInput(param: ManifestParam, text: string): { ok: true; valu
   switch (param.kind) {
     case "float": {
       const v = Number(s);
-      if (s === "" || !Number.isFinite(v)) return { ok: false, error: "нужно число" };
+      if (s === "" || !Number.isFinite(v)) return { ok: false, error: t("нужно число") };
       return { ok: true, value: v };
     }
     case "int": {
       const v = Number(s);
-      if (!Number.isInteger(v)) return { ok: false, error: "нужно целое число" };
-      if (param.min !== undefined && v < param.min) return { ok: false, error: `не меньше ${param.min}` };
-      if (param.max !== undefined && v > param.max) return { ok: false, error: `не больше ${param.max}` };
+      if (!Number.isInteger(v)) return { ok: false, error: t("нужно целое число") };
+      if (param.min !== undefined && v < param.min) return { ok: false, error: t("не меньше {v}", { v: param.min }) };
+      if (param.max !== undefined && v > param.max) return { ok: false, error: t("не больше {v}", { v: param.max }) };
       return { ok: true, value: v };
     }
     case "pin": {
       if (/^P[A-K](?:[0-9]|1[0-5])$/i.test(s)) return { ok: true, value: s.toUpperCase() };
       const v = Number(s);
-      if (!Number.isInteger(v)) return { ok: false, error: "номер GPIO, −1 (нет) или пин вида PA3" };
-      if (param.min !== undefined && v < param.min) return { ok: false, error: `не меньше ${param.min}` };
-      if (param.max !== undefined && v > param.max) return { ok: false, error: `не больше ${param.max}` };
+      if (!Number.isInteger(v)) return { ok: false, error: t("номер GPIO, −1 (нет) или пин вида PA3") };
+      if (param.min !== undefined && v < param.min) return { ok: false, error: t("не меньше {v}", { v: param.min }) };
+      if (param.max !== undefined && v > param.max) return { ok: false, error: t("не больше {v}", { v: param.max }) };
       return { ok: true, value: v };
     }
     case "string":
-      if (/[\u0000-\u001f]/.test(text)) return { ok: false, error: "без управляющих символов" };
+      if (/[\u0000-\u001f]/.test(text)) return { ok: false, error: t("без управляющих символов") };
       return { ok: true, value: text };
     default:
-      return { ok: false, error: "этот параметр меняется не здесь" };
+      return { ok: false, error: t("этот параметр меняется не здесь") };
   }
 }
 
@@ -87,7 +88,7 @@ export function parseInput(param: ManifestParam, text: string): { ok: true; valu
 export function rangeText(param: ManifestParam, withUnit = true): string | null {
   if (!param.range) return null;
   const [lo, hi] = param.range;
-  return `${formatValue(lo)}…${formatValue(hi)}${withUnit && param.unit ? ` ${param.unit}` : ""}`;
+  return `${formatValue(lo)}…${formatValue(hi)}${withUnit && param.unit ? ` ${t(param.unit)}` : ""}`;
 }
 
 /** Значение за разумными пределами — не ошибка (прошивка соберётся), но повод проверить. */
@@ -98,7 +99,7 @@ export function outOfRange(param: ManifestParam, value: unknown): boolean {
 
 export function formatValue(value: unknown): string {
   if (typeof value === "number") return Number.isInteger(value) ? String(value) : String(+value.toPrecision(6));
-  if (typeof value === "boolean") return value ? "да" : "нет";
+  if (typeof value === "boolean") return value ? t("да") : t("нет");
   if (Array.isArray(value)) return value.map(formatValue).join(" ");
   if (typeof value === "string") return value.split("::").pop() ?? value;
   return String(value ?? "—");

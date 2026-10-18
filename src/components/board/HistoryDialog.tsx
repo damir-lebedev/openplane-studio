@@ -10,7 +10,7 @@ import { Change, diffProjects, paramTitle, restoreConfig } from "../../core/diff
 import { itemLabel } from "../../core/labels";
 import { isEmptyReport, migrationReport } from "../../core/migrate";
 import { formatValue, setParamValue } from "../../core/params";
-import { t } from "../../i18n";
+import { locale, t } from "../../i18n";
 import { useApp } from "../../store";
 import { useBoardIdentity } from "./setup/common";
 import { Modal } from "../ui";
@@ -57,7 +57,7 @@ export function useSnapshots(planeId: string): Snapshot[] | null {
 }
 
 function when(iso: string): string {
-  return new Date(iso).toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleString(locale(), { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
 }
 
 export function HistoryDialog({ onClose }: { onClose: () => void }) {
@@ -191,7 +191,7 @@ export function FirmwareUpdateNotice() {
   const names = (kind: "mode" | "feature" | "knob", ids: string[]) => ids.map((id) => itemLabel(kind, id));
   const added = [...names("mode", r.addedModes), ...names("feature", r.addedFeatures), ...names("knob", r.addedKnobs)];
   const removed = [...names("mode", r.removedModes), ...names("feature", r.removedFeatures), ...names("knob", r.removedKnobs)];
-  const unit = (u: string | null) => (u ? ` ${u}` : "");
+  const unit = (u: string | null) => (u ? ` ${t(u)}` : "");
   return (
     <div className="card fw-update">
       <div className="row" style={{ alignItems: "flex-start" }}>

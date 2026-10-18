@@ -2,7 +2,7 @@ import { findBoard, Manifest } from "../../../core/manifest";
 import { setParamValue } from "../../../core/params";
 import { effectiveParam, PlaneProject } from "../../../core/project";
 import { haveTokens } from "../../../core/rules";
-import { t } from "../../../i18n";
+import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Choice, Section, StepHead } from "../../ui";
 import { ParamField } from "../ParamField";
@@ -85,7 +85,7 @@ export function SafetyStep() {
   );
 }
 
-const SYSTEM_GROUPS = ["Чёрный ящик", "Телеметрия MAVLink по радиомодему", "Веб-дашборд", "Цикл управления", "Debug"];
+const SYSTEM_GROUPS = [N_("Чёрный ящик"), N_("Телеметрия MAVLink по радиомодему"), N_("Веб-дашборд"), N_("Цикл управления"), "Debug"];
 
 export function SystemStep() {
   const manifest = useApp((s) => s.manifest)!;
@@ -104,7 +104,7 @@ export function SystemStep() {
         if (group === "Телеметрия MAVLink по радиомодему" && board?.telemetry !== "mavlink") note = t("На этой плате MAVLink нет — связь по Wi-Fi.");
         if (group === "Веб-дашборд" && board?.telemetry !== "wifi") note = t("На этой плате Wi-Fi нет.");
         return (
-          <Section key={group} title={group}>
+          <Section key={group} title={t(group)}>
             {note && <p className="hint">{note}</p>}
             {params.map((p) => (
               <ParamField key={p.name} name={p.name} />

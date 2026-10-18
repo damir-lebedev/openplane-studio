@@ -129,7 +129,7 @@ function ArmStatus({ onOpen }: { onOpen: (id: SetupCheckId) => void }) {
     <div className="arm-status blocked">
       <TriangleAlert size={18} />
       <div className="grow">
-        <b>{t("ARM не включится:")}</b> {live.block}
+        <b>{t("ARM не включится:")}</b> <span title={live.block}>{hint.what ?? live.block}</span>
         {hint.text && <div className="hint">{hint.text}</div>}
       </div>
       {hint.fix && (

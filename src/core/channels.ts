@@ -2,6 +2,7 @@
 // проекта. Тумблер пришёл не на тот канал — прошивка подстраивается под
 // пульт, а не пилот копается в меню пульта.
 
+import { t } from "../i18n";
 import { Manifest } from "./manifest";
 import { effectiveParam, PlaneProject } from "./project";
 import { setParamValue } from "./params";
@@ -45,7 +46,7 @@ export function channelClashes(manifest: Manifest, project: PlaneProject): strin
     if (c.name === "SWA") continue;
     const i = channelIndex(manifest, project, c.name);
     const prev = seen.get(i);
-    if (prev) out.push(`${prev} и ${c.name} — оба на CH${i + 1}`);
+    if (prev) out.push(t("{a} и {b} — оба на CH{n}", { a: prev, b: c.name, n: i + 1 }));
     else seen.set(i, c.name);
   }
   return out;

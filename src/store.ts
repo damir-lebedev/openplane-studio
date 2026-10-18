@@ -5,6 +5,7 @@ import { create } from "zustand";
 import { api, AppInfo, CalibFlags, Device, errorText, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
 import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
 import { Manifest } from "./core/manifest";
+import { setLanguage, t } from "./i18n";
 import { findTemplate, fromTemplate } from "./core/templates";
 import {
   blankProject,
@@ -188,12 +189,14 @@ export const useApp = create<AppState>((set, get) => ({
 
   async init() {
     if (!inTauri()) {
-      set({ ready: true, manifestError: "Приложение запущено не в окне Tauri: нет доступа к системе" });
+      set({ ready: true, manifestError: t("Приложение запущено не в окне Tauri: нет доступа к системе") });
       return;
     }
     try {
       const [info, settings, planes] = await Promise.all([api.appInfo(), api.settingsLoad(), api.hangarList()]);
       planes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      // Язык не выбирали: ангар уже с самолётами — им пользовались по-русски, не удивляем.
+      setLanguage(settings.language ?? (planes.length ? "ru" : undefined));
       const firmwareSource = settings.firmwareSource || info.firmware_guess || undefined;
       const currentId = planes.some((p) => p.id === settings.currentPlane) ? settings.currentPlane! : planes[0]?.id ?? null;
       set({
@@ -220,7 +223,7 @@ export const useApp = create<AppState>((set, get) => ({
           set((s) => ({ ports: { ...s.ports, [port]: { identity, at: Date.now() } } }));
           const match = get().planes.find((p) => p.lastFlash?.configHash === identity.config || (identity.plane && p.name === identity.plane));
           if (match && match.id !== get().currentId && !get().flash) {
-            get().toast("info", `Подключена плата с «${match.name}»`);
+            get().toast("info", t("Подключена плата с «{name}»", { name: match.name }));
           }
         },
         scan: (_port, data) => set({ scan: data, scanAt: Date.now() }),
@@ -239,7 +242,7 @@ export const useApp = create<AppState>((set, get) => ({
           set((s) => ({
             link: { ...s.link, port: st.state === "open" ? st.port : s.link.port, state: st.state === "open" ? "open" : st.state === "error" ? "error" : "idle", error: st.error ?? undefined },
             live: st.state === "open" ? s.live : null,
-            proc: st.state !== "open" && s.proc?.state === "run" ? { ...s.proc, state: "fail", text: "связь с платой пропала" } : s.proc,
+            proc: st.state !== "open" && s.proc?.state === "run" ? { ...s.proc, state: "fail", text: t("связь с платой пропала") } : s.proc,
           })),
       });
     }
@@ -254,6 +257,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   async saveSettings(patch) {
+    if ("language" in patch) setLanguage(patch.language);
     const settings = { ...get().settings, ...patch };
     set({ settings });
     await api.settingsSave(settings);
@@ -271,7 +275,7 @@ export const useApp = create<AppState>((set, get) => ({
   async reloadManifest() {
     const source = get().settings.firmwareSource;
     if (!source) {
-      set({ manifest: null, manifestError: "Не указана папка с исходниками прошивки — откройте «Настройки»" });
+      set({ manifest: null, manifestError: t("Не указана папка с исходниками прошивки — откройте «Настройки»") });
       return;
     }
     set({ manifestLoading: true });
@@ -320,7 +324,7 @@ export const useApp = create<AppState>((set, get) => ({
     const copy: PlaneProject = {
       ...structuredClone(src),
       id: newId(),
-      name: `${src.name} (копия)`,
+      name: t("{name} (копия)", { name: src.name }),
       createdAt: now,
       updatedAt: now,
       lastFlash: undefined,
@@ -468,7 +472,7 @@ export const useApp = create<AppState>((set, get) => ({
           (p) => p.lastFlash?.configHash === identity.config || p.name === identity.plane,
         );
         if (match && match.id !== get().currentId && !get().flash) {
-          get().toast("info", `Подключена плата с «${match.name}»`);
+          get().toast("info", t("Подключена плата с «{name}»", { name: match.name }));
         }
       }
     } catch (e) {
@@ -548,7 +552,7 @@ export const useApp = create<AppState>((set, get) => ({
         if (!p || p.state !== "run") return;
         // Калибровка на земле идёт сама, пока плата шлёт кадры; блокирующие — по таймауту.
         if (Date.now() - p.startedAt > PROC_TIMEOUT_MS[p.kind]) {
-          set({ proc: { ...p, state: "fail", text: "плата не ответила — она на связи?" } });
+          set({ proc: { ...p, state: "fail", text: t("плата не ответила — она на связи?") } });
         }
       }, 1000);
     }
@@ -575,7 +579,7 @@ function persistPlane(plane: PlaneProject) {
   saveTimers.set(
     plane.id,
     setTimeout(() => {
-      api.hangarSave(plane).catch((e) => useApp.getState().toast("err", `Не сохранилось: ${errorText(e)}`));
+      api.hangarSave(plane).catch((e) => useApp.getState().toast("err", t("Не сохранилось: {e}", { e: errorText(e) })));
     }, 400),
   );
 }

@@ -4,6 +4,7 @@
 
 import { isNone } from "../core/manifest";
 import { PlaneProject } from "../core/project";
+import { t } from "../i18n";
 
 export function PlanePreview({ plane, focus = [], height }: { plane: PlaneProject; focus?: string[]; height?: number }) {
   const a = plane.airframe;
@@ -18,7 +19,7 @@ export function PlanePreview({ plane, focus = [], height }: { plane: PlaneProjec
   const propY = pusher ? 305 : 13;
 
   return (
-    <svg viewBox="0 0 400 320" style={height ? { height, width: "auto", maxWidth: "100%" } : undefined} aria-label="Самолёт сверху">
+    <svg viewBox="0 0 400 320" style={height ? { height, width: "auto", maxWidth: "100%" } : undefined} aria-label={t("Самолёт сверху")}>
       {/* крыло */}
       <path className={cls("wing")} d="M44 106 L356 106 Q366 108 364 116 L358 138 Q356 141 352 141 L48 141 Q44 141 42 138 L36 116 Q34 108 44 106 Z" />
       {/* элероны */}

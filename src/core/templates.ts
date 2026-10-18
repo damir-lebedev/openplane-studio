@@ -3,6 +3,7 @@
 // поменять. В шаблоне — только то, что есть в этой версии прошивки:
 // чего нет (режима, параметра, датчика), то тихо пропускается.
 
+import { N_ } from "../i18n";
 import { Binding, isNone, Manifest, SensorCategory } from "./manifest";
 import { setParamValue } from "./params";
 import { Airframe, blankProject, PlaneProject } from "./project";
@@ -26,9 +27,9 @@ export interface PlaneTemplate {
 export const TEMPLATES: PlaneTemplate[] = [
   {
     id: "trainer",
-    title: "Тренер",
-    desc: "Верхнеплан с носовым колесом: взлёт с полосы, стабилизация, удержание высоты, закрылки.",
-    forWhom: "первый свой самолёт с элеронами",
+    title: N_("Тренер"),
+    desc: N_("Верхнеплан с носовым колесом: взлёт с полосы, стабилизация, удержание высоты, закрылки."),
+    forWhom: N_("первый свой самолёт с элеронами"),
     airframe: { motorPosition: "tractor", esc: "normal", ailerons: "two", rudder: true, gear: "nose", payload: false, camera: false, buzzer: true },
     sensors: { imu: "auto", baro: "auto", mag: "none", airspeed: "none", gps: "none" },
     bindings: [
@@ -42,9 +43,9 @@ export const TEMPLATES: PlaneTemplate[] = [
   },
   {
     id: "student",
-    title: "Ученик",
-    desc: "Летает в стабилизации, крен ограничен, «Спасите» под пальцем, геозабор и возврат домой при потере связи.",
-    forWhom: "самые первые полёты, инструктор рядом",
+    title: N_("Ученик"),
+    desc: N_("Летает в стабилизации, крен ограничен, «Спасите» под пальцем, геозабор и возврат домой при потере связи."),
+    forWhom: N_("самые первые полёты, инструктор рядом"),
     airframe: { motorPosition: "tractor", esc: "normal", ailerons: "two", rudder: true, gear: "nose", payload: false, camera: false, buzzer: true },
     sensors: { imu: "auto", baro: "auto", mag: "auto", airspeed: "none", gps: "auto" },
     bindings: [
@@ -58,9 +59,9 @@ export const TEMPLATES: PlaneTemplate[] = [
   },
   {
     id: "thermal",
-    title: "Термик",
-    desc: "Мотопланер с руки: автовзлёт с броска, парение в потоках, тормоз флаперонами на посадке.",
-    forWhom: "планер с мотором, длинное крыло, без шасси",
+    title: N_("Термик"),
+    desc: N_("Мотопланер с руки: автовзлёт с броска, парение в потоках, тормоз флаперонами на посадке."),
+    forWhom: N_("планер с мотором, длинное крыло, без шасси"),
     airframe: { motorPosition: "tractor", esc: "normal", ailerons: "two", rudder: true, gear: "none", payload: false, camera: false, buzzer: true },
     sensors: { imu: "auto", baro: "auto", mag: "none", airspeed: "auto", gps: "none" },
     bindings: [
@@ -74,9 +75,9 @@ export const TEMPLATES: PlaneTemplate[] = [
   },
   {
     id: "delivery",
-    title: "Доставка",
-    desc: "Круиз по скорости, круги над точкой, сброс груза тумблером, домой — тумблером и сам при потере связи.",
-    forWhom: "грузовой самолёт с GPS: возить и сбрасывать",
+    title: N_("Доставка"),
+    desc: N_("Круиз по скорости, круги над точкой, сброс груза тумблером, домой — тумблером и сам при потере связи."),
+    forWhom: N_("грузовой самолёт с GPS: возить и сбрасывать"),
     airframe: { motorPosition: "tractor", esc: "bidirectional", ailerons: "two", rudder: true, gear: "tail", payload: true, camera: false, buzzer: true },
     sensors: { imu: "auto", baro: "auto", mag: "auto", airspeed: "auto", gps: "auto" },
     bindings: [

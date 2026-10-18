@@ -116,7 +116,7 @@ export function ParamEditor({ name }: { name: string }) {
       return (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 6 }}>
           {values.map((v, i) => (
-            <label key={i} className="row" style={{ gap: 8 }} title={p.itemNotes?.[i]}>
+            <label key={i} className="row" style={{ gap: 8 }} title={p.itemNotes?.[i] ? t(p.itemNotes[i]) : undefined}>
               <Toggle
                 on={v === true}
                 onChange={(nv) => {
@@ -125,7 +125,7 @@ export function ParamEditor({ name }: { name: string }) {
                   set(next);
                 }}
               />
-              <span className="hint">{p.itemNotes?.[i]?.split("—")[0]?.trim() || `#${i + 1}`}</span>
+              <span className="hint">{(p.itemNotes?.[i] ? t(p.itemNotes[i]) : "").split("—")[0].trim() || `#${i + 1}`}</span>
             </label>
           ))}
         </div>
@@ -155,7 +155,7 @@ export function ParamEditor({ name }: { name: string }) {
               if (e.key === "Escape") setText(formatValue(st.value));
             }}
           />
-          {p.unit && <span className="hint">{p.unit}</span>}
+          {p.unit && <span className="hint">{t(p.unit)}</span>}
           {error && <span className="hint" style={{ color: "#ff8f88" }}>{error}</span>}
           {!error && p.range && (
             <span
@@ -181,7 +181,7 @@ export function ParamField({ name, label, hint }: { name: string; label?: string
   if (!manifest || !plane) return null;
   const st = paramState(manifest, plane, name);
   if (!st) return null;
-  const doc = (hint ?? st.param.note) || st.param.doc;
+  const doc = (hint ?? t(st.param.note)) || t(st.param.doc);
   return (
     <div className="card" style={{ padding: "12px 14px", marginBottom: 8 }}>
       <div className="row" style={{ alignItems: "flex-start" }}>

@@ -23,6 +23,8 @@ export interface Settings {
   firmwareVersion?: string;
   mode?: "simple" | "full";
   currentPlane?: string;
+  /** язык интерфейса: "ru", "en"; пусто — по языку системы */
+  language?: string;
 }
 
 export interface Device {

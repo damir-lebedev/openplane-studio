@@ -2,22 +2,22 @@ import { Cpu, Usb } from "lucide-react";
 
 import { findBoard, ManifestBoard } from "../../../core/manifest";
 import { pinRole, pinTable } from "../../../core/pins";
-import { t } from "../../../i18n";
+import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Choice, Section, StepHead } from "../../ui";
 import { ParamEditor } from "../ParamField";
 
 const PIN_ROLE_TEXT: Record<string, string> = {
-  pwm: "ШИМ — серво или ESC",
-  uart_rx: "приём UART",
-  uart_tx: "передача UART",
-  i2c_sda: "I2C, данные",
-  i2c_scl: "I2C, такт",
-  spi_sck: "SPI, такт",
-  spi_miso: "SPI, приём",
-  spi_mosi: "SPI, передача",
-  adc: "аналоговый вход",
-  gpio: "цифровой выход",
+  pwm: N_("ШИМ — серво или ESC"),
+  uart_rx: N_("приём UART"),
+  uart_tx: N_("передача UART"),
+  i2c_sda: N_("I2C, данные"),
+  i2c_scl: N_("I2C, такт"),
+  spi_sck: N_("SPI, такт"),
+  spi_miso: N_("SPI, приём"),
+  spi_mosi: N_("SPI, передача"),
+  adc: N_("аналоговый вход"),
+  gpio: N_("цифровой выход"),
 };
 
 function boardDesc(b: ManifestBoard): string {
@@ -77,7 +77,7 @@ export function BoardStep() {
               <Choice
                 key={b.env}
                 icon={<Cpu size={16} color="var(--accent)" />}
-                title={b.title.charAt(0).toUpperCase() + b.title.slice(1)}
+                title={t(b.title).charAt(0).toUpperCase() + t(b.title).slice(1)}
                 desc={boardDesc(b)}
                 selected={plane.board === b.env}
                 onClick={() => updatePlane((p) => (p.board = b.env))}
@@ -114,12 +114,12 @@ export function BoardStep() {
                   <tr key={p.name}>
                     <td className="mono" style={{ width: 200 }}>
                       {p.name}
-                      {pinRole(p.name) && <div className="hint pin-role">{PIN_ROLE_TEXT[pinRole(p.name)!]}</div>}
+                      {pinRole(p.name) && <div className="hint pin-role">{t(PIN_ROLE_TEXT[pinRole(p.name)!])}</div>}
                     </td>
                     <td style={{ width: 300 }}>
                       <ParamEditor name={p.name} />
                     </td>
-                    <td className="hint">{p.note || p.doc.split("\n")[0]}</td>
+                    <td className="hint">{p.note ? t(p.note) : t(p.doc).split("\n")[0]}</td>
                   </tr>
                 ))}
               </tbody>

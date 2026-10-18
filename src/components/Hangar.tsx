@@ -1,10 +1,10 @@
 import { Copy, FileCode, GraduationCap, Package, Plane, Plus, Trash, Triangle, Wind, Zap } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 
-import { findBoard, SENSOR_CATEGORIES } from "../core/manifest";
+import { findBoard, isNone, SENSOR_CATEGORIES } from "../core/manifest";
 import { configHash, PlaneProject, sensorLabel, toFirmwareConfig } from "../core/project";
 import { TEMPLATES } from "../core/templates";
-import { t } from "../i18n";
+import { locale, t } from "../i18n";
 import { useApp } from "../store";
 import { PlanePreview } from "./PlanePreview";
 import { Choice, Modal } from "./ui";
@@ -33,8 +33,8 @@ function PlaneCard({ plane, onDelete }: { plane: PlaneProject; onDelete: () => v
   const state = useFlashState(plane);
   const board = manifest ? findBoard(manifest, plane.board) : undefined;
   const sensors = manifest
-    ? SENSOR_CATEGORIES.map((c) => sensorLabel(manifest, c, plane.sensors[c]))
-        .filter((l) => l !== "нет")
+    ? SENSOR_CATEGORIES.filter((c) => !isNone(plane.sensors[c]))
+        .map((c) => sensorLabel(manifest, c, plane.sensors[c]))
         .join(", ")
     : "";
   const open = (review: boolean) => {
@@ -57,11 +57,11 @@ function PlaneCard({ plane, onDelete }: { plane: PlaneProject; onDelete: () => v
       </div>
       <div className="kv">
         <span>{t("Плата")}</span>
-        <span>{board?.title ?? plane.board}</span>
+        <span>{board ? t(board.title) : plane.board}</span>
         <span>{t("Датчики")}</span>
         <span>{sensors || "—"}</span>
         <span>{t("Прошит")}</span>
-        <span>{plane.lastFlash ? new Date(plane.lastFlash.at).toLocaleString("ru-RU") : "—"}</span>
+        <span>{plane.lastFlash ? new Date(plane.lastFlash.at).toLocaleString(locale()) : "—"}</span>
       </div>
       <div className="row" style={{ marginTop: "auto" }}>
         <button className="btn" onClick={() => open(false)}>

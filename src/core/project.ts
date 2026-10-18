@@ -1,6 +1,7 @@
 // Самолёт в ангаре: что выбрано в мастере. Из него получается конфигурация
 // для tools/opconfig.py apply (toFirmwareConfig) — прошивка собирается по ней.
 
+import { N_, t } from "../i18n";
 import {
   Binding,
   defaultBoard,
@@ -173,7 +174,7 @@ export function setGear(project: PlaneProject, gear: Airframe["gear"]): string |
     if (b.kind === "mode") return { ...b, mode: swap(b.mode) };
     return b;
   });
-  return swapped ? "Без шасси автовзлёт с полосы заменён на автовзлёт с руки" : null;
+  return swapped ? N_("Без шасси автовзлёт с полосы заменён на автовзлёт с руки") : null;
 }
 
 /** Значение параметра для этой конфигурации: правка самолёта или значение прошивки. */
@@ -265,8 +266,8 @@ export async function configHash(config: FirmwareConfig, commit: string | null):
 }
 
 export function sensorLabel(manifest: Manifest, cat: SensorCategory, id: string): string {
-  if (isNone(id)) return "нет";
+  if (isNone(id)) return t("нет");
   const opt = manifest.sensors.options[cat].find((o) => o.id === id);
   if (!opt) return id;
-  return opt.bus === "spi" ? `${opt.title} (SPI)` : opt.title;
+  return opt.bus === "spi" ? `${t(opt.title)} (SPI)` : t(opt.title);
 }

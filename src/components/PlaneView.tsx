@@ -8,6 +8,7 @@ import { channelIndex } from "../core/channels";
 import { expectedAddresses, hex } from "../core/live";
 import { findBoard, isNone, Manifest } from "../core/manifest";
 import { PlaneProject, sensorLabel } from "../core/project";
+import { t } from "../i18n";
 import { useApp } from "../store";
 import { useLive } from "./live/LiveWidgets";
 import { PlanePreview } from "./PlanePreview";
@@ -51,16 +52,16 @@ function labelsOf(manifest: Manifest, plane: PlaneProject): Record<string, strin
   const a = plane.airframe;
   const out: Record<string, string> = {
     board: `${findBoard(manifest, plane.board)?.title.split(" — ")[0] ?? plane.board} · IMU ${name("imu")}${at("imu")}`,
-    baro: isNone(plane.sensors.baro) ? "Барометр: нет" : `Барометр ${name("baro")}${at("baro")}`,
-    mag: isNone(plane.sensors.mag) ? "Компас: нет" : `Компас ${name("mag")}${at("mag")} — подальше от мотора`,
-    gps: isNone(plane.sensors.gps) ? "GPS: нет" : `GPS ${name("gps")} — антенной в небо`,
+    baro: isNone(plane.sensors.baro) ? t("Барометр: нет") : t("Барометр {name}{at}", { name: name("baro"), at: at("baro") }),
+    mag: isNone(plane.sensors.mag) ? t("Компас: нет") : t("Компас {name}{at} — подальше от мотора", { name: name("mag"), at: at("mag") }),
+    gps: isNone(plane.sensors.gps) ? t("GPS: нет") : t("GPS {name} — антенной в небо", { name: name("gps") }),
     pitot: isNone(plane.sensors.airspeed)
-      ? "Трубка Пито: нет"
-      : `${name("airspeed")}${at("airspeed")}: внутренняя трубка — полное давление, статику меряет барометр`,
-    motor: `Мотор ${a.motorPosition === "pusher" ? "толкающий" : "тянущий"}, регулятор ${a.esc === "bidirectional" ? "двунаправленный" : "обычный"}`,
-    gear: a.gear === "tail" ? "Хвостовое колесо" : a.gear === "nose" ? "Носовое колесо" : "Без шасси — запуск с руки",
-    payload: "Сброс груза — серво AUX1",
-    camera: "Камера — серво наклона AUX2",
+      ? t("Трубка Пито: нет")
+      : t("{name}{at}: внутренняя трубка — полное давление, статику меряет барометр", { name: name("airspeed"), at: at("airspeed") }),
+    motor: `${a.motorPosition === "pusher" ? t("Мотор толкающий") : t("Мотор тянущий")}, ${a.esc === "bidirectional" ? t("регулятор двунаправленный") : t("регулятор обычный")}`,
+    gear: a.gear === "tail" ? t("Хвостовое колесо") : a.gear === "nose" ? t("Носовое колесо") : t("Без шасси — запуск с руки"),
+    payload: t("Сброс груза — серво AUX1"),
+    camera: t("Камера — серво наклона AUX2"),
   };
   return out;
 }

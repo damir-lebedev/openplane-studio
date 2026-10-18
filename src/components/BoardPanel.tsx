@@ -6,12 +6,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { api, errorText } from "../api";
 import { armBlockHint } from "../core/live";
-import { t } from "../i18n";
+import { N_, t } from "../i18n";
 import { useApp } from "../store";
 import { Horizon, SensorChip, useLive } from "./live/LiveWidgets";
 
-const OUT_NAMES = ["Элерон Л", "Элерон П", "Руль выс.", "Руль напр.", "Газ", "AUX1", "AUX2"];
-const CH_NAMES = ["крен", "тангаж", "газ", "курс", "SwA", "SwB", "SwC", "SwD", "VrA", "VrB"];
+const OUT_NAMES = [N_("Элерон Л"), N_("Элерон П"), N_("Руль выс."), N_("Руль напр."), N_("Газ"), "AUX1", "AUX2"];
+const CH_NAMES = [N_("крен"), N_("тангаж"), N_("газ"), N_("курс"), "SwA", "SwB", "SwC", "SwD", "VrA", "VrB"];
 
 function Bars({ values, names }: { values: number[]; names: string[] }) {
   return (
@@ -19,8 +19,8 @@ function Bars({ values, names }: { values: number[]; names: string[] }) {
       {values.map((v, i) => {
         const frac = Math.max(0, Math.min(1, (v - 1000) / 1000));
         return (
-          <div key={i} className="bar-row" title={`${names[i] ?? ""}: ${v} мкс`}>
-            <span className="bar-name">{names[i] ?? `CH${i + 1}`}</span>
+          <div key={i} className="bar-row" title={t("{name}: {v} мкс", { name: names[i] ? t(names[i]) : "", v })}>
+            <span className="bar-name">{names[i] ? t(names[i]) : `CH${i + 1}`}</span>
             <span className="bar-track">
               <span className="bar-mid" />
               <span className="bar-fill" style={{ width: `${frac * 100}%` }} />
@@ -171,11 +171,11 @@ function LiveBlock() {
           </span>
         ))}
         <div className="grow" />
-        <span className="hint mono">{live.hz} Гц</span>
+        <span className="hint mono">{t("{n} Гц", { n: live.hz })}</span>
       </div>
       {live.block && !live.arm && (
         <div className="arm-block">
-          <b>{t("ARM не включится:")}</b> {live.block}
+          <b>{t("ARM не включится:")}</b> <span title={live.block}>{hint?.what ?? live.block}</span>
           {hint?.text && <div className="hint">{hint.text}</div>}
         </div>
       )}
@@ -183,10 +183,10 @@ function LiveBlock() {
         <Horizon roll={live.att?.[0]} pitch={live.att?.[1]} size={112} />
         <div className="grow" style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           <SensorChip name="IMU" state={live.imu} value={live.att ? `${live.att[0].toFixed(0)}° / ${live.att[1].toFixed(0)}°` : undefined} />
-          <SensorChip name={t("Баро")} state={live.baro} value={live.alt !== undefined ? `${live.alt.toFixed(1)} м` : undefined} />
+          <SensorChip name={t("Баро")} state={live.baro} value={live.alt !== undefined ? t("{v} м", { v: live.alt.toFixed(1) }) : undefined} />
           <SensorChip name={t("Компас")} state={live.mag} value={live.hdg !== undefined ? `${live.hdg}°` : undefined} />
           <SensorChip name="GPS" state={live.gps} value={live.sats !== undefined ? t("{n} спутн.", { n: live.sats }) : undefined} />
-          <SensorChip name={t("Пито")} state={live.pitot} value={live.ias !== undefined ? `${live.ias.toFixed(1)} м/с` : undefined} />
+          <SensorChip name={t("Пито")} state={live.pitot} value={live.ias !== undefined ? t("{v} м/с", { v: live.ias.toFixed(1) }) : undefined} />
         </div>
       </div>
       <div className="drawer-cols">

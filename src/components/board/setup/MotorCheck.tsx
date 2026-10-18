@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { toggleFlag } from "../../../core/channels";
 import { setParamValue } from "../../../core/params";
 import { effectiveParam } from "../../../core/project";
+import { armBlockHint } from "../../../core/live";
 import { t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { useLive } from "../../live/LiveWidgets";
@@ -56,7 +57,7 @@ export function MotorCheck() {
           <div className={`task-line${armed ? " done" : ""}`}>
             {armed ? <CircleCheck size={16} color="var(--ok)" /> : <span className="task-dot">1</span>}
             {t("Заармьте: газ вниз, SwA вниз")}
-            {!armed && live?.block && <span className="hint"> — {t("не выйдет: {r}", { r: live.block })}</span>}
+            {!armed && live?.block && <span className="hint"> — {t("не выйдет: {r}", { r: armBlockHint(live.block).what ?? live.block })}</span>}
           </div>
           <div className={`task-line${spinning ? " done" : ""}`}>
             {spinning ? <CircleCheck size={16} color="var(--ok)" /> : <span className="task-dot">2</span>}

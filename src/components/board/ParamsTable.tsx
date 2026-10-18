@@ -23,12 +23,8 @@ export function ParamsTable() {
       .filter(({ p, st }) => {
         if (onlyChanged && !st.changed) return false;
         if (!q) return true;
-        return (
-          p.name.toLowerCase().includes(q) ||
-          p.doc.toLowerCase().includes(q) ||
-          p.note.toLowerCase().includes(q) ||
-          (p.group ?? "").toLowerCase().includes(q)
-        );
+        // ищем и по-русски (как в Config.h), и в переводе
+        return p.name.toLowerCase().includes(q) || [p.doc, p.note, p.group ?? ""].some((s) => s && (s.toLowerCase().includes(q) || t(s).toLowerCase().includes(q)));
       });
   }, [manifest, plane, board, query, onlyChanged]);
 
@@ -42,7 +38,7 @@ export function ParamsTable() {
         <p>
           {t(
             "Каждое число прошивки — из Config.h, с описанием из комментариев. Синяя полоска — изменено в этом самолёте; остальное как в прошивке. Пины — для платы {board}.",
-            { board: board?.title ?? plane.board },
+            { board: board ? t(board.title) : plane.board },
           )}
         </p>
       </div>
@@ -75,10 +71,11 @@ export function ParamsTable() {
         </thead>
         <tbody>
           {rows.map(({ p, st }) => {
-            const group = p.board ? `${p.group} · ${board?.title ?? p.board}` : p.group;
+            const groupName = p.group ? t(p.group) : p.group;
+            const group = p.board ? `${groupName} · ${board ? t(board.title) : p.board}` : groupName;
             const showGroup = group !== lastGroup;
             lastGroup = group;
-            const doc = [p.note, p.doc].filter(Boolean).join("\n\n");
+            const doc = [p.note, p.doc].filter(Boolean).map((s) => t(s)).join("\n\n");
             return (
               <Fragment key={`${p.board}-${p.name}`}>
                 {showGroup && (
@@ -112,7 +109,7 @@ export function ParamsTable() {
                   </td>
                   <td className="mono hint">
                     {formatValue(st.firmware)}
-                    {p.unit && p.kind !== "bool" ? ` ${p.unit}` : ""}
+                    {p.unit && p.kind !== "bool" ? ` ${t(p.unit)}` : ""}
                   </td>
                   <td>
                     {st.changed && !p.fixed && (

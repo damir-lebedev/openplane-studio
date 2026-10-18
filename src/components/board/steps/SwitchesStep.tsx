@@ -3,7 +3,7 @@ import { Lightbulb } from "lucide-react";
 import { bindingText, channelTitle, itemLabel } from "../../../core/labels";
 import { Binding } from "../../../core/manifest";
 import { availability, bindingItems, haveTokens, itemById, ItemKind, needText } from "../../../core/rules";
-import { t } from "../../../i18n";
+import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { itemParams } from "../../../core/itemParams";
 import { Advanced, Section, StepHead } from "../../ui";
@@ -16,9 +16,9 @@ function Palette() {
   const setStep = useApp((s) => s.setStep);
   const have = haveTokens(manifest, plane);
   const groups: [ItemKind, string][] = [
-    ["mode", "Режимы"],
-    ["feature", "Функции"],
-    ["knob", "Крутилки"],
+    ["mode", N_("Режимы")],
+    ["feature", N_("Функции")],
+    ["knob", N_("Крутилки")],
   ];
   return (
     <div className="card" style={{ marginBottom: 16 }}>
@@ -37,8 +37,8 @@ function Palette() {
                   av.state === "unavailable"
                     ? needText(manifest, kind, item.name, av.missing)
                     : av.state === "degraded"
-                      ? t("работает, лучше с: {l}", { l: av.better.map((x) => manifest.needTokens[x] ?? x).join(", ") })
-                      : item.doc;
+                      ? t("работает, лучше с: {l}", { l: av.better.map((x) => t(manifest.needTokens[x] ?? x)).join(", ") })
+                      : t(item.doc);
                 return (
                   <span
                     key={item.id}
@@ -88,7 +88,7 @@ function Suggestions() {
     <Section title={t("Идеи из прошивки")} sub={t("закомментированные строки Controls.h — одним нажатием")}>
       <div className="row" style={{ flexWrap: "wrap", gap: 8 }}>
         {usable.map((sg, i) => (
-          <button key={i} className="btn small" title={sg.doc} onClick={() => apply(sg)}>
+          <button key={i} className="btn small" title={t(sg.doc)} onClick={() => apply(sg)}>
             <Lightbulb size={13} />
             {bindingText(manifest, sg)}
           </button>
@@ -201,7 +201,7 @@ export function RcStep() {
                       ))}
                     </select>
                   </td>
-                  <td className="hint">{c.doc}</td>
+                  <td className="hint">{t(c.doc)}</td>
                 </tr>
               ))}
             </tbody>

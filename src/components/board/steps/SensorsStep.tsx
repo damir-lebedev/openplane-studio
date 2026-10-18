@@ -1,16 +1,16 @@
 import { itemLabel } from "../../../core/labels";
 import { isNone, SensorCategory, SENSOR_CATEGORIES } from "../../../core/manifest";
-import { t } from "../../../i18n";
+import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Advanced, Choice, Section, StepHead } from "../../ui";
 import { ParamField } from "../ParamField";
 
 const TITLES: Record<SensorCategory, { title: string; part: string; token: string; none?: string }> = {
-  imu: { title: "IMU — гироскоп и акселерометр", part: "board", token: "imu" },
-  baro: { title: "Барометр — высота", part: "baro", token: "baro", none: "Режимы с высотой будут недоступны" },
-  mag: { title: "Компас", part: "mag", token: "mag" },
+  imu: { title: N_("IMU — гироскоп и акселерометр"), part: "board", token: "imu" },
+  baro: { title: N_("Барометр — высота"), part: "baro", token: "baro", none: N_("Режимы с высотой будут недоступны") },
+  mag: { title: N_("Компас"), part: "mag", token: "mag" },
   gps: { title: "GPS", part: "gps", token: "gps" },
-  airspeed: { title: "Трубка Пито — воздушная скорость", part: "pitot", token: "pitot" },
+  airspeed: { title: N_("Трубка Пито — воздушная скорость"), part: "pitot", token: "pitot" },
 };
 
 export function SensorsStep() {
@@ -48,7 +48,7 @@ export function SensorsStep() {
               <Choice
                 key={k.id}
                 title={k.id.replace("SENSOR_KIT_", "").replace(/_/g, " ")}
-                desc={k.doc}
+                desc={t(k.doc)}
                 selected={kitActive(k.sensors)}
                 onClick={() => updatePlane((p) => Object.assign(p.sensors, k.sensors))}
               />
@@ -86,8 +86,8 @@ export function SensorsStep() {
               {options.map((o) => (
                 <Choice
                   key={o.id}
-                  title={o.bus === "none" ? t("Нет") : o.title}
-                  desc={o.bus === "none" ? undefined : o.doc || o.note}
+                  title={o.bus === "none" ? t("Нет") : t(o.title)}
+                  desc={o.bus === "none" ? undefined : t(o.doc || o.note)}
                   badge={o.bus !== "none" ? <span className="badge">{o.bus.toUpperCase()}</span> : undefined}
                   selected={plane.sensors[cat] === o.id}
                   onClick={() => updatePlane((p) => (p.sensors[cat] = o.id))}

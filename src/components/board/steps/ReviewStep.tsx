@@ -5,22 +5,22 @@ import { findBoard, SENSOR_CATEGORIES } from "../../../core/manifest";
 import { sensorLabel } from "../../../core/project";
 import { Issue, validate } from "../../../core/rules";
 import { runFlash } from "../../../flash";
-import { plural, t } from "../../../i18n";
+import { N_, plural, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Section, StepHead } from "../../ui";
 import { FirmwareUpdateNotice, PendingChanges } from "../HistoryDialog";
 import { safetyStory } from "./SafetyStep";
 
 const STEP_NAMES: Record<string, string> = {
-  board: "Плата",
-  airframe: "Самолёт",
-  sensors: "Датчики",
-  rc: "Пульт",
-  switches: "Тумблеры",
-  safety: "Безопасность",
-  system: "Система",
-  review: "Проверка",
-  setup: "Наладка",
+  board: N_("Плата"),
+  airframe: N_("Самолёт"),
+  sensors: N_("Датчики"),
+  rc: N_("Пульт"),
+  switches: N_("Тумблеры"),
+  safety: N_("Безопасность"),
+  system: N_("Система"),
+  review: N_("Проверка"),
+  setup: N_("Наладка"),
 };
 
 export function IssueRow({ issue, onGo }: { issue: Issue; onGo?: () => void }) {
@@ -47,7 +47,7 @@ export function flashBlocker(): string | null {
   if (!s.manifest || !plane) return t("Нет описания прошивки");
   if (!s.info?.pio) return t("Не найден PlatformIO — поставьте его в «Настройках» одной кнопкой");
   const errors = validate(s.manifest, plane).filter((i) => i.level === "error").length;
-  if (errors) return t("Исправьте {n} {w}", { n: errors, w: plural(errors, "ошибку", "ошибки", "ошибок") });
+  if (errors) return t("Исправьте {n} {w}", { n: errors, w: plural(errors, N_("ошибку"), N_("ошибки"), N_("ошибок")) });
   return null;
 }
 
@@ -91,7 +91,7 @@ export function ReviewStep() {
       <Section title={t("Самолёт")}>
         <div className="card kv">
           <span>{t("Плата")}</span>
-          <span>{board?.title ?? plane.board}</span>
+          <span>{board ? t(board.title) : plane.board}</span>
           <span>{t("Мотор")}</span>
           <span>
             {plane.airframe.motorPosition === "tractor" ? t("тянущий") : t("толкающий")},{" "}
@@ -101,7 +101,7 @@ export function ReviewStep() {
           <span>{plane.airframe.gear === "tail" ? t("хвостовое колесо") : plane.airframe.gear === "nose" ? t("носовое колесо") : t("нет, запуск с руки")}</span>
           <span>{t("Датчики")}</span>
           <span>
-            {SENSOR_CATEGORIES.map((c) => `${c === "airspeed" ? "Пито" : c.toUpperCase()}: ${sensorLabel(manifest, c, plane.sensors[c])}`).join(" · ")}
+            {SENSOR_CATEGORIES.map((c) => `${c === "airspeed" ? t("Пито") : c.toUpperCase()}: ${sensorLabel(manifest, c, plane.sensors[c])}`).join(" · ")}
           </span>
         </div>
       </Section>
