@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-import { api, AppInfo, Device, errorText, Identity, inTauri, Settings } from "./api";
+import { api, AppInfo, Device, errorText, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
 import { Manifest } from "./core/manifest";
 import {
   blankProject,
@@ -45,6 +45,13 @@ export interface FlashState {
   done?: { verified: boolean; text: string };
 }
 
+export interface LinkInfo {
+  port: string | null;
+  state: "idle" | "connecting" | "open" | "error";
+  error?: string;
+  attemptAt: number;
+}
+
 export interface Toast {
   id: number;
   kind: "ok" | "info" | "warn" | "err";
@@ -69,6 +76,12 @@ interface AppState {
   flash: FlashState | null;
   toasts: Toast[];
   focus: string[];
+  link: LinkInfo;
+  live: LiveFrame | null;
+  liveAt: number;
+  consoleLines: string[];
+  scan: ScanResult | null;
+  boardPanel: boolean;
 
   init(): Promise<void>;
   setSection(section: Section): void;
@@ -93,11 +106,17 @@ interface AppState {
   startFlash(state: FlashState): void;
   closeFlash(): void;
   toast(kind: Toast["kind"], text: string): void;
+  connect(port: string, stm32: boolean): Promise<void>;
+  disconnect(): Promise<void>;
+  command(cmd: string): Promise<void>;
+  sendRaw(text: string): Promise<void>;
+  setBoardPanel(open: boolean): void;
 }
 
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let toastSeq = 0;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let eventsBound = false;
 const querying = new Set<string>();
 
 export function stepsFor(mode: Mode): StepId[] {
@@ -122,6 +141,12 @@ export const useApp = create<AppState>((set, get) => ({
   flash: null,
   toasts: [],
   focus: [],
+  link: { port: null, state: "idle", attemptAt: 0 },
+  live: null,
+  liveAt: 0,
+  consoleLines: [],
+  scan: null,
+  boardPanel: false,
 
   async init() {
     if (!inTauri()) {
@@ -148,6 +173,31 @@ export const useApp = create<AppState>((set, get) => ({
       await get().reloadManifest();
     } catch (e) {
       set({ ready: true, manifestError: errorText(e) });
+    }
+    if (!eventsBound) {
+      eventsBound = true;
+      void onBoardEvents({
+        live: (_port, data) => set({ live: data, liveAt: Date.now() }),
+        id: (port, identity) => {
+          set((s) => ({ ports: { ...s.ports, [port]: { identity, at: Date.now() } } }));
+          const match = get().planes.find((p) => p.lastFlash?.configHash === identity.config || (identity.plane && p.name === identity.plane));
+          if (match && match.id !== get().currentId && !get().flash) {
+            get().toast("info", `Подключена плата с «${match.name}»`);
+          }
+        },
+        scan: (_port, data) => set({ scan: data }),
+        line: (_port, line) =>
+          set((s) => {
+            const lines = s.consoleLines.length > 600 ? s.consoleLines.slice(-500) : s.consoleLines.slice();
+            lines.push(line);
+            return { consoleLines: lines };
+          }),
+        link: (st) =>
+          set((s) => ({
+            link: { ...s.link, port: st.state === "open" ? st.port : s.link.port, state: st.state === "open" ? "open" : st.state === "error" ? "error" : "idle", error: st.error ?? undefined },
+            live: st.state === "open" ? s.live : null,
+          })),
+      });
     }
     if (!pollTimer) {
       pollTimer = setInterval(() => void get().pollDevices(), 2000);
@@ -321,10 +371,15 @@ export const useApp = create<AppState>((set, get) => ({
       const present = new Set(devices.map((d) => d.port).filter(Boolean) as string[]);
       for (const port of Object.keys(ports)) if (!present.has(port)) delete ports[port];
       set({ devices, ports });
-      for (const d of devices) {
-        if (d.kind === "stm32-cdc" && d.port && !ports[d.port] && !querying.has(d.port)) {
-          void get().queryPort(d.port, true);
-        }
+      // Наша прошивка на STM32 — подключаемся сами и держим связь.
+      const cdc = devices.find((d) => d.kind === "stm32-cdc" && d.port);
+      const link = get().link;
+      if (cdc?.port) {
+        const sameOpen = link.port === cdc.port && (link.state === "open" || link.state === "connecting");
+        const cooling = link.state === "error" && Date.now() - link.attemptAt < 5000;
+        if (!sameOpen && !cooling) void get().connect(cdc.port, true);
+      } else if (link.state === "open" && link.port && !present.has(link.port)) {
+        set({ link: { port: null, state: "idle", attemptAt: 0 }, live: null });
       }
     } catch {
       /* список устройств недоступен — попробуем в следующий раз */
@@ -367,6 +422,37 @@ export const useApp = create<AppState>((set, get) => ({
     if (get().flash?.running) return;
     set({ flash: null, ports: {} });
     void get().pollDevices();
+  },
+
+  async connect(port, stm32) {
+    set({ link: { port, state: "connecting", attemptAt: Date.now() } });
+    try {
+      await api.linkStart(port, stm32);
+      set((s) => ({ link: { ...s.link, port, state: "open" }, ports: { ...s.ports, [port]: { ...(s.ports[port] ?? { identity: null }), busy: false, error: undefined, at: Date.now() } } }));
+    } catch (e) {
+      const text = errorText(e);
+      set((s) => ({
+        link: { port, state: "error", error: text, attemptAt: Date.now() },
+        ports: { ...s.ports, [port]: { identity: s.ports[port]?.identity ?? null, busy: text.startsWith("PORT_BUSY"), error: text, at: Date.now() } },
+      }));
+    }
+  },
+
+  async disconnect() {
+    await api.linkStop().catch(() => {});
+    set({ link: { port: null, state: "idle", attemptAt: Date.now() }, live: null });
+  },
+
+  async command(cmd) {
+    await api.linkCommand(cmd);
+  },
+
+  async sendRaw(text) {
+    await api.linkSend(text);
+  },
+
+  setBoardPanel(open) {
+    set({ boardPanel: open });
   },
 
   toast(kind, text) {

@@ -117,12 +117,20 @@ async function prepareBoard(env: string, dfu: boolean): Promise<string | null> {
     const cdc = devices.find((d) => d.kind === "stm32-cdc");
     if (cdc?.port) {
       activity(`Перезагружаю плату в режим прошивки (${cdc.port})…`);
-      try {
-        await api.boardBootloader(cdc.port);
-      } catch (e) {
-        const text = errorText(e);
-        if (text.startsWith("PORT_BUSY")) throw await busyError(cdc.port);
-        throw new FlashError("Плата не ответила", text, "retry");
+      const app = useApp.getState();
+      if (app.link.state === "open" && app.link.port === cdc.port) {
+        // Порт держит связь приложения — клавиша D идёт через неё.
+        await api.linkSend("D").catch(() => {});
+        await sleep(200);
+        await app.disconnect();
+      } else {
+        try {
+          await api.boardBootloader(cdc.port);
+        } catch (e) {
+          const text = errorText(e);
+          if (text.startsWith("PORT_BUSY")) throw await busyError(cdc.port);
+          throw new FlashError("Плата не ответила", text, "retry");
+        }
       }
       const dfuDevice = await waitDevice((d) => d.kind === "stm32-dfu", 12000);
       if (dfuDevice) return null;
@@ -140,6 +148,7 @@ async function prepareBoard(env: string, dfu: boolean): Promise<string | null> {
   }
   const port = devices.find((d) => d.kind === "usb-serial" || d.kind === "esp32-usb")?.port ?? null;
   if (!port) throw new FlashError("Плата не найдена", `Подключите плату ${env} по USB и повторите.`, "retry");
+  if (useApp.getState().link.port === port) await useApp.getState().disconnect();   // порт нужен esptool
   return port;
 }
 

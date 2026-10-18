@@ -6,6 +6,7 @@
 mod devices;
 mod firmware;
 mod hangar;
+mod link;
 mod system;
 mod util;
 
@@ -13,7 +14,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use serde_json::Value;
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager, State};
 
 use util::{find_pio, find_python, home, Res};
 
@@ -164,10 +165,36 @@ async fn platformio_install(app: AppHandle) -> Res<String> {
     blocking(move || system::install_platformio(&app)).await
 }
 
+#[tauri::command]
+async fn link_start(app: AppHandle, port: String, stm32: bool) -> Res<()> {
+    let app2 = app.clone();
+    blocking(move || app2.state::<link::LinkState>().start(&app, &port, stm32)).await
+}
+
+#[tauri::command]
+async fn link_stop(app: AppHandle) -> Res<()> {
+    blocking(move || app.state::<link::LinkState>().stop()).await
+}
+
+#[tauri::command]
+fn link_send(state: State<'_, link::LinkState>, text: String) -> Res<()> {
+    state.send(text.into_bytes())
+}
+
+#[tauri::command]
+fn link_port(state: State<'_, link::LinkState>) -> Option<String> {
+    state.port()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(link::LinkState::default())
         .invoke_handler(tauri::generate_handler![
+            link_start,
+            link_stop,
+            link_send,
+            link_port,
             app_info,
             settings_load,
             settings_save,

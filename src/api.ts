@@ -76,6 +76,48 @@ export interface LogLine {
   line: string;
 }
 
+/** Живое состояние платы — строка "@live {...}" (AppLink.h прошивки). */
+export interface LiveFrame {
+  t: number;
+  arm: boolean;
+  mode: string;
+  rx: "ok" | "lost" | "fs";
+  ch: number[];
+  /** элерон Л, элерон П, руль высоты, руль направления, газ, AUX1, AUX2 — мкс */
+  out: [number, number, number, number, number, number, number];
+  rev: boolean;
+  imu: "ok" | "none" | "noresp" | "check";
+  att?: [number, number, number];
+  baro: "ok" | "none" | "noresp";
+  alt?: number;
+  vz?: number;
+  mag: "ok" | "none" | "noresp";
+  hdg?: number;
+  gps: "ok" | "none" | "noresp";
+  fix?: number;
+  sats?: number;
+  pitot: "ok" | "none" | "noresp";
+  ias?: number;
+  block: string | null;
+  cal: "LEVEL" | "PARK" | null;
+  feat: string[];
+  hz: number;
+}
+
+export interface ScanResult {
+  sensor?: { a: number; g: string }[];
+  screen?: { a: number; g: string }[] | null;
+  error?: string;
+}
+
+export interface LinkStatus {
+  port: string;
+  state: "open" | "closed" | "error";
+  error: string | null;
+}
+
+export const STX = "\u0002";
+
 export const inTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export const api = {
@@ -104,7 +146,29 @@ export const api = {
   dfuDriverStatus: () => invoke<DriverStatus>("dfu_driver_status"),
   dfuDriverInstall: () => invoke<{ ok: boolean; code: number; message: string }>("dfu_driver_install"),
   platformioInstall: () => invoke<string>("platformio_install"),
+  linkStart: (port: string, stm32: boolean) => invoke<void>("link_start", { port, stm32 }),
+  linkStop: () => invoke<void>("link_stop"),
+  linkSend: (text: string) => invoke<void>("link_send", { text }),
+  /** Команда ПК: STX, строка, перевод строки. */
+  linkCommand: (command: string) => invoke<void>("link_send", { text: `${STX}${command}\n` }),
+  linkPort: () => invoke<string | null>("link_port"),
 };
+
+export function onBoardEvents(handlers: {
+  live: (port: string, data: LiveFrame) => void;
+  id: (port: string, data: Identity) => void;
+  scan: (port: string, data: ScanResult) => void;
+  line: (port: string, line: string) => void;
+  link: (status: LinkStatus) => void;
+}): Promise<UnlistenFn[]> {
+  return Promise.all([
+    listen<{ port: string; data: LiveFrame }>("board-live", (e) => handlers.live(e.payload.port, e.payload.data)),
+    listen<{ port: string; data: Identity }>("board-id", (e) => handlers.id(e.payload.port, e.payload.data)),
+    listen<{ port: string; data: ScanResult }>("board-scan", (e) => handlers.scan(e.payload.port, e.payload.data)),
+    listen<{ port: string; line: string }>("board-line", (e) => handlers.line(e.payload.port, e.payload.line)),
+    listen<LinkStatus>("board-link", (e) => handlers.link(e.payload)),
+  ]);
+}
 
 export function onTaskLog(handler: (line: LogLine) => void): Promise<UnlistenFn> {
   return listen<LogLine>("task-log", (e) => handler(e.payload));

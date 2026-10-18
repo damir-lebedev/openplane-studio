@@ -1,0 +1,182 @@
+//! Постоянная связь с платой по COM-порту: приложение держит порт, раз в
+//! секунду просит живые данные ("live", AppLink.h прошивки) и разбирает
+//! строки платы: "@live {...}", "@id {...}", "@scan {...}" и обычный текст
+//! консоли. Порт в Windows открывается одной программой — пока связь есть,
+//! все запросы к плате идут через неё. Перед прошивкой связь отпускается.
+
+use std::io::{Read, Write};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::{Duration, Instant};
+
+use serde::Serialize;
+use serde_json::Value;
+use tauri::{AppHandle, Emitter};
+
+use crate::util::Res;
+
+struct Handle {
+    port: String,
+    stop: Arc<AtomicBool>,
+    tx: Sender<Vec<u8>>,
+    thread: Option<thread::JoinHandle<()>>,
+}
+
+#[derive(Default)]
+pub struct LinkState(Mutex<Option<Handle>>);
+
+#[derive(Clone, Serialize)]
+struct LinkStatus<'a> {
+    port: &'a str,
+    state: &'a str, // "open" | "closed" | "error"
+    error: Option<String>,
+}
+
+#[derive(Clone, Serialize)]
+struct BoardLine<'a> {
+    port: &'a str,
+    line: String,
+}
+
+#[derive(Clone, Serialize)]
+struct BoardJson<'a> {
+    port: &'a str,
+    data: Value,
+}
+
+fn open(port: &str, stm32: bool) -> Res<Box<dyn serialport::SerialPort>> {
+    let mut p = serialport::new(port, 115_200)
+        .timeout(Duration::from_millis(30))
+        .dtr_on_open(stm32)
+        .open()
+        .map_err(|e| {
+            let text = e.to_string();
+            if text.contains("Access is denied") || text.contains("Отказано в доступе") || text.contains("os error 5") {
+                format!("PORT_BUSY: {port} занят другой программой")
+            } else {
+                format!("{port}: {text}")
+            }
+        })?;
+    if !stm32 {
+        let _ = p.write_request_to_send(false);
+    }
+    Ok(p)
+}
+
+fn handle_line(app: &AppHandle, port: &str, line: &str) {
+    let trimmed = line.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    for (prefix, event) in [("@live ", "board-live"), ("@id ", "board-id"), ("@scan ", "board-scan")] {
+        if let Some(json) = trimmed.strip_prefix(prefix) {
+            if let Ok(data) = serde_json::from_str::<Value>(json) {
+                let _ = app.emit(event, BoardJson { port, data });
+                return;
+            }
+        }
+    }
+    let _ = app.emit("board-line", BoardLine { port, line: trimmed.to_string() });
+}
+
+fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>, stop: Arc<AtomicBool>, rx: Receiver<Vec<u8>>) {
+    let _ = app.emit("board-link", LinkStatus { port: &port, state: "open", error: None });
+    let mut buf = [0u8; 2048];
+    let mut pending: Vec<u8> = Vec::new();
+    let mut next_live = Instant::now();
+    let mut error: Option<String> = None;
+    // Сразу — паспорт и живые данные.
+    let _ = serial.write_all(b"\x02id\n");
+    while !stop.load(Ordering::Relaxed) {
+        if Instant::now() >= next_live {
+            if let Err(e) = serial.write_all(b"\x02live\n") {
+                error = Some(e.to_string());
+                break;
+            }
+            next_live = Instant::now() + Duration::from_millis(1000);
+        }
+        while let Ok(bytes) = rx.try_recv() {
+            if let Err(e) = serial.write_all(&bytes) {
+                error = Some(e.to_string());
+                break;
+            }
+        }
+        match serial.read(&mut buf) {
+            Ok(0) => {}
+            Ok(n) => {
+                pending.extend_from_slice(&buf[..n]);
+                while let Some(pos) = pending.iter().position(|&b| b == b'\n') {
+                    let line: Vec<u8> = pending.drain(..=pos).collect();
+                    handle_line(&app, &port, &String::from_utf8_lossy(&line));
+                }
+                if pending.len() > 16 * 1024 {
+                    pending.clear();
+                }
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
+            Err(e) => {
+                error = Some(e.to_string());
+                break;
+            }
+        }
+    }
+    // Прощание: плате больше не нужно слать живые данные.
+    let _ = serial.write_all(b"\x02live 0\n");
+    let state = if error.is_some() { "error" } else { "closed" };
+    let _ = app.emit("board-link", LinkStatus { port: &port, state, error });
+}
+
+impl LinkState {
+    pub fn start(&self, app: &AppHandle, port: &str, stm32: bool) -> Res<()> {
+        let mut guard = self.0.lock().map_err(|_| "связь: блокировка")?;
+        if let Some(h) = guard.as_ref() {
+            if h.port == port && h.thread.as_ref().map(|t| !t.is_finished()).unwrap_or(false) {
+                return Ok(());
+            }
+        }
+        if let Some(mut old) = guard.take() {
+            old.stop.store(true, Ordering::Relaxed);
+            if let Some(t) = old.thread.take() {
+                let _ = t.join();
+            }
+        }
+        let serial = open(port, stm32)?;
+        let stop = Arc::new(AtomicBool::new(false));
+        let (tx, rx) = channel::<Vec<u8>>();
+        let (app2, port2, stop2) = (app.clone(), port.to_string(), stop.clone());
+        let thread = thread::spawn(move || run(app2, port2, serial, stop2, rx));
+        *guard = Some(Handle { port: port.to_string(), stop, tx, thread: Some(thread) });
+        Ok(())
+    }
+
+    pub fn stop(&self) -> Res<()> {
+        let mut guard = self.0.lock().map_err(|_| "связь: блокировка")?;
+        if let Some(mut h) = guard.take() {
+            h.stop.store(true, Ordering::Relaxed);
+            if let Some(t) = h.thread.take() {
+                let _ = t.join();
+            }
+        }
+        Ok(())
+    }
+
+    pub fn send(&self, bytes: Vec<u8>) -> Res<()> {
+        let guard = self.0.lock().map_err(|_| "связь: блокировка")?;
+        match guard.as_ref() {
+            Some(h) if h.thread.as_ref().map(|t| !t.is_finished()).unwrap_or(false) => {
+                h.tx.send(bytes).map_err(|_| "связь закрыта".to_string())
+            }
+            _ => Err("плата не подключена".into()),
+        }
+    }
+
+    pub fn port(&self) -> Option<String> {
+        let guard = self.0.lock().ok()?;
+        guard
+            .as_ref()
+            .filter(|h| h.thread.as_ref().map(|t| !t.is_finished()).unwrap_or(false))
+            .map(|h| h.port.clone())
+    }
+}
