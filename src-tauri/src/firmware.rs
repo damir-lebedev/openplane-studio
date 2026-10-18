@@ -86,13 +86,15 @@ pub fn fetch_github(app: &AppHandle) -> Res<String> {
     Ok(dir.to_string_lossy().into_owned())
 }
 
-/// git-коммит исходников; "-dirty" — есть незакоммиченные правки.
+/// git-коммит исходников; "-dirty" — есть незакоммиченные правки в том, из
+/// чего собирается прошивка (модели планера, документация и т. п. не в счёт).
 pub fn source_commit(source: &Path) -> Option<String> {
     let mut cmd = command("git");
     cmd.arg("-C").arg(source).args(["rev-parse", "--short", "HEAD"]);
     let head = run_capture(cmd, None).ok().filter(|o| o.code == 0)?.stdout.trim().to_string();
     let mut cmd = command("git");
-    cmd.arg("-C").arg(source).args(["status", "--porcelain", "--untracked-files=no"]);
+    cmd.arg("-C").arg(source).args(["status", "--porcelain", "--untracked-files=no", "--"]);
+    cmd.args(COPY_DIRS).args(["*.ini", "*.csv"]);
     let dirty = run_capture(cmd, None).map(|o| !o.stdout.trim().is_empty()).unwrap_or(false);
     Some(if dirty { format!("{head}-dirty") } else { head })
 }
