@@ -1,12 +1,14 @@
 import { Lightbulb } from "lucide-react";
 
-import { bindingText, channelTitle, itemLabel } from "../../../core/labels";
-import { Binding } from "../../../core/manifest";
+import { bindingText, channelTitle, itemLabel, RECEIVERS, receiverWiring } from "../../../core/labels";
+import { Binding, findParam } from "../../../core/manifest";
+import { formatValue, setParamValue } from "../../../core/params";
+import { effectiveParam, receiverProtocol } from "../../../core/project";
 import { availability, bindingItems, haveTokens, itemById, ItemKind, needText } from "../../../core/rules";
 import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { itemParams } from "../../../core/itemParams";
-import { Advanced, Section, StepHead } from "../../ui";
+import { Advanced, Choice, Section, StepHead } from "../../ui";
 import { ParamField } from "../ParamField";
 import { Transmitter } from "../Transmitter";
 
@@ -126,6 +128,39 @@ function BoundNumbers() {
   );
 }
 
+/** Выбор приёмника и как его подключить. */
+export function ReceiverChoice() {
+  const manifest = useApp((s) => s.manifest)!;
+  const plane = useApp((s) => s.current())!;
+  const updatePlane = useApp((s) => s.updatePlane);
+  const param = findParam(manifest, "RX_PROTOCOL", null);
+  const current = receiverProtocol(manifest, plane);
+  const options = param ? RECEIVERS.filter((r) => param.options?.includes(r.id)) : RECEIVERS.slice(0, 1);
+  const pin = (name: string) => formatValue(effectiveParam(manifest, plane, name) ?? "—");
+  return (
+    <>
+      <div className="choices">
+        {options.map((r) => (
+          <Choice
+            key={r.id}
+            title={r.title}
+            desc={t(r.desc)}
+            selected={current === r.id}
+            onClick={() => param && updatePlane((p) => setParamValue(manifest, p, "RX_PROTOCOL", r.id))}
+          />
+        ))}
+      </div>
+      <p className="hint">{receiverWiring(current, pin("PIN_RC_RX"), pin("PIN_RC_TX"))}</p>
+      {current !== "IBUS" && (
+        <p className="hint">
+          {t("Тумблеры на картинке — как у FS-i6: CH5 — SwA (ARM), CH6–CH8 — SwB–SwD, CH9 и CH10 — крутилки VrA и VrB. На пульте с EdgeTX назначьте свои тумблеры на эти каналы в микшере.")}
+        </p>
+      )}
+      {!param && <p className="hint">{t("SBUS и CRSF есть в прошивке новее — обновите исходники в «Настройках».")}</p>}
+    </>
+  );
+}
+
 export function SwitchesStep() {
   const mode = useApp((s) => s.mode);
   return (
@@ -140,9 +175,9 @@ export function SwitchesStep() {
       </div>
       <BoundNumbers />
       {mode === "simple" && (
-        <p className="hint">
-          {t("Пульт FlySky FS-i6, приёмник iBUS, раскладка каналов — как в Channels.h. Изменить — шаг «Пульт» полного режима.")}
-        </p>
+        <Section title={t("Приёмник")} sub={t("протокол — как у вашего приёмника; раскладка каналов — шаг «Пульт» полного режима")}>
+          <ReceiverChoice />
+        </Section>
       )}
     </>
   );
@@ -159,19 +194,10 @@ export function RcStep() {
   return (
     <>
       <StepHead title={t("Пульт и приёмник")}>
-        {t("Какой пульт и как его каналы приходят на плату. Обычно менять ничего не надо — раскладка проверена на FS-i6.")}
+        {t("Какой приёмник и как каналы пульта приходят на плату. Раскладка проверена на FS-i6; другим пультам — те же каналы.")}
       </StepHead>
-      <Section title={t("Пульт")}>
-        <div className="choices wide">
-          <div className="choice selected">
-            <div className="choice-title">FlySky FS-i6 / FS-i6X</div>
-            <div className="choice-desc">{t("10 каналов, приёмник FS-iA6B по iBUS")}</div>
-          </div>
-          <div className="choice disabled">
-            <div className="choice-title">Radiomaster / EdgeTX</div>
-            <div className="choice-desc">{t("скоро: нужен приёмник CRSF/ELRS в прошивке")}</div>
-          </div>
-        </div>
+      <Section title={t("Приёмник")}>
+        <ReceiverChoice />
       </Section>
       <Section title={t("Раскладка каналов")} sub={t("Channels.h: какой орган пульта на каком канале")}>
         <div className="card" style={{ padding: 0 }}>

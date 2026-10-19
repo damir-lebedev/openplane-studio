@@ -1,8 +1,8 @@
 import { CircleAlert, CircleCheck, Info, TriangleAlert, Zap } from "lucide-react";
 
-import { bindingText } from "../../../core/labels";
+import { bindingText, receiverTitle } from "../../../core/labels";
 import { findBoard, SENSOR_CATEGORIES } from "../../../core/manifest";
-import { sensorLabel } from "../../../core/project";
+import { receiverProtocol, sensorLabel } from "../../../core/project";
 import { Issue, validate } from "../../../core/rules";
 import { runFlash } from "../../../flash";
 import { N_, plural, t } from "../../../i18n";
@@ -97,6 +97,8 @@ export function ReviewStep() {
             {plane.airframe.motorPosition === "tractor" ? t("тянущий") : t("толкающий")},{" "}
             {plane.airframe.esc === "bidirectional" ? t("регулятор двунаправленный") : t("регулятор обычный")}
           </span>
+          <span>{t("Приёмник")}</span>
+          <span>{receiverTitle(receiverProtocol(manifest, plane))}</span>
           <span>{t("Шасси")}</span>
           <span>{plane.airframe.gear === "tail" ? t("хвостовое колесо") : plane.airframe.gear === "nose" ? t("носовое колесо") : t("нет, запуск с руки")}</span>
           <span>{t("Датчики")}</span>

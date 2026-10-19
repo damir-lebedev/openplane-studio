@@ -77,3 +77,28 @@ export function bindingText(_manifest: Manifest, b: Binding): string {
 export function channelTitle(name: string): string {
   return name.replace(/^SW/, "Sw").replace(/^VR/, "Vr");
 }
+
+/** Протоколы приёмника (Config::RX_PROTOCOL). */
+export const RECEIVERS: { id: string; title: string; desc: string }[] = [
+  { id: "IBUS", title: "iBUS", desc: N_("FlySky: приёмники FS-iA6B, FS-iA10B (пульты FS-i6, FS-i6X)") },
+  { id: "SBUS", title: "SBUS", desc: N_("FrSky, Futaba, RadioMaster, Jumper и другие — выход SBUS приёмника") },
+  { id: "CRSF", title: "CRSF / ExpressLRS", desc: N_("ExpressLRS, TBS Crossfire и Tracer") },
+];
+
+export function receiverTitle(id: string): string {
+  return RECEIVERS.find((r) => r.id === id)?.title ?? id;
+}
+
+/** Как подключить приёмник: провода на пины платы. */
+export function receiverWiring(id: string, rx: string, tx: string): string {
+  if (id === "SBUS") return t("Провод с выхода SBUS приёмника — на {rx}, питание 5 В. Инвертор не нужен: сигнал переворачивает сам UART платы.", { rx });
+  if (id === "CRSF") return t("TX приёмника — на {rx}, RX приёмника — на {tx}, питание 5 В. Скорость 420000 — как у ExpressLRS по умолчанию.", { rx, tx });
+  return t("Провод с разъёма iBUS приёмника (у FS-iA6B — «iBUS servo») — на {rx}, питание 5 В.", { rx });
+}
+
+/** Кадров от приёмника нет — что проверить. */
+export function receiverSilentHint(id: string): string {
+  if (id === "SBUS") return t("Кадров от приёмника нет — проверьте провод SBUS и питание; в настройках приёмника выход должен быть SBUS, а не PPM.");
+  if (id === "CRSF") return t("Кадров от приёмника нет — проверьте, что TX приёмника идёт на RX платы, и питание; ExpressLRS: приёмник привязан к передатчику (одна binding phrase и версия).");
+  return t("Кадров от приёмника нет — проверьте провод iBUS и питание приёмника.");
+}

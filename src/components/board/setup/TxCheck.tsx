@@ -7,10 +7,10 @@ import { useEffect, useRef, useState } from "react";
 
 import { LiveFrame } from "../../../api";
 import { assignChannel, channelIndex, channelReversed, toggleChannelReversed } from "../../../core/channels";
-import { channelTitle } from "../../../core/labels";
+import { channelTitle, receiverSilentHint, receiverTitle } from "../../../core/labels";
 import { ChannelWatch, switchPosition } from "../../../core/live";
 import { ManifestChannel } from "../../../core/manifest";
-import { effectiveParam } from "../../../core/project";
+import { effectiveParam, receiverProtocol } from "../../../core/project";
 import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { LiveKnob, LiveLever, LiveStick, useLive } from "../../live/LiveWidgets";
@@ -82,6 +82,8 @@ export function TxCheck({ onState }: { onState?: (s: CheckState) => void }) {
   const plane = useApp((s) => s.current())!;
   const updatePlane = useApp((s) => s.updatePlane);
   const live = useLive();
+  // протокол приёмника в прошивке на плате (паспорт @id; старые прошивки его не сообщают)
+  const boardRx = useApp((s) => (s.link.port ? s.ports[s.link.port]?.identity?.rx : undefined));
   const { record, pass, reset } = usePassed("tx");
 
   const controls = manifest.channels.list.filter((c) => !c.stick && c.name !== "ARM");
@@ -241,7 +243,15 @@ export function TxCheck({ onState }: { onState?: (s: CheckState) => void }) {
       {live && live.rx !== "ok" && (
         <div className="issue warning" style={{ marginTop: 10 }}>
           <TriangleAlert size={16} color="var(--warn)" />
-          <div className="grow">{live.rx === "fs" ? t("Приёмник сообщает о потере связи — включите пульт.") : t("Кадров от приёмника нет — проверьте провод iBUS и питание приёмника.")}</div>
+          <div className="grow">{live.rx === "fs" ? t("Приёмник сообщает о потере связи — включите пульт.") : receiverSilentHint(receiverProtocol(manifest, plane))}</div>
+        </div>
+      )}
+      {boardRx && boardRx.toUpperCase() !== receiverProtocol(manifest, plane) && (
+        <div className="issue warning" style={{ marginTop: 10 }}>
+          <TriangleAlert size={16} color="var(--warn)" />
+          <div className="grow">
+            {t("Прошивка на плате ждёт приёмник {b}, а в проекте выбран {p} — прошейте плату.", { b: boardRx, p: receiverTitle(receiverProtocol(manifest, plane)) })}
+          </div>
         </div>
       )}
 

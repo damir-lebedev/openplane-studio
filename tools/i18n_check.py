@@ -5,6 +5,7 @@
     python tools/i18n_check.py                 # сводка: чего нет в словарях, что лишнее
     python tools/i18n_check.py --missing       # непереведённые (JSON: строка → откуда)
     python tools/i18n_check.py --firmware DIR  # исходники прошивки (по умолчанию ../plane)
+    python tools/i18n_check.py --prune         # убрать из словарей строки, которых больше нет
 
 Ключ — сама русская строка (как в gettext), подстановки — {имя}.
 
@@ -89,6 +90,17 @@ def main():
             _, missing, _ = compare(found, os.path.join(SRC, "locales", name))
             out.update({k: found[k] for k in missing})
         json.dump(out, sys.stdout, ensure_ascii=False, indent=1)
+        return
+    if "--prune" in args:
+        for name, found in sets:
+            path = os.path.join(SRC, "locales", name)
+            dictionary, _, stale = compare(found, path)
+            for k in stale:
+                del dictionary[k]
+            with open(path, "w", encoding="utf-8", newline="\n") as f:
+                json.dump(dict(sorted(dictionary.items())), f, ensure_ascii=False, indent=1)
+                f.write("\n")
+            print("{}: убрано {}".format(name, len(stale)))
         return
     bad = False
     for name, found in sets:

@@ -164,6 +164,7 @@ function LiveBlock() {
         <span className="badge accent">{live.mode}</span>
         <span className={`badge ${live.rx === "ok" ? "ok" : "err"}`}>
           {live.rx === "ok" ? t("пульт: связь") : live.rx === "fs" ? t("пульт: failsafe") : t("пульт: нет кадров")}
+          {live.lq !== undefined && ` · LQ ${live.lq} %`}
         </span>
         {live.feat.map((f) => (
           <span key={f} className="badge">

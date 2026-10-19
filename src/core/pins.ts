@@ -28,8 +28,8 @@ const ROLE_TEXT: Record<PinRole, string> = {
 /** Роль пина — по имени параметра Config.h. */
 export function pinRole(name: string): PinRole | null {
   if (/^PIN_(AILERON_LEFT|AILERON_RIGHT|ELEVATOR|ESC|RUDDER|AUX1|AUX2)$/.test(name)) return "pwm";
-  if (/^PIN_(IBUS|GPS_RX|TELEM_RX)$/.test(name)) return "uart_rx";
-  if (/^PIN_(IBUS_TX|GPS_TX|TELEM_TX)$/.test(name)) return "uart_tx";
+  if (/^PIN_(RC_RX|IBUS|GPS_RX|TELEM_RX)$/.test(name)) return "uart_rx";
+  if (/^PIN_(RC_TX|IBUS_TX|GPS_TX|TELEM_TX)$/.test(name)) return "uart_tx";
   if (/^PIN_I2C2?_SDA$/.test(name)) return "i2c_sda";
   if (/^PIN_I2C2?_SCL$/.test(name)) return "i2c_scl";
   if (name === "PIN_SENSOR_SPI_SCK") return "spi_sck";
@@ -42,6 +42,7 @@ export function pinRole(name: string): PinRole | null {
 
 /** Пины, что должны быть на одном экземпляре периферии (один UART, одна шина). */
 export const PIN_GROUPS: string[][] = [
+  ["PIN_RC_RX", "PIN_RC_TX"],
   ["PIN_IBUS", "PIN_IBUS_TX"],
   ["PIN_GPS_RX", "PIN_GPS_TX"],
   ["PIN_TELEM_RX", "PIN_TELEM_TX"],

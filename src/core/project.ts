@@ -177,6 +177,11 @@ export function setGear(project: PlaneProject, gear: Airframe["gear"]): string |
   return swapped ? N_("Без шасси автовзлёт с полосы заменён на автовзлёт с руки") : null;
 }
 
+/** Протокол приёмника самолёта: IBUS / SBUS / CRSF (прошивка без выбора — iBUS). */
+export function receiverProtocol(manifest: Manifest, project: PlaneProject): string {
+  return String(effectiveParam(manifest, project, "RX_PROTOCOL") ?? "IBUS").split("::").pop() ?? "IBUS";
+}
+
 /** Значение параметра для этой конфигурации: правка самолёта или значение прошивки. */
 export function effectiveParam(manifest: Manifest, project: PlaneProject, name: string): unknown {
   const board = findBoard(manifest, project.board);

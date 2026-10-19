@@ -45,6 +45,8 @@ export interface Identity {
   commit: string;
   config: string;
   plane: string;
+  /** протокол приёмника в прошивке: "iBUS", "SBUS", "CRSF" (прошивки до 19.10 — нет) */
+  rx?: string;
   armed: boolean;
 }
 
@@ -87,6 +89,8 @@ export interface LiveFrame {
   arm: boolean;
   mode: string;
   rx: "ok" | "lost" | "fs";
+  /** качество связи по радио, % — только CRSF */
+  lq?: number;
   ch: number[];
   /** элерон Л, элерон П, руль высоты, руль направления, газ, AUX1, AUX2 — мкс */
   out: [number, number, number, number, number, number, number];

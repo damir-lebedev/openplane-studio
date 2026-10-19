@@ -17,6 +17,14 @@ function plane(env = "stm32h743-devebox", patch: (p: PlaneProject) => void = () 
 
 const errors = (p: PlaneProject) => pinIssues(manifest, p).filter((i) => i.level === "error");
 
+describe("пины приёмника", () => {
+  it("RX и TX приёмника — пара одного UART, у всех плат без ошибок", () => {
+    expect(judgePin(pinTable("stm32h743-devebox")!, "uart_rx", "PE7").ok).toBe(true);
+    const p = plane("stm32h743-devebox", (p) => setParamValue(manifest, p, "PIN_RC_TX", "PD1"));
+    expect(errors(p).map((e) => e.text)).toContainEqual(expect.stringContaining("PIN_RC_RX"));
+  });
+});
+
 describe("пины платы", () => {
   it("заводские пины всех плат без ошибок, и проверка их не засоряет", () => {
     for (const env of ["stm32h743-devebox", "stm32h743", "esp32-s3", "esp32-dev", "esp32-c3"]) {

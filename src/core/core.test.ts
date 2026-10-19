@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import manifestJson from "./__fixtures__/manifest.json";
 import { Manifest } from "./manifest";
-import { blankProject, configHash, effectiveParam, importFromFirmware, PlaneProject, setGear, toFirmwareConfig } from "./project";
+import { setParamValue } from "./params";
+import { blankProject, configHash, effectiveParam, importFromFirmware, PlaneProject, receiverProtocol, setGear, toFirmwareConfig } from "./project";
 import { availability, haveTokens, itemById, needText, validate } from "./rules";
 
 // Описание прошивки из репозитория plane: npm run fixture.
@@ -134,6 +135,16 @@ describe("конфигурация для прошивки", () => {
     const cfg = toFirmwareConfig(manifest, p);
     expect(cfg.params).toMatchObject({ ESC_BIDIRECTIONAL: false, LANDING_GEAR: "NOSE_WHEEL", RTH_ALTITUDE_M: 60 });
     expect(effectiveParam(manifest, p, "RTH_ALTITUDE_M")).toBe(60);
+  });
+
+  it("приёмник: iBUS по умолчанию, выбор уходит в RX_PROTOCOL прошивки", () => {
+    const p = plane();
+    expect(receiverProtocol(manifest, p)).toBe("IBUS");
+    setParamValue(manifest, p, "RX_PROTOCOL", "CRSF");
+    expect(receiverProtocol(manifest, p)).toBe("CRSF");
+    expect(toFirmwareConfig(manifest, p).params.RX_PROTOCOL).toBe("CRSF");
+    setParamValue(manifest, p, "RX_PROTOCOL", "IBUS");
+    expect(p.params.RX_PROTOCOL).toBeUndefined();   // как в прошивке — правки нет
   });
 
   it("барометра «нет» — в прошивке остаётся драйвер по умолчанию", () => {

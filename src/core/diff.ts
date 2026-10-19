@@ -31,6 +31,7 @@ const SENSOR_TITLES: Record<string, string> = { imu: "IMU", baro: N_("Баром
 
 /** Имена частых параметров словами; остальные — как в Config.h. */
 const PARAM_TITLES: Record<string, string> = {
+  RX_PROTOCOL: N_("Протокол приёмника"),
   AILERON_LEFT_REVERSED: N_("Реверс: левый элерон"),
   AILERON_RIGHT_REVERSED: N_("Реверс: правый элерон"),
   ELEVATOR_REVERSED: N_("Реверс: руль высоты"),
