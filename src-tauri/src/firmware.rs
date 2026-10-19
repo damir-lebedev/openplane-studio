@@ -59,60 +59,29 @@ pub fn apply(source: &Path, root: &Path, config: &Value) -> Res<Value> {
     }
 }
 
-pub const GITHUB_REPO: &str = "https://github.com/damir-lebedev/OpenPlaneProject.git";
-
-fn git(args: &[&str]) -> Res<String> {
-    let mut cmd = command("git");
-    cmd.args(args);
-    let out = run_capture(cmd, None).map_err(|e| format!("git {}: {e} — установлен ли git?", args.first().unwrap_or(&"")))?;
-    if out.code != 0 {
-        return Err(format!("git {}: {}", args.first().unwrap_or(&""), out.stderr.trim()));
-    }
-    Ok(out.stdout)
-}
-
 /// Выпуски прошивки на GitHub — теги vX.Y.Z, новые первыми.
 pub fn versions() -> Res<Vec<String>> {
-    let out = git(&["ls-remote", "--tags", "--refs", GITHUB_REPO])?;
-    let mut tags: Vec<String> = out
-        .lines()
-        .filter_map(|l| l.split("refs/tags/").nth(1))
-        .map(|t| t.trim().to_string())
-        .filter(|t| t.starts_with('v'))
-        .collect();
-    let key = |t: &String| -> Vec<u64> { t.trim_start_matches('v').split(|c: char| !c.is_ascii_digit()).filter_map(|p| p.parse().ok()).collect() };
-    tags.sort_by(|a, b| key(b).cmp(&key(a)));
-    Ok(tags)
+    crate::source::versions()
 }
 
 /// Исходники с GitHub в папку приложения: выпуск (тег) или ветка main —
-/// только нужный снимок, без истории. Возвращает путь к исходникам.
+/// только файлы, из которых собирается прошивка. Возвращает путь к исходникам.
 pub fn fetch_github(app: &AppHandle, version: Option<&str>) -> Res<String> {
-    let dir = cache_dir(app)?.join("source").join("OpenPlaneProject");
-    let d = dir.to_string_lossy().into_owned();
-    if !dir.join(".git").is_dir() {
-        fs::create_dir_all(&dir).map_err(err("папка исходников"))?;
-        git(&["init", "-q", &d])?;
-        git(&["-C", &d, "remote", "add", "origin", GITHUB_REPO])?;
-    }
-    let refspec = match version {
-        Some(v) if v != "main" => format!("refs/tags/{v}"),
-        _ => "main".to_string(),
-    };
-    git(&["-C", &d, "fetch", "-q", "--depth", "1", "origin", &refspec])?;
-    git(&["-C", &d, "checkout", "-q", "--force", "FETCH_HEAD"])?;
-    if !dir.join("tools").join("opconfig.py").is_file() {
-        return Err("эта версия прошивки старая — без tools/opconfig.py, приложение с ней не работает".into());
-    }
-    Ok(d)
+    let root = cache_dir(app)?.join("source");
+    fs::create_dir_all(&root).map_err(err("папка исходников"))?;
+    crate::source::fetch(&root, version, &|_| {}).map(|p| p.to_string_lossy().into_owned())
 }
 
 /// git-коммит исходников; "-dirty" — есть незакоммиченные правки в том, из
 /// чего собирается прошивка (модели планера, документация и т. п. не в счёт).
+/// Снимок, скачанный приложением, — коммит из его метки.
 pub fn source_commit(source: &Path) -> Option<String> {
     let mut cmd = command("git");
     cmd.arg("-C").arg(source).args(["rev-parse", "--short", "HEAD"]);
-    let head = run_capture(cmd, None).ok().filter(|o| o.code == 0)?.stdout.trim().to_string();
+    let head = match run_capture(cmd, None).ok().filter(|o| o.code == 0) {
+        Some(out) => out.stdout.trim().to_string(),
+        None => return crate::source::marker_commit(source).map(|c| c.chars().take(7).collect()),
+    };
     let mut cmd = command("git");
     cmd.arg("-C").arg(source).args(["status", "--porcelain", "--untracked-files=no", "--"]);
     cmd.args(COPY_DIRS).args(["*.ini", "*.csv"]);

@@ -1,0 +1,54 @@
+# Установщики OpenPlane Studio: macOS (.dmg, Apple Silicon и Intel в одном) и
+# Windows (.exe, NSIS с галочкой «Установить всё необходимое»). Запуск —
+# вручную (Actions → Установщики → Run workflow) или тегом vX.Y.Z. Готовые
+# файлы — в артефактах запуска; выпуски на GitHub отсюда не создаются.
+name: Установщики
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS (.dmg)
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - name: Rust для Apple Silicon и Intel
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - run: npm ci
+      - run: npm test
+      - name: Сборка (универсальное приложение)
+        run: npm run tauri build -- --target universal-apple-darwin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenPlaneStudio-macOS
+          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+          if-no-files-found: error
+
+  windows:
+    name: Windows (.exe)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - name: Сборка
+        run: npm run tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenPlaneStudio-Windows
+          path: src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: error

@@ -87,20 +87,26 @@ fn wdi_message(code: i64) -> &'static str {
 
 /// Поставить WinUSB для «STM32 BOOTLOADER» встроенным wdi-simple (libwdi):
 /// INF, каталог, самоподписанный сертификат в доверенные — как Zadig. Одно
-/// окно UAC. Плата должна быть в режиме прошивки.
+/// окно UAC. Плата в режиме прошивки — драйвер ей сразу; платы нет — libwdi
+/// кладёт его в хранилище драйверов, и Windows возьмёт его, когда плату
+/// включат в режиме прошивки.
 pub fn install_dfu_driver(app: &AppHandle) -> Res<DriverInstall> {
-    if !cfg!(windows) {
-        return Ok(DriverInstall { ok: true, code: 0, message: "На этой системе драйвер не нужен".into() });
-    }
     let exe = app
         .path()
         .resolve("resources/wdi-simple.exe", BaseDirectory::Resource)
         .map_err(err("ресурсы приложения"))?;
+    preinstall_dfu_driver(&exe, &cache_dir(app)?.join("driver"))
+}
+
+/// То же без окна приложения (установщик: `--setup --driver`).
+pub fn preinstall_dfu_driver(exe: &std::path::Path, dest: &std::path::Path) -> Res<DriverInstall> {
+    if !cfg!(windows) {
+        return Ok(DriverInstall { ok: true, code: 0, message: "На этой системе драйвер не нужен".into() });
+    }
     if !exe.is_file() {
         return Err(format!("нет установщика драйвера: {}", exe.display()));
     }
-    let dest = cache_dir(app)?.join("driver");
-    std::fs::create_dir_all(&dest).map_err(err("папка драйвера"))?;
+    std::fs::create_dir_all(dest).map_err(err("папка драйвера"))?;
     let q = |s: &str| s.replace('\'', "''");
     let args = format!(
         "--vid 0x0483 --pid 0xDF11 --name \"STM32 BOOTLOADER\" --manufacturer \"STMicroelectronics\" --type 0 --dest \"{}\" --progressbar --timeout 120000",
@@ -119,7 +125,7 @@ pub fn install_dfu_driver(app: &AppHandle) -> Res<DriverInstall> {
 }
 
 /// Настоящий Python 3 (а не заглушка магазина Windows из WindowsApps).
-fn real_python() -> Option<std::path::PathBuf> {
+pub fn real_python() -> Option<std::path::PathBuf> {
     let mut candidates: Vec<std::path::PathBuf> = ["python", "python3", "py"]
         .iter()
         .filter_map(|n| crate::util::which(n))
@@ -141,52 +147,16 @@ fn real_python() -> Option<std::path::PathBuf> {
     })
 }
 
-/// Поставить PlatformIO официальным установщиком (get-platformio.py) в
-/// ~/.platformio; нет Python — сначала Python через winget. Вывод — событиями
-/// "task-log" с task = "pio-install". Возвращает путь к pio.
-pub fn install_platformio(app: &AppHandle) -> Res<String> {
-    use crate::util::{find_pio, run_streaming};
-    if let Some(pio) = find_pio() {
-        return Ok(pio.to_string_lossy().into_owned());
-    }
-    let python = match real_python() {
-        Some(p) => p,
-        None => {
-            let mut cmd = command("winget");
-            cmd.args([
-                "install", "--id", "Python.Python.3.13", "--exact", "--silent", "--scope", "user",
-                "--accept-package-agreements", "--accept-source-agreements",
-            ]);
-            let (code, tail) = run_streaming(app, "pio-install", cmd).map_err(|e| format!("winget: {e}"))?;
-            if code != 0 {
-                return Err(format!("Python не установился (winget, код {code}): {}", tail.lines().last().unwrap_or("")));
-            }
-            real_python().ok_or("Python установился, но не найден — перезапустите приложение")?
-        }
-    };
-    let dir = cache_dir(app)?.join("installer");
-    std::fs::create_dir_all(&dir).map_err(err("папка установщика"))?;
-    let script = dir.join("get-platformio.py");
-    let mut cmd = command(&python);
-    cmd.args([
-        "-c",
-        "import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])",
-        "https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py",
-    ])
-    .arg(&script);
-    let out = run_capture(cmd, None)?;
-    if out.code != 0 {
-        return Err(format!("не скачался установщик PlatformIO: {}", out.stderr.trim()));
-    }
-    let mut cmd = command(&python);
-    cmd.arg(&script);
-    let (code, tail) = run_streaming(app, "pio-install", cmd)?;
-    if code != 0 {
-        return Err(format!("PlatformIO не установился (код {code}): {}", tail.lines().last().unwrap_or("")));
-    }
-    find_pio()
-        .map(|p| p.to_string_lossy().into_owned())
-        .ok_or_else(|| "установщик отработал, но pio не найден".to_string())
+/// Поставить PlatformIO (а без Python — сначала свой Python через uv): шаг
+/// подготовки компьютера из setup.rs. Вывод — событиями "task-log" с
+/// task = "pio-install". Возвращает путь к pio.
+pub fn install_platformio(app: &AppHandle, english: bool) -> Res<String> {
+    use tauri::Emitter;
+    let app = app.clone();
+    let log: crate::setup::Log = std::sync::Arc::new(move |line: &str| {
+        let _ = app.emit("task-log", crate::util::LogLine { task: "pio-install", stream: "out", line: line.to_string() });
+    });
+    crate::setup::ensure_platformio(log, english).map(|p| p.to_string_lossy().into_owned())
 }
 
 /// Драйвер WinUSB у «STM32 BOOTLOADER» (0483:DF11). Без него dfu-util

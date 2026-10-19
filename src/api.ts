@@ -17,6 +17,23 @@ export interface AppInfo {
   firmware_guess: string | null;
 }
 
+export interface SetupStatus {
+  pio: string | null;
+  python: string | null;
+  /** исходники прошивки, скачанные подготовкой */
+  source: string | null;
+  /** компилятор и ядро STM32 уже скачаны */
+  tools: boolean;
+  /** на этой системе нужен драйвер режима прошивки (Windows) */
+  driver_needed: boolean;
+}
+
+export interface SetupReport {
+  pio: string;
+  source: string;
+  warnings: string[];
+}
+
 export interface Settings {
   firmwareSource?: string;
   /** какую версию брать с GitHub: тег выпуска, "main" или пусто — последний выпуск */
@@ -183,7 +200,10 @@ export const api = {
   portHoldersKill: (pids: number[]) => invoke<number>("port_holders_kill", { pids }),
   dfuDriverStatus: () => invoke<DriverStatus>("dfu_driver_status"),
   dfuDriverInstall: () => invoke<{ ok: boolean; code: number; message: string }>("dfu_driver_install"),
-  platformioInstall: () => invoke<string>("platformio_install"),
+  platformioInstall: (lang?: string) => invoke<string>("platformio_install", { lang: lang ?? null }),
+  setupStatus: () => invoke<SetupStatus>("setup_status"),
+  /** Подготовка компьютера; строки — task-log с task = "setup". */
+  setupRun: (options: { tools: boolean; driver: boolean; lang?: string }) => invoke<SetupReport>("setup_run", { options }),
   linkStart: (port: string, stm32: boolean) => invoke<void>("link_start", { port, stm32 }),
   linkStop: () => invoke<void>("link_stop"),
   linkSend: (text: string) => invoke<void>("link_send", { text }),

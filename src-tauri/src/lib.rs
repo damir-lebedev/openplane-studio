@@ -7,6 +7,8 @@ mod devices;
 mod firmware;
 mod hangar;
 mod link;
+mod setup;
+mod source;
 mod system;
 mod util;
 
@@ -42,6 +44,8 @@ fn guess_firmware() -> Option<PathBuf> {
     let candidates = [
         home().join("Documents").join("PlatformIO").join("Projects").join("plane"),
         home().join("Documents").join("PlatformIO").join("Projects").join("OpenPlaneProject"),
+        // скачанные подготовкой компьютера (установщик, «Настройки»)
+        setup::default_source(&util::local_data_dir()),
     ];
     candidates.into_iter().find(|p| p.join("tools").join("opconfig.py").is_file())
 }
@@ -171,8 +175,35 @@ async fn dfu_driver_install(app: AppHandle) -> Res<system::DriverInstall> {
 }
 
 #[tauri::command]
-async fn platformio_install(app: AppHandle) -> Res<String> {
-    blocking(move || system::install_platformio(&app)).await
+async fn platformio_install(app: AppHandle, lang: Option<String>) -> Res<String> {
+    blocking(move || system::install_platformio(&app, lang.as_deref() == Some("en"))).await
+}
+
+#[tauri::command]
+async fn setup_status() -> Res<setup::Status> {
+    blocking(|| Ok(setup::status(&util::local_data_dir()))).await
+}
+
+/// Подготовка компьютера из окна: строки — событиями "task-log" (task = "setup").
+#[tauri::command]
+async fn setup_run(app: AppHandle, options: setup::Options) -> Res<setup::Report> {
+    blocking(move || {
+        use tauri::Emitter;
+        let resources = app.path().resource_dir().ok().map(|d| d.join("resources"));
+        let emitter = app.clone();
+        let log: setup::Log = std::sync::Arc::new(move |line: &str| {
+            let _ = emitter.emit("task-log", util::LogLine { task: "setup", stream: "out", line: line.to_string() });
+        });
+        setup::run(resources, &options, log)
+    })
+    .await
+}
+
+/// Подготовка компьютера без окна — для установщика: `--setup ...`.
+/// Возвращает код выхода, если это был такой запуск.
+pub fn cli() -> Option<i32> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    args.iter().any(|a| a == "--setup").then(|| setup::cli(&args))
 }
 
 #[tauri::command]
@@ -229,6 +260,8 @@ pub fn run() {
             dfu_driver_status,
             dfu_driver_install,
             platformio_install,
+            setup_status,
+            setup_run,
         ])
         .run(tauri::generate_context!())
         .expect("OpenPlane Studio не запустился");

@@ -1,66 +1,11 @@
-import { Download, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { api, DriverStatus, errorText, onTaskLog } from "../api";
+import { api, DriverStatus, errorText } from "../api";
 import { getLanguage, LANGUAGES, t } from "../i18n";
 import { useApp } from "../store";
+import { SetupPanel } from "./Setup";
 import { Section } from "./ui";
-
-function PlatformioCard() {
-  const info = useApp((s) => s.info);
-  const refreshInfo = useApp((s) => s.refreshInfo);
-  const toast = useApp((s) => s.toast);
-  const [installing, setInstalling] = useState(false);
-  const [line, setLine] = useState("");
-
-  const install = async () => {
-    setInstalling(true);
-    setLine(t("Готовлю установку…"));
-    const unlisten = await onTaskLog((l) => l.task === "pio-install" && setLine(l.line));
-    try {
-      await api.platformioInstall();
-      toast("ok", t("PlatformIO установлен. Первая сборка докачает компилятор — это несколько минут."));
-      await refreshInfo();
-    } catch (e) {
-      toast("err", errorText(e));
-    } finally {
-      unlisten();
-      setInstalling(false);
-    }
-  };
-
-  if (info?.pio) {
-    return (
-      <div className="kv">
-        <span>PlatformIO</span>
-        <span className="mono">{info.pio}</span>
-        <span>Python</span>
-        <span className="mono">{info.python ?? t("не найден")}</span>
-      </div>
-    );
-  }
-  return (
-    <div>
-      <div className="row">
-        <div className="grow">
-          <div style={{ fontWeight: 600 }}>{t("PlatformIO не найден")}</div>
-          <div className="hint">
-            {t("Им приложение собирает прошивку. Поставит сам: официальный установщик, а если нет Python — сначала Python. Нужен интернет, ~5 минут.")}
-          </div>
-        </div>
-        <button className="btn primary" disabled={installing} onClick={() => void install()}>
-          <Download size={15} className={installing ? "spin" : undefined} />
-          {installing ? t("Ставлю…") : t("Установить PlatformIO")}
-        </button>
-      </div>
-      {installing && (
-        <div className="log mono" style={{ maxHeight: 60 }}>
-          {line}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function DriverCard() {
   const devices = useApp((s) => s.devices);
@@ -247,9 +192,14 @@ export function Settings() {
         </div>
       </Section>
 
+      <Section title={t("Подготовка компьютера")} sub={t("всё, что нужно для сборки и прошивки")}>
+        <div className="card">
+          <SetupPanel />
+        </div>
+      </Section>
+
       <Section title={t("Сборка и прошивка")}>
         <div className="card" style={{ display: "grid", gap: 16 }}>
-          <PlatformioCard />
           <DriverCard />
         </div>
       </Section>

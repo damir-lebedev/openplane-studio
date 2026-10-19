@@ -70,6 +70,10 @@ pub fn list() -> Vec<Device> {
     let mut out = Vec::new();
     if let Ok(ports) = serialport::available_ports() {
         for p in ports {
+            // macOS: /dev/tty.* ждёт несущую при открытии — берём /dev/cu.* того же порта.
+            if cfg!(target_os = "macos") && p.port_name.starts_with("/dev/tty.") {
+                continue;
+            }
             if let SerialPortType::UsbPort(usb) = &p.port_type {
                 out.push(classify(&p.port_name, usb));
             }

@@ -7,6 +7,7 @@ import { Hangar } from "./components/Hangar";
 import { Header } from "./components/Header";
 import { Rail } from "./components/Rail";
 import { Settings } from "./components/Settings";
+import { SetupDialog } from "./components/Setup";
 import { Toasts } from "./components/Toasts";
 import { getLanguage } from "./i18n";
 import { useApp } from "./store";
@@ -58,6 +59,7 @@ export default function App() {
         )}
       </main>
       <BoardPanel />
+      <SetupDialog />
       <Toasts />
     </div>
   );

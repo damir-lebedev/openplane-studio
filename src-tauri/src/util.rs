@@ -4,6 +4,7 @@ use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use std::thread;
 
 use serde::Serialize;
@@ -38,9 +39,16 @@ pub fn which(name: &str) -> Option<PathBuf> {
         .find(|p| p.is_file())
 }
 
+/// Папка PlatformIO: ~/.platformio или PLATFORMIO_CORE_DIR, как у самого PlatformIO.
+pub fn core_dir() -> PathBuf {
+    std::env::var_os("PLATFORMIO_CORE_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| home().join(".platformio"))
+}
+
 /// Папка penv PlatformIO: там pio и Python, которым PlatformIO работает сам.
 pub fn penv_scripts() -> PathBuf {
-    let base = home().join(".platformio").join("penv");
+    let base = core_dir().join("penv");
     if cfg!(windows) {
         base.join("Scripts")
     } else {
@@ -63,6 +71,38 @@ pub fn find_python() -> Option<PathBuf> {
         return Some(penv);
     }
     which("python").or_else(|| which("python3"))
+}
+
+/// Программа из системы, а не одноимённая из PATH: curl и tar на Windows —
+/// из System32 (tar из Git Bash понимает «C:» как адрес сервера), на macOS —
+/// из /usr/bin.
+pub fn system_tool(name: &str) -> PathBuf {
+    let path = if cfg!(windows) {
+        std::env::var_os("SystemRoot")
+            .map(|root| PathBuf::from(root).join("System32").join(exe(name)))
+            .unwrap_or_default()
+    } else {
+        PathBuf::from("/usr/bin").join(name)
+    };
+    if path.is_file() {
+        path
+    } else {
+        PathBuf::from(exe(name))
+    }
+}
+
+/// Папка данных приложения без окна (для `--setup` из установщика) — та же,
+/// что у Tauri: app_local_data_dir() = локальные данные / идентификатор.
+pub fn local_data_dir() -> PathBuf {
+    const IDENTIFIER: &str = "com.openplane.studio";
+    let base = if cfg!(windows) {
+        std::env::var_os("LOCALAPPDATA").map(PathBuf::from).unwrap_or_else(|| home().join("AppData").join("Local"))
+    } else if cfg!(target_os = "macos") {
+        home().join("Library").join("Application Support")
+    } else {
+        std::env::var_os("XDG_DATA_HOME").map(PathBuf::from).unwrap_or_else(|| home().join(".local").join("share"))
+    };
+    base.join(IDENTIFIER)
 }
 
 pub fn hangar_dir(app: &AppHandle) -> Res<PathBuf> {
@@ -121,9 +161,12 @@ pub struct LogLine<'a> {
     pub line: String,
 }
 
+/// Куда отдавать строки вывода: (поток "out"/"err", строка).
+pub type LineSink = Arc<dyn Fn(&str, &str) + Send + Sync>;
+
 /// Читать поток по строкам: и '\n', и '\r' (прогресс dfu-util и esptool
 /// перерисовывает строку через '\r').
-fn pump<R: Read + Send + 'static>(app: AppHandle, task: String, stream: &'static str, mut reader: R) -> thread::JoinHandle<String> {
+fn pump<R: Read + Send + 'static>(sink: LineSink, stream: &'static str, mut reader: R) -> thread::JoinHandle<String> {
     thread::spawn(move || {
         let mut tail = String::new();
         let mut buf = [0u8; 4096];
@@ -137,7 +180,7 @@ fn pump<R: Read + Send + 'static>(app: AppHandle, task: String, stream: &'static
             if text.is_empty() {
                 return;
             }
-            let _ = app.emit("task-log", LogLine { task: &task, stream, line: text.clone() });
+            sink(stream, &text);
             tail.push_str(&text);
             tail.push('\n');
             if tail.len() > 64 * 1024 {
@@ -167,11 +210,19 @@ fn pump<R: Read + Send + 'static>(app: AppHandle, task: String, stream: &'static
 
 /// Запустить, каждую строку вывода отдать окну событием "task-log".
 /// Возвращает код выхода и хвост вывода (для разбора ошибок).
-pub fn run_streaming(app: &AppHandle, task: &str, mut cmd: Command) -> Res<(i32, String)> {
+pub fn run_streaming(app: &AppHandle, task: &str, cmd: Command) -> Res<(i32, String)> {
+    let (app, task) = (app.clone(), task.to_string());
+    run_lines(cmd, Arc::new(move |stream: &str, line: &str| {
+        let _ = app.emit("task-log", LogLine { task: &task, stream, line: line.to_string() });
+    }))
+}
+
+/// Запустить, каждую строку вывода отдать `sink`. Код выхода и хвост вывода.
+pub fn run_lines(mut cmd: Command, sink: LineSink) -> Res<(i32, String)> {
     cmd.stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
     let mut child = cmd.spawn().map_err(err("не запускается"))?;
-    let out = pump(app.clone(), task.to_string(), "out", child.stdout.take().expect("stdout"));
-    let errs = pump(app.clone(), task.to_string(), "err", child.stderr.take().expect("stderr"));
+    let out = pump(sink.clone(), "out", child.stdout.take().expect("stdout"));
+    let errs = pump(sink, "err", child.stderr.take().expect("stderr"));
     let status = child.wait().map_err(err("процесс"))?;
     let mut tail = out.join().unwrap_or_default();
     tail.push_str(&errs.join().unwrap_or_default());

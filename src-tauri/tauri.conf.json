@@ -27,8 +27,13 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "resources": ["resources/wdi-simple.exe", "resources/LICENSE-libwdi.txt"],
+    "targets": [
+      "nsis"
+    ],
+    "resources": [
+      "resources/wdi-simple.exe",
+      "resources/LICENSE-libwdi.txt"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -38,9 +43,20 @@
     ],
     "windows": {
       "nsis": {
-        "languages": ["Russian", "English"],
-        "displayLanguageSelector": false
+        "languages": [
+          "Russian",
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "template": "installer/installer.nsi"
+      },
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
       }
-    }
+    },
+    "publisher": "OpenPlane",
+    "category": "Utility",
+    "shortDescription": "OpenPlane Studio",
+    "longDescription": "Настройка, сборка и прошивка полётного контроллера OpenPlane"
   }
 }
