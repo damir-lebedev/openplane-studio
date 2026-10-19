@@ -9,6 +9,7 @@ import {
   findParam,
   isNone,
   Manifest,
+  ManifestBoard,
   SensorCategory,
   SENSOR_CATEGORIES,
 } from "./manifest";
@@ -96,6 +97,36 @@ function paramValue(manifest: Manifest, name: string): unknown {
   return manifest.params.find((p) => p.name === name && p.board === null)?.value;
 }
 
+/**
+ * Датчики, распаянные на плате полётника (Matek H743: IMU и барометр), или
+ * null — у самодельных плат датчики свои. Компас, трубка Пито и GPS —
+ * внешние, их выбирает пилот.
+ */
+export function onboardSensors(manifest: Manifest, board: ManifestBoard | undefined): Partial<Record<SensorCategory, string>> | null {
+  const kit = board?.kit ? manifest.sensors.kits.find((k) => k.id === board.kit) : undefined;
+  if (!kit) return null;
+  const out: Partial<Record<SensorCategory, string>> = {};
+  for (const cat of ["imu", "baro", "mag"] as SensorCategory[]) {
+    const id = kit.sensors[cat];
+    if (id && !isNone(id)) out[cat] = id;
+  }
+  return out;
+}
+
+/** Сменить плату: датчики на плате полётника приходят и уходят вместе с ней, внешние остаются. */
+export function switchBoard(manifest: Manifest, project: PlaneProject, env: string): void {
+  if (project.board === env) return;
+  const before = onboardSensors(manifest, findBoard(manifest, project.board));
+  const board = findBoard(manifest, env);
+  const after = onboardSensors(manifest, board);
+  project.board = env;
+  if (before) {
+    const base = board?.sensors ?? manifest.current.sensors;
+    for (const cat of Object.keys(before) as SensorCategory[]) project.sensors[cat] = base[cat];
+  }
+  if (after) Object.assign(project.sensors, after);
+}
+
 /** Самолёт из прошивки как она есть: значения Config.h, датчики, тумблеры. */
 export function importFromFirmware(manifest: Manifest, name: string, boardEnv?: string): PlaneProject {
   const board = (boardEnv && findBoard(manifest, boardEnv)) || defaultBoard(manifest);
@@ -123,7 +154,7 @@ export function importFromFirmware(manifest: Manifest, name: string, boardEnv?: 
       camera: board.outputs.aux2 && (uses("CAMERA_STAB") || usesKnob("CAMERA_TILT")),
       buzzer: board.outputs.buzzer,
     },
-    sensors: { ...manifest.current.sensors },
+    sensors: { ...(board.sensors ?? manifest.current.sensors) },
     bindings: manifest.current.bindings.map((b) => ({ ...b })) as Binding[],
     params: {},
     boardParams: {},
@@ -229,12 +260,14 @@ export function toFirmwareConfig(manifest: Manifest, project: PlaneProject): Fir
     Object.assign(params, project.boardParams[board.macro]);
   }
   const sensors = {} as Record<SensorCategory, string>;
+  const base = board?.sensors ?? manifest.current.sensors;
+  const onboard = onboardSensors(manifest, board) ?? {};
   for (const cat of SENSOR_CATEGORIES) {
-    const chosen = project.sensors[cat];
+    const chosen = onboard[cat] ?? project.sensors[cat];
     const valid = manifest.sensors.options[cat].some((o) => o.id === chosen);
     // Барометра «нет» в прошивке не бывает: остаётся драйвер по умолчанию,
     // он просто не найдёт датчик — прошивка это переживает (режимы без него).
-    sensors[cat] = valid ? chosen : manifest.current.sensors[cat] ?? manifest.sensors.options[cat][0].id;
+    sensors[cat] = valid ? chosen : base[cat] ?? manifest.sensors.options[cat][0].id;
   }
   return {
     schema: 1,

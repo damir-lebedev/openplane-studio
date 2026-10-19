@@ -1,0 +1,968 @@
+{
+ "env": "matek-h743",
+ "mcu": "STM32H743VIT6",
+ "family": "stm32",
+ "source": "STM32duino H742V(G-I)(H-T)_H743V(G-I)(H-T)_H750VBT_H753VI(H-T)/PeripheralPins_DevEBoxH7xx.c",
+ "pins": {
+  "PA0": {
+   "pwm": [
+    {
+     "inst": "TIM2",
+     "label": "TIM2_CH1"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP16"
+    }
+   ]
+  },
+  "PA1": {
+   "pwm": [
+    {
+     "inst": "TIM2",
+     "label": "TIM2_CH2"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP17"
+    }
+   ]
+  },
+  "PA2": {
+   "pwm": [
+    {
+     "inst": "TIM2",
+     "label": "TIM2_CH3"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "USART2",
+     "label": "USART2"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP14"
+    }
+   ]
+  },
+  "PA3": {
+   "pwm": [
+    {
+     "inst": "TIM2",
+     "label": "TIM2_CH4"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "USART2",
+     "label": "USART2"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP15"
+    }
+   ]
+  },
+  "PA4": {
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP18"
+    }
+   ]
+  },
+  "PA5": {
+   "pwm": [
+    {
+     "inst": "TIM2",
+     "label": "TIM2_CH1"
+    }
+   ],
+   "spi_sck": [
+    {
+     "inst": "SPI1",
+     "label": "SPI1"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP19"
+    }
+   ]
+  },
+  "PA6": {
+   "pwm": [
+    {
+     "inst": "TIM3",
+     "label": "TIM3_CH1"
+    }
+   ],
+   "spi_miso": [
+    {
+     "inst": "SPI1",
+     "label": "SPI1"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP3"
+    }
+   ]
+  },
+  "PA7": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH1N"
+    }
+   ],
+   "spi_mosi": [
+    {
+     "inst": "SPI1",
+     "label": "SPI1"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP7"
+    }
+   ]
+  },
+  "PA8": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH1"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "UART7",
+     "label": "UART7"
+    }
+   ],
+   "i2c_scl": [
+    {
+     "inst": "I2C3",
+     "label": "I2C3"
+    }
+   ]
+  },
+  "PA9": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH2"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "LPUART1",
+     "label": "LPUART1"
+    }
+   ],
+   "spi_sck": [
+    {
+     "inst": "SPI2",
+     "label": "SPI2"
+    }
+   ]
+  },
+  "PA10": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH3"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "LPUART1",
+     "label": "LPUART1"
+    }
+   ]
+  },
+  "PA11": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH4"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ]
+  },
+  "PA12": {
+   "uart_tx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ],
+   "spi_sck": [
+    {
+     "inst": "SPI2",
+     "label": "SPI2"
+    }
+   ]
+  },
+  "PA15": {
+   "pwm": [
+    {
+     "inst": "TIM2",
+     "label": "TIM2_CH1"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "UART7",
+     "label": "UART7"
+    }
+   ]
+  },
+  "PB0": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH2N"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP9"
+    }
+   ]
+  },
+  "PB1": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH3N"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP5"
+    }
+   ]
+  },
+  "PB2": {
+   "spi_mosi": [
+    {
+     "inst": "SPI3",
+     "label": "SPI3"
+    }
+   ]
+  },
+  "PB3": {
+   "pwm": [
+    {
+     "inst": "TIM2",
+     "label": "TIM2_CH2"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "UART7",
+     "label": "UART7"
+    }
+   ],
+   "spi_sck": [
+    {
+     "inst": "SPI1",
+     "label": "SPI1"
+    }
+   ]
+  },
+  "PB4": {
+   "pwm": [
+    {
+     "inst": "TIM3",
+     "label": "TIM3_CH1"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "UART7",
+     "label": "UART7"
+    }
+   ],
+   "spi_miso": [
+    {
+     "inst": "SPI1",
+     "label": "SPI1"
+    }
+   ]
+  },
+  "PB5": {
+   "pwm": [
+    {
+     "inst": "TIM3",
+     "label": "TIM3_CH2"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "UART5",
+     "label": "UART5"
+    }
+   ],
+   "spi_mosi": [
+    {
+     "inst": "SPI1",
+     "label": "SPI1"
+    }
+   ]
+  },
+  "PB6": {
+   "pwm": [
+    {
+     "inst": "TIM4",
+     "label": "TIM4_CH1"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "LPUART1",
+     "label": "LPUART1"
+    }
+   ],
+   "i2c_scl": [
+    {
+     "inst": "I2C1",
+     "label": "I2C1"
+    }
+   ]
+  },
+  "PB7": {
+   "pwm": [
+    {
+     "inst": "TIM4",
+     "label": "TIM4_CH2"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "LPUART1",
+     "label": "LPUART1"
+    }
+   ],
+   "i2c_sda": [
+    {
+     "inst": "I2C1",
+     "label": "I2C1"
+    }
+   ]
+  },
+  "PB8": {
+   "pwm": [
+    {
+     "inst": "TIM4",
+     "label": "TIM4_CH3"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ],
+   "i2c_scl": [
+    {
+     "inst": "I2C1",
+     "label": "I2C1"
+    }
+   ]
+  },
+  "PB9": {
+   "pwm": [
+    {
+     "inst": "TIM4",
+     "label": "TIM4_CH4"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ],
+   "i2c_sda": [
+    {
+     "inst": "I2C1",
+     "label": "I2C1"
+    }
+   ]
+  },
+  "PB10": {
+   "pwm": [
+    {
+     "inst": "TIM2",
+     "label": "TIM2_CH3"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "USART3",
+     "label": "USART3"
+    }
+   ],
+   "i2c_scl": [
+    {
+     "inst": "I2C2",
+     "label": "I2C2"
+    }
+   ],
+   "spi_sck": [
+    {
+     "inst": "SPI2",
+     "label": "SPI2"
+    }
+   ]
+  },
+  "PB11": {
+   "pwm": [
+    {
+     "inst": "TIM2",
+     "label": "TIM2_CH4"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "USART3",
+     "label": "USART3"
+    }
+   ],
+   "i2c_sda": [
+    {
+     "inst": "I2C2",
+     "label": "I2C2"
+    }
+   ]
+  },
+  "PB12": {
+   "uart_rx": [
+    {
+     "inst": "UART5",
+     "label": "UART5"
+    }
+   ]
+  },
+  "PB13": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH1N"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "UART5",
+     "label": "UART5"
+    }
+   ],
+   "spi_sck": [
+    {
+     "inst": "SPI2",
+     "label": "SPI2"
+    }
+   ]
+  },
+  "PB14": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH2N"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "USART1",
+     "label": "USART1"
+    }
+   ],
+   "spi_miso": [
+    {
+     "inst": "SPI2",
+     "label": "SPI2"
+    }
+   ]
+  },
+  "PB15": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH3N"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "USART1",
+     "label": "USART1"
+    }
+   ],
+   "spi_mosi": [
+    {
+     "inst": "SPI2",
+     "label": "SPI2"
+    }
+   ]
+  },
+  "PC0": {
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP10"
+    }
+   ]
+  },
+  "PC1": {
+   "spi_mosi": [
+    {
+     "inst": "SPI2",
+     "label": "SPI2"
+    }
+   ],
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP11"
+    }
+   ]
+  },
+  "PC4": {
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP4"
+    }
+   ]
+  },
+  "PC5": {
+   "adc": [
+    {
+     "inst": "ADC1",
+     "label": "ADC1_INP8"
+    }
+   ]
+  },
+  "PC6": {
+   "pwm": [
+    {
+     "inst": "TIM3",
+     "label": "TIM3_CH1"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "USART6",
+     "label": "USART6"
+    }
+   ]
+  },
+  "PC7": {
+   "pwm": [
+    {
+     "inst": "TIM3",
+     "label": "TIM3_CH2"
+    }
+   ],
+   "uart_rx": [
+    {
+     "inst": "USART6",
+     "label": "USART6"
+    }
+   ]
+  },
+  "PC8": {
+   "pwm": [
+    {
+     "inst": "TIM3",
+     "label": "TIM3_CH3"
+    }
+   ]
+  },
+  "PC9": {
+   "pwm": [
+    {
+     "inst": "TIM3",
+     "label": "TIM3_CH4"
+    }
+   ],
+   "i2c_sda": [
+    {
+     "inst": "I2C3",
+     "label": "I2C3"
+    }
+   ]
+  },
+  "PC10": {
+   "uart_tx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ],
+   "spi_sck": [
+    {
+     "inst": "SPI3",
+     "label": "SPI3"
+    }
+   ]
+  },
+  "PC11": {
+   "uart_rx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ],
+   "spi_miso": [
+    {
+     "inst": "SPI3",
+     "label": "SPI3"
+    }
+   ]
+  },
+  "PC12": {
+   "uart_tx": [
+    {
+     "inst": "UART5",
+     "label": "UART5"
+    }
+   ],
+   "spi_mosi": [
+    {
+     "inst": "SPI3",
+     "label": "SPI3"
+    }
+   ]
+  },
+  "PD0": {
+   "uart_rx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ]
+  },
+  "PD1": {
+   "uart_tx": [
+    {
+     "inst": "UART4",
+     "label": "UART4"
+    }
+   ]
+  },
+  "PD2": {
+   "uart_rx": [
+    {
+     "inst": "UART5",
+     "label": "UART5"
+    }
+   ]
+  },
+  "PD3": {
+   "spi_sck": [
+    {
+     "inst": "SPI2",
+     "label": "SPI2"
+    }
+   ]
+  },
+  "PD5": {
+   "uart_tx": [
+    {
+     "inst": "USART2",
+     "label": "USART2"
+    }
+   ]
+  },
+  "PD6": {
+   "uart_rx": [
+    {
+     "inst": "USART2",
+     "label": "USART2"
+    }
+   ],
+   "spi_mosi": [
+    {
+     "inst": "SPI3",
+     "label": "SPI3"
+    }
+   ]
+  },
+  "PD7": {
+   "spi_mosi": [
+    {
+     "inst": "SPI1",
+     "label": "SPI1"
+    }
+   ]
+  },
+  "PD8": {
+   "uart_tx": [
+    {
+     "inst": "USART3",
+     "label": "USART3"
+    }
+   ]
+  },
+  "PD9": {
+   "uart_rx": [
+    {
+     "inst": "USART3",
+     "label": "USART3"
+    }
+   ]
+  },
+  "PD12": {
+   "pwm": [
+    {
+     "inst": "TIM4",
+     "label": "TIM4_CH1"
+    }
+   ],
+   "i2c_scl": [
+    {
+     "inst": "I2C4",
+     "label": "I2C4"
+    }
+   ]
+  },
+  "PD13": {
+   "pwm": [
+    {
+     "inst": "TIM4",
+     "label": "TIM4_CH2"
+    }
+   ],
+   "i2c_sda": [
+    {
+     "inst": "I2C4",
+     "label": "I2C4"
+    }
+   ]
+  },
+  "PD14": {
+   "pwm": [
+    {
+     "inst": "TIM4",
+     "label": "TIM4_CH3"
+    }
+   ]
+  },
+  "PD15": {
+   "pwm": [
+    {
+     "inst": "TIM4",
+     "label": "TIM4_CH4"
+    }
+   ]
+  },
+  "PE0": {
+   "uart_rx": [
+    {
+     "inst": "UART8",
+     "label": "UART8"
+    }
+   ]
+  },
+  "PE1": {
+   "uart_tx": [
+    {
+     "inst": "UART8",
+     "label": "UART8"
+    }
+   ]
+  },
+  "PE2": {
+   "spi_sck": [
+    {
+     "inst": "SPI4",
+     "label": "SPI4"
+    }
+   ]
+  },
+  "PE4": {
+   "pwm": [
+    {
+     "inst": "TIM15",
+     "label": "TIM15_CH1N"
+    }
+   ]
+  },
+  "PE5": {
+   "pwm": [
+    {
+     "inst": "TIM15",
+     "label": "TIM15_CH1"
+    }
+   ],
+   "spi_miso": [
+    {
+     "inst": "SPI4",
+     "label": "SPI4"
+    }
+   ]
+  },
+  "PE6": {
+   "pwm": [
+    {
+     "inst": "TIM15",
+     "label": "TIM15_CH2"
+    }
+   ],
+   "spi_mosi": [
+    {
+     "inst": "SPI4",
+     "label": "SPI4"
+    }
+   ]
+  },
+  "PE7": {
+   "uart_rx": [
+    {
+     "inst": "UART7",
+     "label": "UART7"
+    }
+   ]
+  },
+  "PE8": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH1N"
+    }
+   ],
+   "uart_tx": [
+    {
+     "inst": "UART7",
+     "label": "UART7"
+    }
+   ]
+  },
+  "PE9": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH1"
+    }
+   ]
+  },
+  "PE10": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH2N"
+    }
+   ]
+  },
+  "PE11": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH2"
+    }
+   ]
+  },
+  "PE12": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH3N"
+    }
+   ],
+   "spi_sck": [
+    {
+     "inst": "SPI4",
+     "label": "SPI4"
+    }
+   ]
+  },
+  "PE13": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH3"
+    }
+   ],
+   "spi_miso": [
+    {
+     "inst": "SPI4",
+     "label": "SPI4"
+    }
+   ]
+  },
+  "PE14": {
+   "pwm": [
+    {
+     "inst": "TIM1",
+     "label": "TIM1_CH4"
+    }
+   ],
+   "spi_mosi": [
+    {
+     "inst": "SPI4",
+     "label": "SPI4"
+    }
+   ]
+  }
+ },
+ "reserved": {
+  "PA11": "USB",
+  "PA12": "USB",
+  "PA13": "SWD",
+  "PA14": "SWD",
+  "PC8": "microSD (SDMMC1)",
+  "PC9": "microSD (SDMMC1)",
+  "PC10": "microSD (SDMMC1)",
+  "PC11": "microSD (SDMMC1)",
+  "PC12": "microSD (SDMMC1)",
+  "PD2": "microSD (SDMMC1)",
+  "PB12": "OSD AT7456E (SPI2)",
+  "PB13": "OSD AT7456E (SPI2)",
+  "PB14": "OSD AT7456E (SPI2)",
+  "PB15": "OSD AT7456E (SPI2)",
+  "PE11": "IMU2 (SPI4)",
+  "PE12": "IMU2 (SPI4)",
+  "PE13": "IMU2 (SPI4)",
+  "PE14": "IMU2 (SPI4)",
+  "PC13": "IMU3 CS",
+  "PE3": "LED",
+  "PE4": "LED",
+  "PD0": "CAN (FDCAN1)",
+  "PD1": "CAN (FDCAN1)"
+ },
+ "connector": {}
+}

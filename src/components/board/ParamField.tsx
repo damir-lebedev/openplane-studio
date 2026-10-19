@@ -28,7 +28,7 @@ export function ParamEditor({ name }: { name: string }) {
 
   if (p.fixed) {
     return (
-      <span className="mono muted" title={t("Параметр протокола — не настраивается")}>
+      <span className="mono muted" title={p.board ? t("Распаяно на плате — не настраивается") : t("Параметр протокола — не настраивается")}>
         {formatValue(st.value)} 🔒
       </span>
     );

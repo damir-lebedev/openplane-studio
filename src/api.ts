@@ -139,6 +139,8 @@ export interface CalibFlags {
 
 export interface ScanResult {
   sensor?: { a: number; g: string }[];
+  /** шина внешнего разъёма, если она у платы отдельная (Matek H743) */
+  ext?: { a: number; g: string }[];
   screen?: { a: number; g: string }[] | null;
   error?: string;
 }

@@ -7,6 +7,7 @@
 import { N_, t } from "../i18n";
 import { findBoard, Manifest } from "./manifest";
 import { effectiveParam, PlaneProject } from "./project";
+import matekH743 from "./pins/matek-h743.json";
 import devebox from "./pins/stm32h743-devebox.json";
 import weact from "./pins/stm32h743.json";
 
@@ -30,8 +31,8 @@ export function pinRole(name: string): PinRole | null {
   if (/^PIN_(AILERON_LEFT|AILERON_RIGHT|ELEVATOR|ESC|RUDDER|AUX1|AUX2)$/.test(name)) return "pwm";
   if (/^PIN_(RC_RX|IBUS|GPS_RX|TELEM_RX)$/.test(name)) return "uart_rx";
   if (/^PIN_(RC_TX|IBUS_TX|GPS_TX|TELEM_TX)$/.test(name)) return "uart_tx";
-  if (/^PIN_I2C2?_SDA$/.test(name)) return "i2c_sda";
-  if (/^PIN_I2C2?_SCL$/.test(name)) return "i2c_scl";
+  if (/^PIN_I2C(2|_EXT)?_SDA$/.test(name)) return "i2c_sda";
+  if (/^PIN_I2C(2|_EXT)?_SCL$/.test(name)) return "i2c_scl";
   if (name === "PIN_SENSOR_SPI_SCK") return "spi_sck";
   if (name === "PIN_SENSOR_SPI_MISO") return "spi_miso";
   if (name === "PIN_SENSOR_SPI_MOSI") return "spi_mosi";
@@ -48,6 +49,7 @@ export const PIN_GROUPS: string[][] = [
   ["PIN_TELEM_RX", "PIN_TELEM_TX"],
   ["PIN_I2C_SDA", "PIN_I2C_SCL"],
   ["PIN_I2C2_SDA", "PIN_I2C2_SCL"],
+  ["PIN_I2C_EXT_SDA", "PIN_I2C_EXT_SCL"],
   ["PIN_SENSOR_SPI_SCK", "PIN_SENSOR_SPI_MISO", "PIN_SENSOR_SPI_MOSI"],
 ];
 
@@ -126,6 +128,7 @@ const ESP32_C3: EspTable = {
 const TABLES: Record<string, PinTable> = {
   "stm32h743-devebox": devebox as unknown as StmTable,
   stm32h743: weact as unknown as StmTable,
+  "matek-h743": matekH743 as unknown as StmTable,
   "esp32-s3": ESP32_S3,
   "esp32-dev": ESP32_CLASSIC,
   "esp32-c3": ESP32_C3,

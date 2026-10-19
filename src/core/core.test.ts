@@ -3,7 +3,19 @@ import { describe, expect, it } from "vitest";
 import manifestJson from "./__fixtures__/manifest.json";
 import { Manifest } from "./manifest";
 import { setParamValue } from "./params";
-import { blankProject, configHash, effectiveParam, importFromFirmware, PlaneProject, receiverProtocol, setGear, toFirmwareConfig } from "./project";
+import {
+  blankProject,
+  configHash,
+  effectiveParam,
+  importFromFirmware,
+  onboardSensors,
+  PlaneProject,
+  receiverProtocol,
+  setGear,
+  switchBoard,
+  toFirmwareConfig,
+} from "./project";
+import { findBoard } from "./manifest";
 import { availability, haveTokens, itemById, needText, validate } from "./rules";
 
 // Описание прошивки из репозитория plane: npm run fixture.
@@ -122,6 +134,41 @@ describe("проверки перед прошивкой", () => {
 
   it("новый самолёт с нуля проходит проверку", () => {
     expect(errors(blankProject(manifest, "Новый"))).toEqual([]);
+  });
+});
+
+describe("готовый полётник с датчиками на плате (Matek H743)", () => {
+  it("IMU и барометр приходят с платой и уходят с ней, компас остаётся", () => {
+    const p = plane((p) => (p.sensors.mag = "SENSOR_MAG_QMC5883L"));
+    switchBoard(manifest, p, "matek-h743");
+    expect(p.board).toBe("matek-h743");
+    expect(p.sensors.imu).toBe("SENSOR_IMU_ICM42688");
+    expect(p.sensors.baro).toBe("SENSOR_BARO_DPS310");
+    expect(p.sensors.mag).toBe("SENSOR_MAG_QMC5883L");
+
+    switchBoard(manifest, p, "stm32h743-devebox");
+    expect(p.sensors.imu).toBe(manifest.current.sensors.imu);
+    expect(p.sensors.baro).toBe(manifest.current.sensors.baro);
+    expect(p.sensors.mag).toBe("SENSOR_MAG_QMC5883L");
+    expect(onboardSensors(manifest, findBoard(manifest, "stm32h743-devebox"))).toBeNull();
+  });
+
+  it("в прошивку уходят датчики платы, даже если в проекте записаны другие", () => {
+    const p = importFromFirmware(manifest, "М", "matek-h743");
+    expect(p.sensors.imu).toBe("SENSOR_IMU_ICM42688");
+    expect(errors(p)).toEqual([]);
+    p.sensors.imu = "SENSOR_IMU_MPU6050";
+    p.sensors.baro = "none";
+    const cfg = toFirmwareConfig(manifest, p);
+    expect(cfg.sensors.imu).toBe("SENSOR_IMU_ICM42688");
+    expect(cfg.sensors.baro).toBe("SENSOR_BARO_DPS310");
+  });
+
+  it("пины датчиков на плате не меняются", () => {
+    const p = importFromFirmware(manifest, "М", "matek-h743");
+    setParamValue(manifest, p, "PIN_I2C_SDA", "PB9");
+    setParamValue(manifest, p, "PIN_AUX1", "PD14");
+    expect(p.boardParams.BOARD_MATEK_H743).toEqual({ PIN_AUX1: "PD14" });
   });
 });
 

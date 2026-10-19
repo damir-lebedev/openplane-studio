@@ -85,6 +85,7 @@ const I2C_ADDRESSES: Record<string, number[]> = {
   SENSOR_BARO_BME280: [0x76, 0x77],
   SENSOR_BARO_BMP388_I2C: [0x76, 0x77],
   SENSOR_BARO_SPL06: [0x76, 0x77],
+  SENSOR_BARO_DPS310: [0x76, 0x77],
   SENSOR_BARO_BMP581: [0x46, 0x47],
   SENSOR_MAG_QMC5883P: [0x2c],
   SENSOR_MAG_QMC5883L: [0x0d],
@@ -131,8 +132,13 @@ function liveState(live: LiveFrame | null, cat: SensorCategory): string | null {
 }
 
 /** Датчики проекта против того, что видит плата: опрос шины и живые данные. */
+/** Всё, что ответило на шинах датчиков: своей и внешнего разъёма (если она отдельная). */
+function scanned(scan: ScanResult | null): { a: number; g: string }[] {
+  return [...(scan?.sensor ?? []), ...(scan?.ext ?? [])];
+}
+
 export function sensorRows(manifest: Manifest, project: PlaneProject, live: LiveFrame | null, scan: ScanResult | null): SensorRow[] {
-  const found = new Set((scan?.sensor ?? []).map((d) => d.a));
+  const found = new Set(scanned(scan).map((d) => d.a));
   return SENSOR_CATEGORIES.map((cat): SensorRow => {
     const id = project.sensors[cat];
     const title = t(CAT_TITLES[cat]);
@@ -177,7 +183,7 @@ export function sensorRows(manifest: Manifest, project: PlaneProject, live: Live
 /** Ответившие на шине, кого проект не ждёт (экран, второй датчик, чужой модуль). */
 export function extraDevices(project: PlaneProject, scan: ScanResult | null): { a: number; g: string }[] {
   const expected = new Set(SENSOR_CATEGORIES.flatMap((c) => expectedAddresses(project, c) ?? []));
-  return (scan?.sensor ?? []).filter((d) => !expected.has(d.a));
+  return scanned(scan).filter((d) => !expected.has(d.a));
 }
 
 // --- процедуры наладки по тексту консоли ---
@@ -261,6 +267,14 @@ export function armBlockHint(reason: string): ArmHint {
   if (r.includes("газ не на минимуме")) return { what: t("газ не на минимуме"), text: t("Опустите газ до упора; триммер газа — в центр."), check: "tx" };
   if (r.includes("нет связи с пультом")) return { what: t("нет связи с пультом"), text: t("Включите пульт; проверьте, что приёмник светится ровно (привязан)."), check: "tx" };
   if (r.includes("двигали во время калибровки")) return { what: t("самолёт двигали во время калибровки гироскопа"), text: t("Поставьте самолёт неподвижно и откалибруйте гироскоп."), fix: "gyro" };
+  if (r.includes("установка не откалибрована")) {
+    return {
+      what: t("установка IMU не откалибрована"),
+      text: t("IMU распаян на плате полётника — покажите, как плата стоит в самолёте: установка IMU тремя позами."),
+      check: "mount",
+      fix: "mount",
+    };
+  }
   if (r.includes("не совпадает с калибровкой установки") || r.includes("установк")) {
     return { what: t("плата стоит не так, как при установке IMU"), text: t("Плату переставили — повторите установку IMU тремя позами."), check: "mount", fix: "mount" };
   }

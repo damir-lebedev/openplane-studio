@@ -27,6 +27,25 @@ BOARDS = {
     # env прошивки: (файл PeripheralPins, файл variant_*.h, МК)
     "stm32h743-devebox": ("PeripheralPins_DevEBoxH7xx.c", "variant_DevEBoxH7xx.h", "STM32H743VIT6"),
     "stm32h743": ("PeripheralPins_WeActMiniH7xx.c", "variant_WeActMiniH7xx.h", "STM32H743VIT6"),
+    # Готовый полётник собирается с вариантом DevEBox (тот же корпус) —
+    # таблица выводов его, а что занято на плате, вариант не знает: ONBOARD.
+    "matek-h743": ("PeripheralPins_DevEBoxH7xx.c", None, "STM32H743VIT6"),
+}
+
+# Занятое на готовых полётниках — по описанию платы (ArduPilot hwdef
+# MatekH743). Пины датчиков на плате (SPI1, I2C2) и внешнего разъёма в
+# прошивке — параметры @fixed: их занятость приложение видит и так.
+ONBOARD = {
+    "matek-h743": {
+        **{p: "USB" for p in ("PA11", "PA12")},
+        **{p: "SWD" for p in ("PA13", "PA14")},
+        **{p: "microSD (SDMMC1)" for p in ("PC8", "PC9", "PC10", "PC11", "PC12", "PD2")},
+        **{p: "OSD AT7456E (SPI2)" for p in ("PB12", "PB13", "PB14", "PB15")},
+        **{p: "IMU2 (SPI4)" for p in ("PE11", "PE12", "PE13", "PE14")},
+        "PC13": "IMU3 CS",
+        **{p: "LED" for p in ("PE3", "PE4")},
+        **{p: "CAN (FDCAN1)" for p in ("PD0", "PD1")},
+    },
 }
 
 MAPS = {
@@ -90,7 +109,7 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     for env, (pp, vh, mcu) in BOARDS.items():
         pins = parse_maps(os.path.join(H743, pp))
-        reserved, connector = parse_variant(os.path.join(H743, vh))
+        reserved, connector = parse_variant(os.path.join(H743, vh)) if vh else (dict(ONBOARD[env]), {})
         data = {
             "env": env,
             "mcu": mcu,

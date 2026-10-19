@@ -25,9 +25,27 @@ describe("пины приёмника", () => {
   });
 });
 
+describe("пины Matek H743", () => {
+  it("занятое на плате — ошибка: CAN, OSD, второй IMU", () => {
+    const table = pinTable("matek-h743")!;
+    expect(judgePin(table, "uart_rx", "PD0").error).toMatch(/CAN/);
+    expect(judgePin(table, "pwm", "PB13").error).toMatch(/OSD/);
+    expect(judgePin(table, "pwm", "PD14").ok).toBe(true);   // S9 свободен
+    expect(judgePin(table, "pwm", "PB0").what).toBe("TIM1_CH2N");
+    const p = plane("matek-h743", (p) => setParamValue(manifest, p, "PIN_TELEM_RX", "PD0"));
+    expect(errors(p).map((e) => e.text)).toContainEqual(expect.stringContaining("CAN"));
+  });
+
+  it("внешний разъём I2C — пара одной шины", () => {
+    const table = pinTable("matek-h743")!;
+    expect(judgePin(table, "i2c_sda", "PB7").what).toBe("I2C1");
+    expect(judgePin(table, "i2c_scl", "PB6").what).toBe("I2C1");
+  });
+});
+
 describe("пины платы", () => {
   it("заводские пины всех плат без ошибок, и проверка их не засоряет", () => {
-    for (const env of ["stm32h743-devebox", "stm32h743", "esp32-s3", "esp32-dev", "esp32-c3"]) {
+    for (const env of ["stm32h743-devebox", "stm32h743", "matek-h743", "esp32-s3", "esp32-dev", "esp32-c3"]) {
       expect(errors(plane(env)).map((e) => e.text)).toEqual([]);
       expect(validate(manifest, plane(env)).filter((i) => i.step === "board")).toEqual([]);
     }

@@ -1,5 +1,6 @@
 import { itemLabel } from "../../../core/labels";
-import { isNone, SensorCategory, SENSOR_CATEGORIES } from "../../../core/manifest";
+import { findBoard, isNone, SensorCategory, SENSOR_CATEGORIES } from "../../../core/manifest";
+import { onboardSensors } from "../../../core/project";
 import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Advanced, Choice, Section, StepHead } from "../../ui";
@@ -32,7 +33,11 @@ export function SensorsStep() {
     return { needs, better };
   };
 
-  const kits = manifest.sensors.kits.filter((k) => Object.keys(k.sensors).length);
+  const board = findBoard(manifest, plane.board);
+  // Датчики на плате полётника выбраны платой; наборы других полётников самодельной плате ни к чему.
+  const onboard = onboardSensors(manifest, board);
+  const boardKits = new Set(manifest.boards.map((b) => b.kit).filter(Boolean));
+  const kits = onboard ? [] : manifest.sensors.kits.filter((k) => Object.keys(k.sensors).length && !boardKits.has(k.id));
   const kitActive = (sensors: Partial<Record<SensorCategory, string>>) =>
     SENSOR_CATEGORIES.every((c) => sensors[c] === plane.sensors[c]);
 
@@ -75,7 +80,15 @@ export function SensorsStep() {
             }
           >
             <div className="choices" onMouseEnter={() => setFocus([info.part])} onMouseLeave={() => setFocus([])}>
-              {allowNone && !hasNone && (
+              {onboard?.[cat] && (
+                <Choice
+                  title={`${t(options.find((o) => o.id === onboard[cat])?.title ?? onboard[cat]!)} 🔒`}
+                  desc={t("Распаян на плате {board} — другой не выбрать.", { board: t(board?.title ?? "").split(" — ")[0] })}
+                  selected
+                  onClick={() => {}}
+                />
+              )}
+              {!onboard?.[cat] && allowNone && !hasNone && (
                 <Choice
                   title={t("Нет")}
                   desc={t(info.none ?? "")}
@@ -83,7 +96,7 @@ export function SensorsStep() {
                   onClick={() => updatePlane((p) => (p.sensors[cat] = "none"))}
                 />
               )}
-              {options.map((o) => (
+              {!onboard?.[cat] && options.map((o) => (
                 <Choice
                   key={o.id}
                   title={o.bus === "none" ? t("Нет") : t(o.title)}
@@ -94,7 +107,13 @@ export function SensorsStep() {
                 />
               ))}
             </div>
-            {cat === "imu" && <p className="hint">{t("IMU обязателен: без него работает только ручной режим.")}</p>}
+            {cat === "imu" && !onboard && <p className="hint">{t("IMU обязателен: без него работает только ручной режим.")}</p>}
+            {cat === "imu" && onboard && (
+              <p className="hint">{t("Плату в самолёт можно ставить как удобно: после прошивки покажите её установку тремя позами («Наладка» → «Установка IMU») — без этого ARM со стабилизацией не включится.")}</p>
+            )}
+            {onboard && (cat === "mag" || cat === "airspeed") && (
+              <p className="hint">{t("Подключается к внешнему разъёму I2C платы (SDA/SCL, питание 3,3–5 В — по модулю).")}</p>
+            )}
             {cat === "baro" && isNone(plane.sensors.baro) && (
               <p className="hint">{t("В прошивке останется драйвер по умолчанию — он просто не найдёт датчик, полёту это не мешает.")}</p>
             )}

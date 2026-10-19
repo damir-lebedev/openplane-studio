@@ -26,6 +26,10 @@ export interface ManifestBoard {
   blackbox: "flash" | "sd" | "none";
   telemetry: "wifi" | "mavlink" | "none";
   outputs: BoardOutputs;
+  /** Набор датчиков, распаянных на плате полётника (-D SENSOR_KIT в её env); у самодельных — null. */
+  kit?: string | null;
+  /** С какими датчиками эта плата соберётся из исходников как есть. */
+  sensors?: Record<SensorCategory, string>;
 }
 
 export type ParamKind = "bool" | "float" | "int" | "pin" | "string" | "enum" | "channel" | "array" | "other";

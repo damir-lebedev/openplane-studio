@@ -2,6 +2,7 @@ import { Cpu, Usb } from "lucide-react";
 
 import { findBoard, ManifestBoard } from "../../../core/manifest";
 import { pinRole, pinTable } from "../../../core/pins";
+import { onboardSensors, switchBoard } from "../../../core/project";
 import { N_, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { Choice, Section, StepHead } from "../../ui";
@@ -20,8 +21,13 @@ const PIN_ROLE_TEXT: Record<string, string> = {
   gpio: N_("цифровой выход"),
 };
 
+/** Плата на STM32 (по платформе PlatformIO): DFU, общие таблицы пинов. */
+function isStm32(b: ManifestBoard): boolean {
+  return (b.platform ?? "").includes("ststm32") || (b.macro ?? "").includes("STM32");
+}
+
 function boardDesc(b: ManifestBoard): string {
-  const chip = b.macro?.includes("STM32") ? "STM32H743" : b.macro?.replace("BOARD_", "").replace("_", "-") ?? "";
+  const chip = isStm32(b) ? `STM32${b.macro?.match(/[FGHL]\d{3}/)?.[0] ?? "H743"}` : b.macro?.replace("BOARD_", "").replace("_", "-") ?? "";
   const upload = b.uploadProtocol === "dfu" ? t("прошивка по USB (DFU)") : t("прошивка по USB");
   return `${chip} · ${upload}`;
 }
@@ -35,6 +41,7 @@ export function BoardBadges({ b }: { b: ManifestBoard }) {
         <span className="badge">{t("без ящика")}</span>
       )}
       <span className="badge">{b.telemetry === "mavlink" ? "MAVLink" : t("Wi-Fi дашборд")}</span>
+      {b.kit && <span className="badge accent">{t("датчики на плате")}</span>}
       {!b.outputs.rudder && <span className="badge warn">{t("нет руля напр.")}</span>}
       {!b.outputs.aux1 && <span className="badge warn">{t("нет AUX")}</span>}
     </div>
@@ -57,8 +64,9 @@ export function BoardStep() {
   for (const d of devices) {
     const id = d.port ? ports[d.port]?.identity : null;
     if (id?.board) connected.add(id.board);
-    if (d.kind === "stm32-dfu" || d.kind === "stm32-cdc") {
-      manifest.boards.filter((b) => b.macro === "BOARD_STM32H743").forEach((b) => connected.add(`family:${b.env}`));
+    // Плата в DFU или без паспорта: видно только, что это STM32 — подойдёт любая из них.
+    else if (d.kind === "stm32-dfu" || d.kind === "stm32-cdc") {
+      manifest.boards.filter(isStm32).forEach((b) => connected.add(`family:${b.env}`));
     }
   }
   const pins = board ? manifest.params.filter((p) => p.board === board.macro && p.kind === "pin") : [];
@@ -80,7 +88,7 @@ export function BoardStep() {
                 title={t(b.title).charAt(0).toUpperCase() + t(b.title).slice(1)}
                 desc={boardDesc(b)}
                 selected={plane.board === b.env}
-                onClick={() => updatePlane((p) => (p.board = b.env))}
+                onClick={() => updatePlane((p) => switchBoard(manifest, p, b.env))}
                 badge={
                   <>
                     <BoardBadges b={b} />
@@ -98,6 +106,11 @@ export function BoardStep() {
           })}
         </div>
       </Section>
+      {board && onboardSensors(manifest, board) && (
+        <p className="hint">
+          {t("Готовый полётник: IMU и барометр распаяны на плате — их пины не меняются (🔒). Компас и трубку Пито — к внешнему разъёму I2C (SDA/SCL), GPS и приёмник — к подписанным площадкам UART.")}
+        </p>
+      )}
       {board && (
         <Section
           title={t("Пины этой платы")}

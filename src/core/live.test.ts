@@ -132,6 +132,15 @@ describe("датчики на шине", () => {
     expect(extraDevices(p, scan)).toEqual([{ a: 0x3c, g: "OLED SSD1306" }]);
   });
 
+  it("компас на внешнем разъёме (своя шина у Matek) — тоже находится", () => {
+    const p = plane((p) => (p.sensors.mag = "SENSOR_MAG_QMC5883L"));
+    const scan = { sensor: [{ a: 0x76, g: "DPS310" }], ext: [{ a: 0x0d, g: "QMC5883L" }, { a: 0x50, g: "?" }], screen: null };
+    const rows = sensorRows(manifest, p, frame({ mag: "noresp" }), scan);
+    expect(rows.find((r) => r.cat === "mag")!.state).toBe("warn");
+    expect(extraDevices(p, scan).map((d) => d.a)).toContain(0x50);
+    expect(extraDevices(p, scan).map((d) => d.a)).not.toContain(0x0d);
+  });
+
   it("на шине есть, а прошивка не видит — другой чип с тем же адресом", () => {
     const p = plane((p) => (p.sensors.mag = "SENSOR_MAG_QMC5883P"));
     const rows = sensorRows(manifest, p, frame({ mag: "noresp" }), { sensor: [{ a: 0x2c, g: "QMC5883P" }] });
@@ -214,6 +223,9 @@ describe("почему не армится", () => {
     expect(armBlockHint("нет калибровки шасси (горизонт и стоянка) — с пульта без ARM или 'c' в консоли").fix).toBe("ground");
     expect(armBlockHint("IMU: самолёт двигали во время калибровки гироскопа — поставьте неподвижно и перезагрузите (или 'i')").fix).toBe("gyro");
     expect(armBlockHint('IMU: "верх" не совпадает с калибровкой установки').fix).toBe("mount");
+    const fc = armBlockHint("IMU на плате полётника: установка не откалибрована — три позы, 'o' (или «Наладка» в OpenPlane Studio)");
+    expect(fc.fix).toBe("mount");
+    expect(fc.what).toBe("установка IMU не откалибрована");
     expect(armBlockHint("барометр не отвечает, а выбранному режиму нужна высота").check).toBe("sensors");
   });
 });
