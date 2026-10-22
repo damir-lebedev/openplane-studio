@@ -183,6 +183,15 @@ def main():
     run(install, env=env)
     run([pio, "run", "-d", build, "-e", STM32_ENVS[0]], env=env)   # сборка: и проверка, и tool-scons
 
+    # Загрузчики (openocd для ST-Link, stm32flash) PlatformIO ставит только при
+    # первой заливке — поставить сейчас, версии — как требует платформа.
+    with open(os.path.join(core, "platforms", "ststm32", "platform.json"), encoding="utf-8") as f:
+        platform_packages = json.load(f)["packages"]
+    for p in PACKAGES:
+        if not os.path.isdir(os.path.join(core, "packages", p)) and p in platform_packages:
+            spec = platform_packages[p]
+            run([pio, "pkg", "install", "-g", "-t", "{}/{}@{}".format(spec.get("owner", "platformio"), p, spec["version"])], env=env)
+
     # 5. Пакеты STM32 из папки PlatformIO — в архив, без лишнего
     missing = [p for p in PACKAGES if not os.path.isdir(os.path.join(core, "packages", p))]
     if missing:

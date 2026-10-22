@@ -107,11 +107,25 @@ pub fn status(data: &Path, resources: Option<&Path>) -> Status {
     }
 }
 
-/// Распаковать архив (.tar.gz, .tar.xz) системным tar.
+/// Распаковать архив. .tar.gz — системным tar; .tar.xz на Windows — Python
+/// (tar из Windows без внешней программы xz такие не открывает; Python к этому
+/// шагу уже поставлен из .tar.gz), на macOS и Linux — тоже tar.
 fn unpack(archive: &Path, dest: &Path) -> Res<()> {
     fs::create_dir_all(dest).map_err(err("папка распаковки"))?;
-    let mut cmd = command(crate::util::system_tool("tar"));
-    cmd.arg("-xf").arg(archive).arg("-C").arg(dest);
+    let xz = archive.extension().is_some_and(|e| e == "xz");
+    let cmd = match find_python() {
+        Some(python) if xz && cfg!(windows) => {
+            let mut c = command(python);
+            c.args(["-c", "import sys, tarfile; tarfile.open(sys.argv[1]).extractall(sys.argv[2], filter='tar')"]);
+            c.arg(archive).arg(dest);
+            c
+        }
+        _ => {
+            let mut c = command(crate::util::system_tool("tar"));
+            c.arg("-xf").arg(archive).arg("-C").arg(dest);
+            c
+        }
+    };
     let out = run_capture(cmd, None)?;
     if out.code != 0 {
         return Err(format!("{} не распаковался: {}", archive.display(), out.stderr.trim()));
