@@ -2,6 +2,10 @@
 //! файлов, из которых прошивка собирается (include, src, lib, tools, *.ini,
 //! *.csv), — около мегабайта вместо архива всего репозитория с моделями
 //! планера. Качает curl, который есть и в Windows 10+, и в macOS.
+//!
+//! API GitHub бывает недоступен (сбой, 60 запросов в час на адрес): тогда
+//! коммит берётся из ссылок git по HTTPS (без API и его лимита), а файлы —
+//! архивом коммита целиком (дольше, лишнее не распаковывается).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -57,19 +61,62 @@ fn version_key(tag: &str) -> Vec<u64> {
     tag.trim_start_matches('v').split(|c: char| !c.is_ascii_digit()).filter_map(|p| p.parse().ok()).collect()
 }
 
+/// Ссылки репозитория (имя → коммит) — как `git ls-remote`, по HTTPS без API.
+/// У аннотированного тега берётся коммит (`^{}`), а не сам объект тега.
+fn git_refs() -> Res<Vec<(String, String)>> {
+    let text = http_get(&format!("https://github.com/{REPO}.git/info/refs?service=git-upload-pack"))?;
+    Ok(parse_refs(&text))
+}
+
+fn parse_refs(text: &str) -> Vec<(String, String)> {
+    let mut refs: Vec<(String, String)> = Vec::new();
+    for line in text.split('\n') {
+        let Some((head, rest)) = line.split_once(' ') else { continue };
+        if head.len() < 40 {
+            continue;
+        }
+        let sha = &head[head.len() - 40..];
+        if !sha.chars().all(|c| c.is_ascii_hexdigit()) {
+            continue;
+        }
+        let name = rest.split('\0').next().unwrap_or("").trim();
+        if let Some(tag) = name.strip_suffix("^{}") {
+            refs.retain(|(n, _)| n != tag);
+            refs.push((tag.to_string(), sha.to_string()));
+        } else if !refs.iter().any(|(n, _)| n == name) {
+            refs.push((name.to_string(), sha.to_string()));
+        }
+    }
+    refs
+}
+
 /// Выпуски прошивки — теги vX.Y.Z, новые первыми.
 pub fn versions() -> Res<Vec<String>> {
-    let list = api("tags?per_page=100")?;
-    let mut tags: Vec<String> = list
-        .as_array()
-        .ok_or("GitHub: не список тегов")?
-        .iter()
-        .filter_map(|t| t["name"].as_str())
-        .filter(|t| t.starts_with('v'))
-        .map(str::to_string)
-        .collect();
+    let mut tags: Vec<String> = match api("tags?per_page=100") {
+        Ok(list) => list
+            .as_array()
+            .ok_or("GitHub: не список тегов")?
+            .iter()
+            .filter_map(|t| t["name"].as_str())
+            .map(str::to_string)
+            .collect(),
+        Err(_) => git_refs()?.into_iter().filter_map(|(n, _)| n.strip_prefix("refs/tags/").map(str::to_string)).collect(),
+    };
+    tags.retain(|t| t.starts_with('v'));
     tags.sort_by(|a, b| version_key(b).cmp(&version_key(a)));
     Ok(tags)
+}
+
+/// Коммит ветки или тега: API, а при его сбое — ссылки git.
+fn resolve_commit(reference: &str) -> Res<String> {
+    if let Some(sha) = api(&format!("commits/{reference}")).ok().and_then(|v| v["sha"].as_str().map(str::to_string)) {
+        return Ok(sha);
+    }
+    let refs = git_refs()?;
+    [format!("refs/tags/{reference}"), format!("refs/heads/{reference}")]
+        .iter()
+        .find_map(|want| refs.iter().find(|(n, _)| n == want).map(|(_, sha)| sha.clone()))
+        .ok_or_else(|| format!("на GitHub нет {reference}"))
 }
 
 /// Коммит снимка в папке, если она скачана этим модулем.
@@ -104,17 +151,45 @@ pub fn fetch(root: &Path, version: Option<&str>, log: &dyn Fn(&str)) -> Res<Path
         Some(v) if !v.is_empty() => v.to_string(),
         _ => versions().ok().and_then(|v| v.into_iter().next()).unwrap_or_else(|| "main".into()),
     };
-    let commit = api(&format!("commits/{reference}"))?["sha"]
-        .as_str()
-        .ok_or_else(|| format!("GitHub: нет коммита для {reference}"))?
-        .to_string();
+    let commit = resolve_commit(&reference)?;
     let dest = root.join("OpenPlaneProject");
     if marker_commit(&dest).as_deref() == Some(commit.as_str()) && dest.join("tools").join("opconfig.py").is_file() {
         log(&format!("Исходники прошивки уже скачаны ({reference}, {})", &commit[..7]));
         return Ok(dest);
     }
 
-    let tree = api(&format!("git/trees/{commit}?recursive=1"))?;
+    let tmp = root.join(format!(".download-{}", &commit[..12]));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).map_err(err("папка загрузки"))?;
+    let got = match api(&format!("git/trees/{commit}?recursive=1")) {
+        Ok(tree) => download_files(root, &tmp, &commit, &reference, &tree, log),
+        Err(e) => {
+            log(&format!("API GitHub не ответил ({e}) — качаю архив коммита целиком, это дольше"));
+            download_archive(root, &tmp, &commit)
+        }
+    };
+    if let Err(e) = got {
+        let _ = fs::remove_dir_all(&tmp);
+        return Err(e);
+    }
+    if !tmp.join("tools").join("opconfig.py").is_file() {
+        let _ = fs::remove_dir_all(&tmp);
+        return Err("эта версия прошивки старая — без tools/opconfig.py, приложение с ней не работает".into());
+    }
+
+    // Прежний снимок (или старая git-копия) — заменить целиком.
+    if dest.exists() {
+        fs::remove_dir_all(&dest).map_err(|e| format!("не удалить прежние исходники {}: {e} — закройте программы, открывшие эту папку", dest.display()))?;
+    }
+    fs::rename(&tmp, &dest).map_err(err("папка исходников"))?;
+    let marker = serde_json::json!({ "repo": REPO, "ref": reference, "commit": commit });
+    fs::write(dest.join(MARKER), serde_json::to_string_pretty(&marker).unwrap_or_default()).map_err(err("метка исходников"))?;
+    log(&format!("Исходники прошивки: {}", dest.display()));
+    Ok(dest)
+}
+
+/// Нужные файлы по списку из API — одним curl, параллельно.
+fn download_files(root: &Path, tmp: &Path, commit: &str, reference: &str, tree: &Value, log: &dyn Fn(&str)) -> Res<()> {
     let files: Vec<(String, u64)> = tree["tree"]
         .as_array()
         .ok_or("GitHub: нет списка файлов")?
@@ -123,16 +198,9 @@ pub fn fetch(root: &Path, version: Option<&str>, log: &dyn Fn(&str)) -> Res<Path
         .filter_map(|e| Some((e["path"].as_str()?.to_string(), e["size"].as_u64().unwrap_or(0))))
         .filter(|(p, _)| needed(p))
         .collect();
-    if !files.iter().any(|(p, _)| p == "tools/opconfig.py") {
-        return Err("эта версия прошивки старая — без tools/opconfig.py, приложение с ней не работает".into());
-    }
     let total: u64 = files.iter().map(|(_, s)| s).sum();
     log(&format!("Скачиваю исходники прошивки {reference} ({}): {} файлов, {} КБ", &commit[..7], files.len(), total / 1024));
 
-    // Все файлы — одним curl, параллельно: список адресов в файле настроек.
-    let tmp = root.join(format!(".download-{}", &commit[..12]));
-    let _ = fs::remove_dir_all(&tmp);
-    fs::create_dir_all(&tmp).map_err(err("папка загрузки"))?;
     let mut config = String::new();
     for (path, _) in &files {
         let out = tmp.join(path).to_string_lossy().replace('\\', "/");
@@ -149,26 +217,45 @@ pub fn fetch(root: &Path, version: Option<&str>, log: &dyn Fn(&str)) -> Res<Path
     let out = run_capture(cmd, None).map_err(|e| format!("curl: {e}"))?;
     let _ = fs::remove_file(&list);
     if out.code != 0 {
-        let _ = fs::remove_dir_all(&tmp);
         return Err(format!("исходники не скачались: {}", out.stderr.trim()));
     }
     for (path, size) in &files {
         let got = fs::metadata(tmp.join(path)).map(|m| m.len()).unwrap_or(u64::MAX);
         if got != *size {
-            let _ = fs::remove_dir_all(&tmp);
             return Err(format!("файл {path} скачался не целиком — повторите"));
         }
     }
+    Ok(())
+}
 
-    // Прежний снимок (или старая git-копия) — заменить целиком.
-    if dest.exists() {
-        fs::remove_dir_all(&dest).map_err(|e| format!("не удалить прежние исходники {}: {e} — закройте программы, открывшие эту папку", dest.display()))?;
+/// Архив коммита (без API): распаковать только нужное и поднять на уровень вверх.
+fn download_archive(root: &Path, tmp: &Path, commit: &str) -> Res<()> {
+    let archive = root.join(".download.tar.gz");
+    download(&format!("https://codeload.github.com/{REPO}/tar.gz/{commit}"), &archive)?;
+    let unpack = root.join(".download-unpack");
+    let _ = fs::remove_dir_all(&unpack);
+    fs::create_dir_all(&unpack).map_err(err("папка загрузки"))?;
+    let mut cmd = command(system_tool("tar"));
+    cmd.arg("-xzf").arg(&archive).arg("-C").arg(&unpack);
+    for skip in ["*/airframe", "*/docs", "*/test", "*/.github"] {
+        cmd.arg("--exclude").arg(skip);
     }
-    fs::rename(&tmp, &dest).map_err(err("папка исходников"))?;
-    let marker = serde_json::json!({ "repo": REPO, "ref": reference, "commit": commit });
-    fs::write(dest.join(MARKER), serde_json::to_string_pretty(&marker).unwrap_or_default()).map_err(err("метка исходников"))?;
-    log(&format!("Исходники прошивки: {}", dest.display()));
-    Ok(dest)
+    let out = run_capture(cmd, None)?;
+    let _ = fs::remove_file(&archive);
+    if out.code != 0 {
+        let _ = fs::remove_dir_all(&unpack);
+        return Err(format!("архив исходников не распаковался: {}", out.stderr.trim()));
+    }
+    let top = fs::read_dir(&unpack)
+        .map_err(err("архив исходников"))?
+        .flatten()
+        .map(|e| e.path())
+        .find(|p| p.is_dir())
+        .ok_or("архив исходников пустой")?;
+    let _ = fs::remove_dir_all(tmp);
+    fs::rename(&top, tmp).map_err(err("папка исходников"))?;
+    let _ = fs::remove_dir_all(&unpack);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -185,6 +272,18 @@ mod tests {
         assert!(!needed("docs/PILOT_GUIDE.md"));
         assert!(!needed("README.md"));
         assert!(!needed("test/native/test_rc/test_main.cpp"));
+    }
+
+    #[test]
+    fn git_refs_from_https_advertisement() {
+        let text = "001e# service=git-upload-pack\n0000015ffb6fa22e9bdfcbaa4ef098b735e24108719ad62b HEAD\0multi_ack symref=HEAD:refs/heads/main\n\
+003dfb6fa22e9bdfcbaa4ef098b735e24108719ad62b refs/heads/main\n\
+003f1111111111111111111111111111111111111111 refs/tags/v1.0.0\n\
+00422222222222222222222222222222222222222222 refs/tags/v1.0.0^{}\n0000";
+        let refs = parse_refs(text);
+        assert!(refs.contains(&("refs/heads/main".into(), "fb6fa22e9bdfcbaa4ef098b735e24108719ad62b".into())));
+        assert!(refs.contains(&("refs/tags/v1.0.0".into(), "2222222222222222222222222222222222222222".into())));
+        assert!(refs.iter().any(|(n, _)| n == "HEAD"));
     }
 
     #[test]

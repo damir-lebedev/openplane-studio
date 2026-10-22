@@ -4,7 +4,11 @@
 //! приложения («Настройки», первое включение) и из установщика Windows
 //! (`openplane-studio.exe --setup`, галочка «Установить всё необходимое»).
 //!
-//! Python для PlatformIO ставит uv — своя копия в папке PlatformIO, без прав
+//! Сначала — из установщика, без интернета: в ресурсах приложения папка
+//! offline (tools/offline_bundle.py) — Python, колёса PlatformIO, исходники
+//! прошивки, пакеты сборки STM32 и библиотеки прошивки. Чего там нет — из
+//! интернета: Python ставит uv, PlatformIO — его официальный установщик.
+//! Python в обоих случаях — своя копия в папке PlatformIO, без прав
 //! администратора, без PATH и реестра: системный Python пользователя (или его
 //! отсутствие) ни на что не влияет.
 
@@ -23,6 +27,8 @@ use crate::util::{command, core_dir, err, find_pio, find_python, local_data_dir,
 const UV_VERSION: &str = "0.12.21";
 const PYTHON_VERSION: &str = "3.12";
 const GET_PLATFORMIO: &str = "https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py";
+/// Среды прошивки на STM32 — их пакеты и библиотеки ставятся заранее.
+const STM32_ENVS: &[&str] = &["stm32h743-devebox", "stm32h743", "matek-h743"];
 
 pub type Log = Arc<dyn Fn(&str) + Send + Sync>;
 
@@ -49,6 +55,8 @@ pub struct Status {
     pub tools: bool,
     /// Драйвер нужен на этой системе (Windows).
     pub driver_needed: bool,
+    /// В установщике всё своё — интернет не нужен.
+    pub offline: bool,
 }
 
 #[derive(Serialize)]
@@ -80,7 +88,13 @@ fn tools_installed() -> bool {
     p.join("framework-arduinoststm32").is_dir() && p.join("toolchain-gccarmnoneeabi").is_dir()
 }
 
-pub fn status(data: &Path) -> Status {
+/// Папка offline в ресурсах приложения, если установщик её привёз.
+fn offline_dir(resources: Option<&Path>) -> Option<PathBuf> {
+    let dir = resources?.join("offline");
+    dir.join("offline.json").is_file().then_some(dir)
+}
+
+pub fn status(data: &Path, resources: Option<&Path>) -> Status {
     let s = |p: PathBuf| p.to_string_lossy().into_owned();
     let src = default_source(data);
     Status {
@@ -89,6 +103,43 @@ pub fn status(data: &Path) -> Status {
         source: src.join("tools").join("opconfig.py").is_file().then(|| s(src)),
         tools: tools_installed(),
         driver_needed: cfg!(windows),
+        offline: offline_dir(resources).is_some(),
+    }
+}
+
+/// Распаковать архив (.tar.gz, .tar.xz) системным tar.
+fn unpack(archive: &Path, dest: &Path) -> Res<()> {
+    fs::create_dir_all(dest).map_err(err("папка распаковки"))?;
+    let mut cmd = command(crate::util::system_tool("tar"));
+    cmd.arg("-xf").arg(archive).arg("-C").arg(dest);
+    let out = run_capture(cmd, None)?;
+    if out.code != 0 {
+        return Err(format!("{} не распаковался: {}", archive.display(), out.stderr.trim()));
+    }
+    Ok(())
+}
+
+fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    fs::create_dir_all(to)?;
+    for entry in fs::read_dir(from)? {
+        let entry = entry?;
+        let target = to.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir(&entry.path(), &target)?;
+        } else {
+            fs::copy(entry.path(), &target)?;
+        }
+    }
+    Ok(())
+}
+
+/// Библиотеки прошивки из установщика — в папку сборки, чтобы PlatformIO не шёл
+/// за ними в сеть. Папка сборки уже со своими — не трогать.
+pub fn seed_libdeps(build_dir: &Path, env: &str) {
+    let target = build_dir.join(".pio").join("libdeps").join(env);
+    let seed = local_data_dir().join("libdeps").join(env);
+    if !target.exists() && seed.is_dir() {
+        let _ = copy_dir(&seed, &target);
     }
 }
 
@@ -234,13 +285,58 @@ fn managed_python(ctx: &Ctx) -> Res<PathBuf> {
 /// PlatformIO официальным установщиком (get-platformio.py) в ~/.platformio.
 pub fn ensure_platformio(log: Log, lang_en: bool) -> Res<PathBuf> {
     let ctx = Ctx { log, en: lang_en, data: local_data_dir() };
-    platformio(&ctx)
+    platformio(&ctx, None)
 }
 
-fn platformio(ctx: &Ctx) -> Res<PathBuf> {
+/// PlatformIO из установщика: Python распаковать, penv создать, колёса — pip без сети.
+fn platformio_offline(ctx: &Ctx, offline: &Path) -> Res<PathBuf> {
+    ctx.say("Ставлю PlatformIO из установщика — без интернета…", "Installing PlatformIO from the installer — no Internet needed…");
+    let core = core_dir();
+    let pyroot = core.join("uv-python");
+    unpack(&offline.join("python.tar.gz"), &pyroot)?;
+    let pydir = fs::read_dir(&pyroot)
+        .map_err(err("Python"))?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with(&format!("cpython-{PYTHON_VERSION}."))))
+        .max()
+        .ok_or("в установщике нет Python")?;
+    let python = if cfg!(windows) { pydir.join("python.exe") } else { pydir.join("bin").join("python3") };
+    let wheels = ctx.data.join("installer").join("wheels");
+    let _ = fs::remove_dir_all(&wheels);
+    unpack(&offline.join("wheels.tar.gz"), &wheels)?;
+    let penv = core.join("penv");
+    let _ = fs::remove_dir_all(&penv); // недоделанный прошлой попыткой
+    let mut cmd = command(&python);
+    cmd.args(["-m", "venv"]).arg(&penv);
+    let (code, tail) = run_logged(ctx, cmd)?;
+    if code != 0 {
+        return Err(format!("не создалось окружение PlatformIO (код {code}): {}", tail.lines().last().unwrap_or("")));
+    }
+    let venv_python = crate::util::penv_scripts().join(exe("python"));
+    let mut cmd = command(&venv_python);
+    cmd.args(["-m", "pip", "install", "--no-index", "--find-links"]).arg(&wheels).arg("platformio");
+    let (code, tail) = run_logged(ctx, cmd)?;
+    let _ = fs::remove_dir_all(&wheels);
+    if code != 0 {
+        return Err(format!("PlatformIO не установился (код {code}): {}", tail.lines().last().unwrap_or("")));
+    }
+    find_pio().ok_or_else(|| "PlatformIO установился, но pio не найден".to_string())
+}
+
+fn platformio(ctx: &Ctx, offline: Option<&Path>) -> Res<PathBuf> {
     if let Some(pio) = find_pio() {
         ctx.say(&format!("PlatformIO уже установлен: {}", pio.display()), &format!("PlatformIO is already installed: {}", pio.display()));
         return Ok(pio);
+    }
+    if let Some(off) = offline {
+        match platformio_offline(ctx, off) {
+            Ok(pio) => {
+                ctx.say(&format!("PlatformIO готов: {}", pio.display()), &format!("PlatformIO is ready: {}", pio.display()));
+                return Ok(pio);
+            }
+            Err(e) => ctx.say(&format!("Из установщика не вышло ({e}) — пробую через интернет"), &format!("Could not install from the installer ({e}) — trying the Internet")),
+        }
     }
     let python = match managed_python(ctx) {
         Ok(p) => p,
@@ -263,17 +359,64 @@ fn platformio(ctx: &Ctx) -> Res<PathBuf> {
     Ok(pio)
 }
 
-fn firmware_source(ctx: &Ctx) -> Res<PathBuf> {
+/// Исходники прошивки: уже скачанные — как есть; нет — из установщика, а без
+/// него — с GitHub. Обновить до свежих — «Настройки» → «Скачать с GitHub».
+fn firmware_source(ctx: &Ctx, offline: Option<&Path>) -> Res<PathBuf> {
     let root = ctx.data.join("source");
+    let dest = default_source(&ctx.data);
+    if dest.join("tools").join("opconfig.py").is_file() {
+        ctx.say(&format!("Исходники прошивки уже есть: {}", dest.display()), &format!("Firmware sources are already here: {}", dest.display()));
+        return Ok(dest);
+    }
     fs::create_dir_all(&root).map_err(err("папка исходников"))?;
+    if let Some(off) = offline {
+        let _ = fs::remove_dir_all(&dest);
+        match unpack(&off.join("firmware.tar.gz"), &root) {
+            Ok(()) if dest.join("tools").join("opconfig.py").is_file() => {
+                ctx.say(&format!("Исходники прошивки из установщика: {}", dest.display()), &format!("Firmware sources from the installer: {}", dest.display()));
+                return Ok(dest);
+            }
+            Ok(()) => ctx.say("В установщике нет исходников — качаю с GitHub", "No sources in the installer — downloading from GitHub"),
+            Err(e) => ctx.say(&format!("{e} — качаю с GitHub"), &format!("{e} — downloading from GitHub")),
+        }
+    }
     let log = ctx.log.clone();
     source::fetch(&root, None, &move |line: &str| log(line))
 }
 
-fn build_tools(ctx: &Ctx, pio: &Path, source: &Path) -> Res<()> {
+/// Библиотеки прошивки из установщика — в папку данных (seed_libdeps берёт их оттуда).
+fn libdeps_offline(ctx: &Ctx, offline: &Path) {
+    let dest = ctx.data.join("libdeps");
+    if dest.is_dir() {
+        return;
+    }
+    if let Err(e) = unpack(&offline.join("libdeps.tar.xz"), &dest) {
+        let _ = fs::remove_dir_all(&dest);
+        ctx.say(&format!("Библиотеки прошивки не распаковались ({e}) — скачаются при первой сборке"), &format!("Firmware libraries were not unpacked ({e}) — they will be downloaded on the first build"));
+    }
+}
+
+fn build_tools(ctx: &Ctx, pio: &Path, source: &Path, offline: Option<&Path>) -> Res<()> {
+    if let Some(off) = offline {
+        libdeps_offline(ctx, off);
+    }
     if tools_installed() {
         ctx.say("Инструменты сборки STM32 уже есть", "STM32 build tools are already installed");
         return Ok(());
+    }
+    if let Some(off) = offline {
+        ctx.say(
+            "Распаковываю инструменты сборки STM32 из установщика (около 2 ГБ на диске, без интернета)…",
+            "Unpacking the STM32 build tools from the installer (about 2 GB on disk, no Internet needed)…",
+        );
+        match unpack(&off.join("pio-stm32.tar.xz"), &core_dir()) {
+            Ok(()) if tools_installed() => {
+                ctx.say("Инструменты сборки STM32 готовы", "STM32 build tools are ready");
+                return Ok(());
+            }
+            Ok(()) => ctx.say("В установщике не всё — докачиваю", "The installer lacks some — downloading"),
+            Err(e) => ctx.say(&format!("{e} — качаю из интернета"), &format!("{e} — downloading from the Internet")),
+        }
     }
     ctx.say(
         "Скачиваю инструменты сборки STM32: компилятор и ядро (около 2 ГБ на диске; на медленном интернете — долго)…",
@@ -281,6 +424,9 @@ fn build_tools(ctx: &Ctx, pio: &Path, source: &Path) -> Res<()> {
     );
     let mut cmd = command(pio);
     cmd.args(["pkg", "install", "-d"]).arg(source);
+    for env in STM32_ENVS {
+        cmd.args(["-e", env]);
+    }
     let (code, tail) = run_logged(ctx, cmd)?;
     if code != 0 {
         return Err(format!("инструменты не скачались (код {code}): {}", tail.lines().last().unwrap_or("")));
@@ -294,6 +440,10 @@ fn build_tools(ctx: &Ctx, pio: &Path, source: &Path) -> Res<()> {
 pub fn run(resources: Option<PathBuf>, opts: &Options, log: Log) -> Res<Report> {
     let ctx = Ctx { log, en: opts.lang.as_deref() == Some("en"), data: local_data_dir() };
     fs::create_dir_all(&ctx.data).map_err(err("папка данных приложения"))?;
+    let offline = offline_dir(resources.as_deref());
+    if offline.is_some() {
+        ctx.say("Всё нужное есть в установщике — интернет не понадобится.", "Everything needed is in the installer — no Internet required.");
+    }
     let steps = 2 + opts.tools as usize + (opts.driver && cfg!(windows)) as usize;
     let mut step = 0;
     let mut next = |ru: &str, en: &str| {
@@ -302,13 +452,13 @@ pub fn run(resources: Option<PathBuf>, opts: &Options, log: Log) -> Res<Report> 
     };
 
     next("PlatformIO", "PlatformIO");
-    let pio = platformio(&ctx)?;
-    next("Исходники прошивки с GitHub", "Firmware sources from GitHub");
-    let source = firmware_source(&ctx)?;
+    let pio = platformio(&ctx, offline.as_deref())?;
+    next("Исходники прошивки", "Firmware sources");
+    let source = firmware_source(&ctx, offline.as_deref())?;
     let mut warnings = Vec::new();
     if opts.tools {
         next("Инструменты сборки STM32", "STM32 build tools");
-        if let Err(e) = build_tools(&ctx, &pio, &source) {
+        if let Err(e) = build_tools(&ctx, &pio, &source, offline.as_deref()) {
             ctx.say(&format!("Не вышло: {e}. Скачаются при первой прошивке."), &format!("Failed: {e}. They will be downloaded on the first flash."));
             warnings.push(e);
         }
@@ -343,7 +493,7 @@ pub fn run(resources: Option<PathBuf>, opts: &Options, log: Log) -> Res<Report> 
     })
 }
 
-/// `openplane-studio --setup [--tools] [--driver] [--lang en] [--utf16]` —
+/// `openplane-studio --setup [--tools] [--driver] [--lang en] [--utf16] [--resources DIR]` —
 /// для установщика: тот же run() без окна, вывод в stdout (установщик
 /// Windows показывает его в журнале; --utf16 — его кодировка) и в setup.log.
 /// Код выхода 0 — PlatformIO и исходники на месте.
@@ -377,7 +527,13 @@ pub fn cli(args: &[String]) -> i32 {
         }
     });
     let opts = Options { tools: has("--tools"), driver: has("--driver"), lang };
-    let resources = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("resources")));
+    // --resources DIR — папка с offline/ (проверка без установки), иначе рядом с программой.
+    let resources = args
+        .iter()
+        .position(|a| a == "--resources")
+        .and_then(|i| args.get(i + 1))
+        .map(PathBuf::from)
+        .or_else(|| std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("resources"))));
     log(&format!("OpenPlane Studio {} — setup", env!("CARGO_PKG_VERSION")));
     match run(resources, &opts, log.clone()) {
         Ok(_) => 0,

@@ -26,6 +26,8 @@ export interface SetupStatus {
   tools: boolean;
   /** на этой системе нужен драйвер режима прошивки (Windows) */
   driver_needed: boolean;
+  /** всё нужное привёз установщик — интернет не нужен */
+  offline: boolean;
 }
 
 export interface SetupReport {

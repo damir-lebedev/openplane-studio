@@ -549,14 +549,14 @@ LangString depsSubtitle ${LANG_RUSSIAN} "Что ещё поставить вме
 LangString depsSubtitle ${LANG_ENGLISH} "What else to install with OpenPlane Studio"
 LangString depsAll ${LANG_RUSSIAN} "Установить всё необходимое для сборки и прошивки"
 LangString depsAll ${LANG_ENGLISH} "Install everything needed to build and flash"
-LangString depsAllHint ${LANG_RUSSIAN} "PlatformIO со своей копией Python (системный Python не трогается), исходники прошивки с GitHub и драйвер USB для режима прошивки плат STM32 — Windows один раз спросит разрешение. Всё ставится в папку пользователя; нужен интернет."
-LangString depsAllHint ${LANG_ENGLISH} "PlatformIO with its own copy of Python (the system Python is left alone), the firmware sources from GitHub and the USB driver for the flashing mode of STM32 boards — Windows will ask for permission once. Everything goes into your user folder; an Internet connection is needed."
-LangString depsTools ${LANG_RUSSIAN} "Сразу скачать инструменты сборки STM32 (около 2 ГБ на диске)"
-LangString depsTools ${LANG_ENGLISH} "Download the STM32 build tools now (about 2 GB on disk)"
-LangString depsToolsHint ${LANG_RUSSIAN} "Компилятор и ядро для плат на STM32. Без этой галочки они скачаются при первой прошивке. На медленном интернете это долго."
-LangString depsToolsHint ${LANG_ENGLISH} "The compiler and core for STM32 boards. Without this box they are downloaded on the first flash. Slow on a slow connection."
-LangString depsRunning ${LANG_RUSSIAN} "Ставлю всё для сборки и прошивки — это может занять несколько минут…"
-LangString depsRunning ${LANG_ENGLISH} "Installing everything to build and flash — this can take a few minutes…"
+LangString depsAllHint ${LANG_RUSSIAN} "Всё уже внутри установщика — интернет не нужен: PlatformIO со своей копией Python (системный Python не трогается), исходники прошивки и драйвер USB для режима прошивки плат STM32 — Windows один раз спросит разрешение. Всё ставится в папку пользователя."
+LangString depsAllHint ${LANG_ENGLISH} "Everything is inside the installer — no Internet needed: PlatformIO with its own copy of Python (the system Python is left alone), the firmware sources and the USB driver for the flashing mode of STM32 boards — Windows will ask for permission once. Everything goes into your user folder."
+LangString depsTools ${LANG_RUSSIAN} "И инструменты сборки STM32 — тоже из установщика (около 2 ГБ на диске)"
+LangString depsTools ${LANG_ENGLISH} "And the STM32 build tools — also from the installer (about 2 GB on disk)"
+LangString depsToolsHint ${LANG_RUSSIAN} "Компилятор, ядро и библиотеки для плат на STM32: прошивка соберётся без интернета. Без этой галочки они скачаются при первой прошивке."
+LangString depsToolsHint ${LANG_ENGLISH} "The compiler, core and libraries for STM32 boards: the firmware builds without the Internet. Without this box they are downloaded on the first flash."
+LangString depsRunning ${LANG_RUSSIAN} "Ставлю всё для сборки и прошивки — несколько минут…"
+LangString depsRunning ${LANG_ENGLISH} "Installing everything to build and flash — a few minutes…"
 LangString depsFailed ${LANG_RUSSIAN} "Не всё удалось поставить — подробности в журнале выше. OpenPlane Studio предложит доделать подготовку при первом запуске (Настройки → Подготовка компьютера)."
 LangString depsFailed ${LANG_ENGLISH} "Not everything could be installed — see the log above. OpenPlane Studio will offer to finish the setup on first start (Settings → Prepare the computer)."
 
@@ -823,19 +823,26 @@ Section Install
   ${EndIf}
 
   ; OpenPlane: подготовка компьютера — галочка на странице или /DEPS (и
-  ; /DEPS /TOOLS) в тихой установке. Вывод — в журнал установщика (UTF-16).
-  ${GetOptions} $CMDLINE "/DEPS" $R0
-  ${IfNot} ${Errors}
+  ; /DEPS /TOOLS, /NODRIVER) в тихой установке. Вывод — в журнал
+  ; установщика (UTF-16).
+  ; Ключи ищутся подстрокой: GetOptions с несколькими ключами подряд путается.
+  ${StrLoc} $R0 $CMDLINE "/DEPS" ">"
+  ${If} $R0 != ""
     StrCpy $DepsAll ${BST_CHECKED}
-    ${GetOptions} $CMDLINE "/TOOLS" $R0
-    ${IfNot} ${Errors}
+    ${StrLoc} $R0 $CMDLINE "/TOOLS" ">"
+    ${If} $R0 != ""
       StrCpy $DepsTools ${BST_CHECKED}
     ${EndIf}
   ${EndIf}
   ${If} $DepsAll == ${BST_CHECKED}
     SetDetailsView show
     DetailPrint "$(depsRunning)"
-    StrCpy $R1 "--setup --driver --utf16"
+    StrCpy $R1 "--setup --utf16"
+    ; /NODRIVER — без драйвера (тихая установка без окна UAC)
+    ${StrLoc} $R0 $CMDLINE "/NODRIVER" ">"
+    ${If} $R0 == ""
+      StrCpy $R1 "$R1 --driver"
+    ${EndIf}
     ${If} $DepsTools == ${BST_CHECKED}
       StrCpy $R1 "$R1 --tools"
     ${EndIf}

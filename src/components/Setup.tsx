@@ -90,13 +90,23 @@ export function SetupPanel({ onDone }: { onDone?: () => void }) {
         title={t("PlatformIO и Python")}
         sub={status?.pio ?? t("Им приложение собирает прошивку. Python — своя копия для PlatformIO, системный не трогается.")}
       />
-      <Item done={!!source} title={t("Исходники прошивки")} sub={source ?? t("Скачаются с GitHub — около мегабайта.")} />
+      <Item
+        done={!!source}
+        title={t("Исходники прошивки")}
+        sub={source ?? (status?.offline ? t("Из установщика — без интернета.") : t("Скачаются с GitHub — около мегабайта."))}
+      />
       <div className="row" style={{ gap: 10, alignItems: "flex-start" }}>
         <div className="grow">
           <Item
             done={!!status?.tools}
             title={t("Инструменты сборки STM32")}
-            sub={status?.tools ? t("уже скачаны") : t("Компилятор и ядро — около 2 ГБ на диске. Не скачать сейчас — скачаются при первой прошивке.")}
+            sub={
+              status?.tools
+                ? t("уже на месте")
+                : status?.offline
+                  ? t("Компилятор, ядро и библиотеки — из установщика, без интернета; около 2 ГБ на диске.")
+                  : t("Компилятор и ядро — около 2 ГБ на диске. Не скачать сейчас — скачаются при первой прошивке.")
+            }
           />
         </div>
         {!status?.tools && <Toggle on={tools} onChange={setTools} disabled={busy} />}
@@ -141,13 +151,21 @@ export function SetupDialog() {
   const info = useApp((s) => s.info);
   const source = useApp((s) => s.settings.firmwareSource);
   const [closed, setClosed] = useState(false);
+  const [offline, setOffline] = useState<boolean | null>(null);
+  useEffect(() => {
+    void api
+      .setupStatus()
+      .then((st) => setOffline(st.offline))
+      .catch(() => setOffline(null));
+  }, []);
   if (!ready || !info || closed || !needsSetup(info.pio, source)) return null;
   return (
     <div className="overlay">
       <div className="modal">
         <h2>{t("Подготовка компьютера")}</h2>
         <p className="hint" style={{ marginTop: 0 }}>
-          {t("Чтобы собирать и прошивать платы, приложению нужны инструменты. Поставит всё само, в папку пользователя, без прав администратора. Нужен интернет.")}
+          {t("Чтобы собирать и прошивать платы, приложению нужны инструменты. Поставит всё само, в папку пользователя, без прав администратора.")}{" "}
+          {offline === false ? t("Нужен интернет.") : t("Всё есть в приложении — интернет не нужен.")}
         </p>
         <SetupPanel onDone={() => setClosed(true)} />
         <div className="modal-actions">

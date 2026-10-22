@@ -1,7 +1,8 @@
-# Установщики OpenPlane Studio: macOS (.dmg, Apple Silicon и Intel в одном) и
-# Windows (.exe, NSIS с галочкой «Установить всё необходимое»). Запуск —
-# вручную (Actions → Установщики → Run workflow) или тегом vX.Y.Z. Готовые
-# файлы — в артефактах запуска; выпуски на GitHub отсюда не создаются.
+# Установщики OpenPlane Studio — всё для сборки и прошивки внутри, интернет
+# пользователю не нужен (tools/offline_bundle.py):
+#   macOS Apple Silicon (.dmg), macOS Intel (.dmg), Windows (.exe, NSIS).
+# Запуск — вручную (Actions → Установщики → Run workflow) или тегом vX.Y.Z.
+# Готовые файлы — в артефактах запуска; выпуски на GitHub отсюда не создаются.
 name: Установщики
 
 on:
@@ -13,42 +14,54 @@ permissions:
   contents: read
 
 jobs:
-  macos:
-    name: macOS (.dmg)
-    runs-on: macos-14
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS Apple Silicon
+            os: macos-15
+            artifact: OpenPlaneStudio-macOS-AppleSilicon
+            files: src-tauri/target/release/bundle/dmg/*.dmg
+          - name: macOS Intel
+            os: macos-15-intel
+            artifact: OpenPlaneStudio-macOS-Intel
+            files: src-tauri/target/release/bundle/dmg/*.dmg
+          - name: Windows
+            os: windows-latest
+            artifact: OpenPlaneStudio-Windows
+            files: src-tauri/target/release/bundle/nsis/*.exe
     steps:
       - uses: actions/checkout@v4
+      - name: Исходники прошивки
+        uses: actions/checkout@v4
+        with:
+          repository: damir-lebedev/OpenPlaneProject
+          path: firmware
+          sparse-checkout: |
+            include
+            src
+            lib
+            tools
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - name: Rust для Apple Silicon и Intel
-        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
-      - run: npm ci
-      - run: npm test
-      - name: Сборка (универсальное приложение)
-        run: npm run tauri build -- --target universal-apple-darwin
-      - uses: actions/upload-artifact@v4
+      - uses: actions/setup-python@v5
         with:
-          name: OpenPlaneStudio-macOS
-          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-          if-no-files-found: error
-
-  windows:
-    name: Windows (.exe)
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
+          python-version: "3.12"
+      - run: python -m pip install uv==0.12.21
+      - name: Всё для работы без интернета
+        run: python tools/offline_bundle.py --firmware firmware --uv uv
       - run: npm ci
       - run: npm test
       - name: Сборка
         run: npm run tauri build
       - uses: actions/upload-artifact@v4
         with:
-          name: OpenPlaneStudio-Windows
-          path: src-tauri/target/release/bundle/nsis/*.exe
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
           if-no-files-found: error
+          compression-level: 0

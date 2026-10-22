@@ -190,6 +190,7 @@ fn firmware_file(dir: &Path, env: &str) -> Option<String> {
 }
 
 pub fn build(app: &AppHandle, dir: &Path, env: &str) -> Res<TaskResult> {
+    crate::setup::seed_libdeps(dir, env);
     let mut cmd = command(pio()?);
     cmd.args(["run", "-e", env, "-d"]).arg(dir);
     let (code, tail) = run_streaming(app, "build", cmd)?;

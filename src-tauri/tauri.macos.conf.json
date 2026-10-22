@@ -5,7 +5,9 @@
       "app",
       "dmg"
     ],
-    "resources": [],
+    "resources": [
+      "resources/offline/*"
+    ],
     "macOS": {
       "minimumSystemVersion": "11.0",
       "signingIdentity": "-",

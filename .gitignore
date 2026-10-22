@@ -4,3 +4,9 @@ src-tauri/target/
 src-tauri/gen/
 *.log
 .DS_Store
+
+# архивы для установщика без интернета (tools/offline_bundle.py)
+src-tauri/resources/offline/*
+!src-tauri/resources/offline/README.md
+src-tauri/resources/.offline-work/
+__pycache__/

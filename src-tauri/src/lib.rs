@@ -180,8 +180,9 @@ async fn platformio_install(app: AppHandle, lang: Option<String>) -> Res<String>
 }
 
 #[tauri::command]
-async fn setup_status() -> Res<setup::Status> {
-    blocking(|| Ok(setup::status(&util::local_data_dir()))).await
+async fn setup_status(app: AppHandle) -> Res<setup::Status> {
+    let resources = app.path().resource_dir().ok().map(|d| d.join("resources"));
+    blocking(move || Ok(setup::status(&util::local_data_dir(), resources.as_deref()))).await
 }
 
 /// Подготовка компьютера из окна: строки — событиями "task-log" (task = "setup").
