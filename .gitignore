@@ -10,3 +10,6 @@ src-tauri/resources/offline/*
 !src-tauri/resources/offline/README.md
 src-tauri/resources/.offline-work/
 __pycache__/
+
+# архив установщиков для раздачи (в git не кладётся — сотни мегабайт)
+OpenPlane-Studio-*.zip
