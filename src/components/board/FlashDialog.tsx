@@ -2,7 +2,7 @@ import { Check, ChevronRight, CircleAlert, CircleCheck, LoaderCircle, TriangleAl
 import { useEffect, useRef, useState } from "react";
 
 import { api, errorText } from "../../api";
-import { runFlash } from "../../flash";
+import { runAnyFlash } from "../../flash";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Modal } from "../ui";
@@ -14,13 +14,20 @@ function StepIcon({ status }: { status: string }) {
   return <span style={{ width: 8, height: 8, borderRadius: 8, background: "var(--line-2)" }} />;
 }
 
-function BootloaderHelp() {
+function BootloaderHelp({ copter }: { copter: boolean }) {
   const plane = useApp((s) => s.current());
   const stm32 = plane?.board.startsWith("stm32");
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <h3>{t("Как включить режим прошивки")}</h3>
-      {stm32 ? (
+      {copter ? (
+        <ol style={{ margin: "8px 0 0", paddingLeft: 20, lineHeight: 1.7 }}>
+          <li>{t("Отключите батарею и USB.")}</li>
+          <li>{t("Зажмите кнопку BOOT на полётнике и, не отпуская, вставьте USB.")}</li>
+          <li>{t("Windows покажет «STM32 BOOTLOADER» — нажмите «Повторить».")}</li>
+          <li>{t("Дальше приложение само перезагружает плату в режим прошивки.")}</li>
+        </ol>
+      ) : stm32 ? (
         <ol style={{ margin: "8px 0 0", paddingLeft: 20, lineHeight: 1.7 }}>
           <li>{t("Соедините проводом пин BT0 с 3V3 (на DevEBox кнопки BOOT0 нет).")}</li>
           <li>{t("Нажмите и отпустите RST.")}</li>
@@ -64,7 +71,7 @@ export function FlashDialog() {
     if (showLog && logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [flash.log.length, showLog]);
 
-  const retry = () => void runFlash(flash.planeId);
+  const retry = () => void runAnyFlash(flash.planeId);
   const installDriver = async () => {
     setBusy(true);
     try {
@@ -143,7 +150,7 @@ export function FlashDialog() {
           </div>
         </div>
       )}
-      {flash.error?.action === "bootloader" && <BootloaderHelp />}
+      {flash.error?.action === "bootloader" && <BootloaderHelp copter={flash.vehicle === "copter"} />}
       {flash.error?.action === "driver" && <DriverHelp />}
 
       {flash.done && (
@@ -155,7 +162,7 @@ export function FlashDialog() {
           </div>
         </div>
       )}
-      {flash.done?.verified && !flash.calib && (
+      {flash.done?.verified && !flash.calib && flash.vehicle !== "copter" && (
         <div className="hint row" style={{ marginTop: 8, gap: 8 }}>
           <LoaderCircle size={14} className="spin" />
           {t("Смотрю, на месте ли калибровки…")}

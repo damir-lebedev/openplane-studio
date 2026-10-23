@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { BoardView } from "./components/board/BoardView";
 import { BoardPanel } from "./components/BoardPanel";
 import { ComingSoon } from "./components/ComingSoon";
+import { CopterView } from "./components/CopterView";
 import { Hangar } from "./components/Hangar";
 import { Header } from "./components/Header";
 import { Rail } from "./components/Rail";
@@ -52,6 +53,8 @@ export default function App() {
           <Hangar />
         ) : section === "board" ? (
           <BoardView />
+        ) : section === "copter" ? (
+          <CopterView />
         ) : section === "settings" ? (
           <Settings />
         ) : (

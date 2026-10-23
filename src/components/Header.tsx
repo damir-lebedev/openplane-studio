@@ -42,7 +42,12 @@ export function Header() {
   const planes = useApp((s) => s.planes);
   const currentId = useApp((s) => s.currentId);
   const selectPlane = useApp((s) => s.selectPlane);
+  const copters = useApp((s) => s.copters);
+  const copterId = useApp((s) => s.copterId);
+  const selectCopter = useApp((s) => s.selectCopter);
+  const section = useApp((s) => s.section);
   const setSection = useApp((s) => s.setSection);
+  const selected = section === "copter" ? copterId : currentId;
   const devices = useApp((s) => s.devices);
   const ports = useApp((s) => s.ports);
   const link = useApp((s) => s.link);
@@ -61,22 +66,47 @@ export function Header() {
         OpenPlane <span>Studio</span>
       </div>
       <ChevronRight size={16} color="var(--text-3)" />
-      {planes.length ? (
+      {planes.length || copters.length ? (
         <select
           className="select"
-          value={currentId ?? ""}
+          value={selected ?? ""}
           onChange={(e) => {
-            selectPlane(e.target.value || null);
-            setSection("board");
+            const id = e.target.value || null;
+            if (id && copters.some((c) => c.id === id)) {
+              selectCopter(id);
+              setSection("copter");
+            } else {
+              selectPlane(id);
+              setSection("board");
+            }
           }}
           title={t("Самолёт: все разделы показывают его")}
         >
-          {!currentId && <option value="">{t("Выберите самолёт")}</option>}
-          {planes.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
+          {!selected && <option value="">{t("Выберите самолёт")}</option>}
+          {copters.length ? (
+            <>
+              <optgroup label={t("Самолёты")}>
+                {planes.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label={t("Коптеры")}>
+                {copters.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            </>
+          ) : (
+            planes.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))
+          )}
         </select>
       ) : (
         <span className="muted">{t("Ангар пуст")}</span>

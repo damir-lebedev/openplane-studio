@@ -3,6 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
+import { CopterFirmwareConfig, CopterProject } from "./core/copter";
 import { Manifest } from "./core/manifest";
 import { FirmwareFingerprint } from "./core/migrate";
 import { FirmwareConfig, FlashRecord, PlaneProject } from "./core/project";
@@ -37,6 +38,8 @@ export interface SetupReport {
 }
 
 export interface Settings {
+  /** коптер, открытый последним */
+  currentCopter?: string;
   firmwareSource?: string;
   /** какую версию брать с GitHub: тег выпуска, "main" или пусто — последний выпуск */
   firmwareVersion?: string;
@@ -67,6 +70,10 @@ export interface Identity {
   /** протокол приёмника в прошивке: "iBUS", "SBUS", "CRSF" (прошивки до 19.10 — нет) */
   rx?: string;
   armed: boolean;
+  /** "copter" — прошивка коптера (у самолёта поля нет) */
+  vehicle?: string;
+  /** сборка коптера из каталога */
+  build?: string;
 }
 
 export interface TaskResult {
@@ -178,8 +185,8 @@ export const api = {
   appInfo: () => invoke<AppInfo>("app_info"),
   settingsLoad: () => invoke<Settings>("settings_load"),
   settingsSave: (settings: Settings) => invoke<void>("settings_save", { settings }),
-  hangarList: () => invoke<PlaneProject[]>("hangar_list"),
-  hangarSave: (plane: PlaneProject) => invoke<void>("hangar_save", { plane }),
+  hangarList: () => invoke<(PlaneProject | CopterProject)[]>("hangar_list"),
+  hangarSave: (plane: PlaneProject | CopterProject) => invoke<void>("hangar_save", { plane }),
   hangarRemove: (id: string) => invoke<void>("hangar_remove", { id }),
   hangarSnapshot: (id: string, label: string, data: unknown) => invoke<string>("hangar_snapshot", { id, label, data }),
   hangarHistory: (id: string) => invoke<Snapshot[]>("hangar_history", { id }),
@@ -190,7 +197,7 @@ export const api = {
   firmwareVersions: () => invoke<string[]>("firmware_versions"),
   firmwarePrepare: (source: string, planeId: string) =>
     invoke<{ dir: string; copied: number; removed: number }>("firmware_prepare", { source, planeId }),
-  firmwareApply: (source: string, dir: string, config: FirmwareConfig) =>
+  firmwareApply: (source: string, dir: string, config: FirmwareConfig | CopterFirmwareConfig) =>
     invoke<ApplyResult>("firmware_apply", { source, dir, config }),
   firmwareBuild: (dir: string, env: string) => invoke<TaskResult>("firmware_build", { dir, env }),
   firmwareUpload: (dir: string, env: string, port: string | null) =>

@@ -28,7 +28,16 @@ const UV_VERSION: &str = "0.12.21";
 const PYTHON_VERSION: &str = "3.12";
 const GET_PLATFORMIO: &str = "https://raw.githubusercontent.com/platformio/platformio-core-installer/master/get-platformio.py";
 /// Среды прошивки на STM32 — их пакеты и библиотеки ставятся заранее.
-const STM32_ENVS: &[&str] = &["stm32h743-devebox", "stm32h743", "matek-h743"];
+const STM32_ENVS: &[&str] = &[
+    "stm32h743-devebox",
+    "stm32h743",
+    "matek-h743",
+    // коптеры: F405 из-под Betaflight и H743
+    "getfun-f405v3-quad",
+    "aocodarc-f405v3-quad",
+    "matek-h743-quad",
+    "stm32h743-devebox-quad",
+];
 
 pub type Log = Arc<dyn Fn(&str) + Send + Sync>;
 

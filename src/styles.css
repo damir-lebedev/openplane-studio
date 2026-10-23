@@ -943,7 +943,7 @@ textarea {
 /* ангар */
 .planes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 16px;
 }
 .plane-card {
@@ -1241,4 +1241,104 @@ textarea {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: var(--text-3);
+}
+
+.plane-card.add.split {
+  padding: 0;
+  gap: 0;
+  cursor: default;
+  align-items: stretch;
+}
+.plane-card.add.split:hover {
+  color: var(--text-2);
+}
+.plane-card.add.split button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.plane-card.add.split button + button {
+  border-top: 1px dashed var(--line);
+}
+.plane-card.add.split button:hover {
+  color: var(--accent);
+}
+
+/* ---------- коптер ---------- */
+.copter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+.copter-grid .wide {
+  grid-column: 1 / -1;
+}
+@media (max-width: 960px) {
+  .copter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.copter-grid .card h3 {
+  margin-top: 0;
+}
+.parts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.switch-row .select {
+  width: 150px;
+}
+.warn-text {
+  color: var(--warn);
+}
+.cli {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #070c11;
+  border: 1px solid var(--line);
+}
+.cli-row {
+  display: grid;
+  grid-template-columns: minmax(260px, auto) 1fr;
+  gap: 4px 16px;
+  padding: 2px 0;
+}
+.cli-row code {
+  color: #9fd8ff;
+  white-space: pre;
+}
+.cli-line {
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #070c11;
+  border: 1px solid var(--line);
+  color: #9fd8ff;
+  overflow-x: auto;
+  white-space: pre;
+}
+.steps-list,
+.checklist {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  line-height: 1.7;
+}
+.steps-list li {
+  margin-bottom: 8px;
 }

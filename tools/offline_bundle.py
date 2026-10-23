@@ -31,7 +31,9 @@ import time
 
 PLATFORMIO_VERSION = "6.2.0"
 PYTHON_VERSION = "3.12"
-STM32_ENVS = ["stm32h743-devebox", "stm32h743", "matek-h743"]
+STM32_ENVS = ["stm32h743-devebox", "stm32h743", "matek-h743",
+              # коптеры: F405 из-под Betaflight и H743
+              "getfun-f405v3-quad", "aocodarc-f405v3-quad", "matek-h743-quad", "stm32h743-devebox-quad"]
 PACKAGES = [
     "framework-arduinoststm32",
     "framework-cmsis",

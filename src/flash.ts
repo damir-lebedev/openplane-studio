@@ -2,6 +2,7 @@
 // Каждая ошибка — одна фраза «что случилось» и действие «что сделать».
 
 import { api, CalibFlags, Device, errorText, Identity, onTaskLog } from "./api";
+import { copterConfig, copterHash, findCopterEnv } from "./core/copter";
 import { isFresh } from "./core/live";
 import { fingerprint } from "./core/migrate";
 import { findBoard, Manifest } from "./core/manifest";
@@ -222,6 +223,40 @@ async function verify(manifest: Manifest, project: PlaneProject, hash: string, d
   return { ok: true, text: t("На плате ровно то, что в проекте: «{plane}», хэш {hash}, {port}.", { plane: identity.plane, hash, port: cdc.port }) };
 }
 
+/** Журнал сборки и заливки — в окно прошивки, проценты — в строку состояния. */
+function followLog() {
+  let compiled = 0;
+  return onTaskLog((l) => {
+    appendLog(l.line);
+    if (l.task === "build" && /^(Compiling|Archiving|Linking|Indexing)/.test(l.line)) {
+      compiled++;
+      const what = l.line.startsWith("Linking") ? t("Компоновка") : t("Компилирую ({n})", { n: compiled });
+      activity(`${what}…`);
+    }
+    if (l.task === "upload") {
+      const m = l.line.match(/(?:Download|Erase)[^\d]*(\d{1,3})%/) ?? l.line.match(/\((\d{1,3}) ?%\)/);
+      if (m) activity(l.line.includes("Erase") ? t("Стираю…") : t("Заливаю…"), Number(m[1]) / 100);
+    }
+  });
+}
+
+function failFlash(e: unknown, step: string) {
+  const err = e instanceof FlashError ? e : new FlashError(t("Что-то пошло не так"), errorText(e), "retry");
+  setStep(step, "fail");
+  flash().setFlash((f) => ({
+    ...f,
+    running: false,
+    progress: null,
+    activity: "",
+    error: { title: err.title, text: err.message, action: err.action, holders: err.holders },
+  }));
+}
+
+/** Вызов окна прошивки: самолёт или коптер — по id. */
+export function runAnyFlash(id: string) {
+  return useApp.getState().copters.some((c) => c.id === id) ? runCopterFlash(id) : runFlash(id);
+}
+
 export async function runFlash(planeId: string) {
   const app = useApp.getState();
   const plane = app.planes.find((p) => p.id === planeId);
@@ -240,20 +275,7 @@ export async function runFlash(planeId: string) {
     log: [],
   };
   app.startFlash(state);
-
-  let compiled = 0;
-  const unlisten = await onTaskLog((l) => {
-    appendLog(l.line);
-    if (l.task === "build" && /^(Compiling|Archiving|Linking|Indexing)/.test(l.line)) {
-      compiled++;
-      const what = l.line.startsWith("Linking") ? t("Компоновка") : t("Компилирую ({n})", { n: compiled });
-      activity(`${what}…`);
-    }
-    if (l.task === "upload") {
-      const m = l.line.match(/(?:Download|Erase)[^\d]*(\d{1,3})%/) ?? l.line.match(/\((\d{1,3}) ?%\)/);
-      if (m) activity(l.line.includes("Erase") ? t("Стираю…") : t("Заливаю…"), Number(m[1]) / 100);
-    }
-  });
+  const unlisten = await followLog();
 
   let record: FlashRecord | null = null;
   let calibBefore: CalibFlags | null = null;
@@ -315,16 +337,7 @@ export async function runFlash(planeId: string) {
     });
     if (result.ok) void checkCalibrations(calibBefore);
   } catch (e) {
-    const err =
-      e instanceof FlashError ? e : new FlashError("Что-то пошло не так", errorText(e), "retry");
-    setStep(current, "fail");
-    flash().setFlash((f) => ({
-      ...f,
-      running: false,
-      progress: null,
-      activity: "",
-      error: { title: err.title, text: err.message, action: err.action, holders: err.holders },
-    }));
+    failFlash(e, current);
   } finally {
     unlisten();
   }
@@ -338,4 +351,108 @@ export async function runFlash(planeId: string) {
       if (p.reached !== "setup") p.reached = "setup";
     });
   }
+}
+
+/**
+ * Прошивка коптера: та же дорога, но конфигурации в исходниках нет —
+ * настройки коптера живут на плате (CLI). Приложение вшивает только паспорт
+ * (название, хэш, коммит) и после заливки сверяет его.
+ */
+export async function runCopterFlash(copterId: string) {
+  const app = useApp.getState();
+  const copter = app.copters.find((c) => c.id === copterId);
+  const manifest = app.manifest;
+  const source = app.settings.firmwareSource;
+  if (!copter || !manifest || !source) return;
+  const env = findCopterEnv(manifest, copter.board);
+  const dfu = (env?.uploadProtocol ?? "dfu") === "dfu";
+
+  app.startFlash({ planeId: copterId, vehicle: "copter", running: true, steps: initialSteps(dfu), progress: null, activity: t("Готовлю исходники…"), log: [] });
+  const unlisten = await followLog();
+
+  let record: FlashRecord | null = null;
+  let current = "build";
+  try {
+    // 1. сборка
+    setStep("build", "run");
+    if (!env) throw new FlashError(t("Нет такой сборки"), t("В исходниках прошивки нет сборки коптера {env}. Выберите плату на странице коптера.", { env: copter.board || "—" }));
+    if (env.needsBoardDump) {
+      throw new FlashError(
+        t("Распиновка платы ещё не снята"),
+        t("Заголовок платы {file} — заглушка. Снимите распиновку с платы (шаги на странице коптера) и повторите.", { file: env.boardFile ?? env.env }),
+      );
+    }
+    const commit = await api.firmwareCommit(source);
+    const hash = await copterHash(copter, commit);
+    const config = { ...copterConfig(copter), project: { plane: copter.name, configHash: hash, commit, boardEnv: copter.board } };
+    const prepared = await api.firmwarePrepare(source, copter.id);
+    appendLog(t("Исходники: {src} → {dir} (скопировано {n})", { src: source, dir: prepared.dir, n: prepared.copied }));
+    const applied = await api.firmwareApply(source, prepared.dir, config);
+    if (!applied.ok) throw new FlashError(t("Паспорт не записался"), (applied.errors ?? []).join("\n"));
+    activity(t("Собираю прошивку…"));
+    const built = await api.firmwareBuild(prepared.dir, copter.board);
+    if (!built.ok) {
+      const why = explainFailure(built.tail, "build");
+      throw new FlashError(why.title, why.text, why.action);
+    }
+    setStep("build", "ok", built.firmware ? built.firmware.split(/[\\/]/).pop() : undefined);
+
+    // 2. плата
+    current = "board";
+    setStep("board", "run");
+    const port = await prepareBoard(copter.board, dfu);
+    if (dfu) await checkDriver();
+    setStep("board", "ok", port ?? (dfu ? "STM32 BOOTLOADER" : undefined));
+
+    // 3. заливка
+    current = "upload";
+    setStep("upload", "run");
+    activity(t("Заливаю…"), 0);
+    const uploaded = await api.firmwareUpload(prepared.dir, copter.board, port);
+    if (!uploaded.ok) {
+      const why = explainFailure(uploaded.tail, "upload");
+      throw new FlashError(why.title, why.text, why.action);
+    }
+    setStep("upload", "ok");
+
+    // 4. проверка паспорта
+    current = "verify";
+    setStep("verify", "run");
+    const result = await verifyCopter(copter.name, hash, dfu);
+    setStep("verify", result.ok ? "ok" : "fail", result.ok ? undefined : t("не подтверждено"));
+    record = { at: new Date().toISOString(), board: copter.board, commit, configHash: hash, ok: result.ok };
+    flash().setFlash((f) => ({ ...f, running: false, progress: null, activity: "", done: { verified: result.ok, text: result.text } }));
+  } catch (e) {
+    failFlash(e, current);
+  } finally {
+    unlisten();
+  }
+
+  if (record) {
+    const done = record;
+    useApp.getState().updateCopter(copterId, (c) => {
+      c.lastFlash = done;
+      c.history = [done, ...c.history].slice(0, 50);
+    });
+  }
+}
+
+async function verifyCopter(name: string, hash: string, dfu: boolean): Promise<{ ok: boolean; text: string }> {
+  if (!dfu) return { ok: true, text: t("Прошивка залита в «{plane}».", { plane: name }) };
+  activity(t("Жду, пока плата загрузится…"));
+  const cdc = await waitDevice((d) => d.kind === "stm32-cdc", 20000);
+  if (!cdc?.port) {
+    return { ok: false, text: t("Прошивка залита, но плата не появилась как COM-порт. Переподключите USB и проверьте.") };
+  }
+  await sleep(800);
+  let identity: Identity | null = null;
+  for (let i = 0; i < 3 && !identity; i++) {
+    identity = await api.boardIdentity(cdc.port, true).catch(() => null);
+    if (!identity) await sleep(700);
+  }
+  if (!identity) return { ok: false, text: t("Прошивка залита, плата на {port}, но паспорт не прочитался.", { port: cdc.port }) };
+  if (identity.vehicle !== "copter" || identity.config !== hash) {
+    return { ok: false, text: t("Плата ответила, но хэш конфигурации другой: {got} вместо {want}.", { got: identity.config || t("пусто"), want: hash }) };
+  }
+  return { ok: true, text: t("На плате ровно то, что в проекте: «{plane}», хэш {hash}, {port}.", { plane: identity.plane, hash, port: cdc.port }) };
 }

@@ -44,7 +44,7 @@ export function Rail() {
       {ITEMS.map((item) => (
         <button
           key={item.id}
-          className={`rail-item${section === item.id ? " active" : ""}`}
+          className={`rail-item${section === item.id || (item.id === "hangar" && section === "copter") ? " active" : ""}`}
           onClick={() => setSection(item.id)}
           title={item.soon ? t("{label} — скоро", { label: t(item.label) }) : t(item.label)}
         >

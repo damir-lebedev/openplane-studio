@@ -2,6 +2,8 @@
 // репозитория прошивки. Приложение ничего о прошивке не выдумывает: платы,
 // параметры, режимы и что им нужно — отсюда.
 
+import type { CopterBuild, CopterEnv } from "./copter";
+
 export type SensorCategory = "imu" | "baro" | "mag" | "airspeed" | "gps";
 export const SENSOR_CATEGORIES: SensorCategory[] = ["imu", "baro", "mag", "airspeed", "gps"];
 
@@ -114,6 +116,8 @@ export interface Manifest {
   sensors: { options: Record<SensorCategory, SensorOption[]>; kits: SensorKit[] };
   current: { sensorKit: string | null; sensors: Record<SensorCategory, string>; bindings: Binding[] };
   suggestions: (Binding & { doc: string })[];
+  /** сборки коптера (VEHICLE_MULTIROTOR) и каталог сборок; у старых прошивок — нет */
+  copters?: { envs: CopterEnv[]; builds: CopterBuild[] };
 }
 
 export function findBoard(manifest: Manifest, env: string): ManifestBoard | undefined {

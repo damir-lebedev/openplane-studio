@@ -3,6 +3,7 @@
 import { create } from "zustand";
 
 import { api, AppInfo, CalibFlags, Device, errorText, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
+import { blankCopter, copterFromKit, CopterProject, isCopter, newCopterId } from "./core/copter";
 import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
 import { Manifest } from "./core/manifest";
 import { setLanguage, t } from "./i18n";
@@ -18,7 +19,7 @@ import {
   StepId,
 } from "./core/project";
 
-export type Section = "hangar" | "board" | "flights" | "live" | "blackbox" | "cargo" | "settings";
+export type Section = "hangar" | "board" | "copter" | "flights" | "live" | "blackbox" | "cargo" | "settings";
 export type Mode = "simple" | "full";
 
 export interface PortInfo {
@@ -39,6 +40,8 @@ export type FlashAction = "kill-monitor" | "bootloader" | "driver" | "retry";
 
 export interface FlashState {
   planeId: string;
+  /** прошивка коптера (planeId — id коптера) */
+  vehicle?: "copter";
   running: boolean;
   steps: FlashStep[];
   progress: number | null;
@@ -75,6 +78,9 @@ interface AppState {
   manifestLoading: boolean;
   planes: PlaneProject[];
   currentId: string | null;
+  /** коптеры ангара — свой список: их проект и прошивка другие */
+  copters: CopterProject[];
+  copterId: string | null;
   step: StepId;
   mode: Mode;
   boardTab: "wizard" | "params";
@@ -107,8 +113,14 @@ interface AppState {
   /** "import" — из прошивки как есть, "blank" — с нуля, "tpl:<id>" — по шаблону */
   createPlane(kind: string, name: string): PlaneProject | null;
   duplicatePlane(id: string): void;
+  /** самолёт или коптер — папка в ангаре одна */
   removePlane(id: string): Promise<void>;
   updatePlane(update: (p: PlaneProject) => void): void;
+  currentCopter(): CopterProject | null;
+  selectCopter(id: string | null): void;
+  /** kind: "blank" или "kit:<id>" (готовый набор, core/copter.ts) */
+  createCopter(kind: string, name: string): CopterProject;
+  updateCopter(id: string, update: (p: CopterProject) => void): void;
   /** Ctrl+Z / Ctrl+Y по правкам текущего самолёта */
   undo(): void;
   redo(): void;
@@ -168,6 +180,8 @@ export const useApp = create<AppState>((set, get) => ({
   manifestLoading: false,
   planes: [],
   currentId: null,
+  copters: [],
+  copterId: null,
   step: "board",
   mode: "simple",
   boardTab: "wizard",
@@ -193,17 +207,22 @@ export const useApp = create<AppState>((set, get) => ({
       return;
     }
     try {
-      const [info, settings, planes] = await Promise.all([api.appInfo(), api.settingsLoad(), api.hangarList()]);
-      planes.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      const [info, settings, hangar] = await Promise.all([api.appInfo(), api.settingsLoad(), api.hangarList()]);
+      hangar.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      const planes = hangar.filter((p): p is PlaneProject => !isCopter(p));
+      const copters = hangar.filter(isCopter);
       // Язык не выбирали: ангар уже с самолётами — им пользовались по-русски, не удивляем.
       setLanguage(settings.language ?? (planes.length ? "ru" : undefined));
       const firmwareSource = settings.firmwareSource || info.firmware_guess || undefined;
       const currentId = planes.some((p) => p.id === settings.currentPlane) ? settings.currentPlane! : planes[0]?.id ?? null;
+      const copterId = copters.some((c) => c.id === settings.currentCopter) ? settings.currentCopter! : copters[0]?.id ?? null;
       set({
         info,
         settings: { ...settings, firmwareSource },
         planes,
         currentId,
+        copters,
+        copterId,
         mode: settings.mode ?? "simple",
         section: planes.length ? "board" : "hangar",
         ready: true,
@@ -221,6 +240,13 @@ export const useApp = create<AppState>((set, get) => ({
         live: (_port, data) => set({ live: data, liveAt: Date.now() }),
         id: (port, identity) => {
           set((s) => ({ ports: { ...s.ports, [port]: { identity, at: Date.now() } } }));
+          if (identity.vehicle === "copter") {
+            const copter = get().copters.find((c) => !!identity.config && c.lastFlash?.configHash === identity.config);
+            if (copter && (copter.id !== get().copterId || get().section !== "copter") && !get().flash) {
+              get().toast("info", t("Подключена плата с «{name}»", { name: copter.name }));
+            }
+            return;
+          }
           const match = get().planes.find((p) => p.lastFlash?.configHash === identity.config || (identity.plane && p.name === identity.plane));
           if (match && match.id !== get().currentId && !get().flash) {
             get().toast("info", t("Подключена плата с «{name}»", { name: match.name }));
@@ -318,9 +344,25 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   duplicatePlane(id) {
+    const now = new Date().toISOString();
+    const copter = get().copters.find((c) => c.id === id);
+    if (copter) {
+      const copy: CopterProject = {
+        ...structuredClone(copter),
+        id: newCopterId(),
+        name: t("{name} (копия)", { name: copter.name }),
+        createdAt: now,
+        updatedAt: now,
+        lastFlash: undefined,
+        setupWrittenAt: undefined,
+        history: [],
+      };
+      set((s) => ({ copters: [copy, ...s.copters] }));
+      void api.hangarSave(copy);
+      return;
+    }
     const src = get().planes.find((p) => p.id === id);
     if (!src) return;
-    const now = new Date().toISOString();
     const copy: PlaneProject = {
       ...structuredClone(src),
       id: newId(),
@@ -339,7 +381,45 @@ export const useApp = create<AppState>((set, get) => ({
     set((s) => ({
       planes: s.planes.filter((p) => p.id !== id),
       currentId: s.currentId === id ? null : s.currentId,
+      copters: s.copters.filter((c) => c.id !== id),
+      copterId: s.copterId === id ? null : s.copterId,
+      section: s.section === "copter" && s.copterId === id ? "hangar" : s.section,
     }));
+  },
+
+  currentCopter() {
+    const { copters, copterId } = get();
+    return copters.find((c) => c.id === copterId) ?? null;
+  },
+
+  selectCopter(id) {
+    set((s) => ({ copterId: id, settings: { ...s.settings, currentCopter: id ?? undefined } }));
+    void api.settingsSave(get().settings);
+  },
+
+  createCopter(kind, name) {
+    const manifest = get().manifest;
+    const copter = kind.startsWith("kit:") ? copterFromKit(manifest, kind.slice(4), name) : blankCopter(manifest, name);
+    set((s) => ({ copters: [copter, ...s.copters] }));
+    void api.hangarSave(copter);
+    get().selectCopter(copter.id);
+    set({ section: "copter" });
+    return copter;
+  },
+
+  updateCopter(id, update) {
+    let saved: CopterProject | null = null;
+    set((s) => ({
+      copters: s.copters.map((c) => {
+        if (c.id !== id) return c;
+        const next = structuredClone(c);
+        update(next);
+        next.updatedAt = new Date().toISOString();
+        saved = next;
+        return next;
+      }),
+    }));
+    if (saved) persistPlane(saved);
   },
 
   updatePlane(update) {
@@ -573,8 +653,8 @@ export const useApp = create<AppState>((set, get) => ({
   },
 }));
 
-/** Сохранить самолёт в ангар через 0,4 с после последней правки. */
-function persistPlane(plane: PlaneProject) {
+/** Сохранить самолёт (коптер) в ангар через 0,4 с после последней правки. */
+function persistPlane(plane: PlaneProject | CopterProject) {
   clearTimeout(saveTimers.get(plane.id));
   saveTimers.set(
     plane.id,
