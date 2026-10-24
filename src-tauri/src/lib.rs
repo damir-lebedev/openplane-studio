@@ -3,6 +3,7 @@
 //! Окно (React) решает, что показывать; здесь — всё, что требует доступа к
 //! системе: USB и COM-порты, PlatformIO, файлы ангара.
 
+mod blackbox;
 mod devices;
 mod firmware;
 mod hangar;
@@ -228,6 +229,37 @@ fn link_port(state: State<'_, link::LinkState>) -> Option<String> {
     state.port()
 }
 
+/// Полёты на плате: {"state": {...}, "flights": [{n, sectors, kb, seconds, start}, ...]}.
+#[tauri::command]
+async fn blackbox_list(app: AppHandle) -> Res<Value> {
+    blocking(move || match app.state::<link::LinkState>().blackbox(blackbox::Job::List)? {
+        blackbox::Done::List(v) => Ok(v),
+        blackbox::Done::Get(_) => Err("чёрный ящик: не тот ответ".into()),
+    })
+    .await
+}
+
+/// Выгрузить полёт с платы в папку проекта; путь к файлу .bbl.
+#[tauri::command]
+async fn blackbox_download(app: AppHandle, flight: u16, project: Option<String>) -> Res<String> {
+    blocking(move || match app.state::<link::LinkState>().blackbox(blackbox::Job::Get(flight))? {
+        blackbox::Done::Get(data) => blackbox::save(&app, project.as_deref(), flight, &data),
+        blackbox::Done::List(_) => Err("чёрный ящик: не тот ответ".into()),
+    })
+    .await
+}
+
+#[tauri::command]
+async fn blackbox_files(app: AppHandle, project: Option<String>) -> Res<Vec<blackbox::LogFile>> {
+    blocking(move || blackbox::files(&app, project.as_deref())).await
+}
+
+/// Файл журнала целиком — в приложение двоичным ответом (без JSON).
+#[tauri::command]
+async fn blackbox_read(path: String) -> Res<tauri::ipc::Response> {
+    blocking(move || blackbox::read(&path).map(tauri::ipc::Response::new)).await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -237,6 +269,10 @@ pub fn run() {
             link_stop,
             link_send,
             link_port,
+            blackbox_list,
+            blackbox_download,
+            blackbox_files,
+            blackbox_read,
             app_info,
             settings_load,
             settings_save,

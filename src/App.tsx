@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 
+import { BlackBoxView } from "./components/blackbox/BlackBoxView";
 import { BoardView } from "./components/board/BoardView";
 import { BoardPanel } from "./components/BoardPanel";
 import { ComingSoon } from "./components/ComingSoon";
@@ -55,6 +56,8 @@ export default function App() {
           <BoardView />
         ) : section === "copter" ? (
           <CopterView />
+        ) : section === "blackbox" ? (
+          <BlackBoxView />
         ) : section === "settings" ? (
           <Settings />
         ) : (

@@ -3,6 +3,8 @@
 //! строки платы: "@live {...}", "@id {...}", "@scan {...}" и обычный текст
 //! консоли. Порт в Windows открывается одной программой — пока связь есть,
 //! все запросы к плате идут через неё. Перед прошивкой связь отпускается.
+//! Чёрный ящик (список полётов, выгрузка) — тоже через неё: поток на время
+//! выгрузки перестаёт спрашивать живые данные (blackbox.rs).
 
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -15,12 +17,19 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter};
 
+use crate::blackbox;
 use crate::util::Res;
+
+/// Что поток связи делает по просьбе приложения.
+enum Msg {
+    Bytes(Vec<u8>),
+    Blackbox(blackbox::Job, Sender<Res<blackbox::Done>>),
+}
 
 struct Handle {
     port: String,
     stop: Arc<AtomicBool>,
-    tx: Sender<Vec<u8>>,
+    tx: Sender<Msg>,
     thread: Option<thread::JoinHandle<()>>,
 }
 
@@ -97,7 +106,7 @@ fn handle_line(app: &AppHandle, port: &str, line: &str) -> Got {
     Got::Other
 }
 
-fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>, stop: Arc<AtomicBool>, rx: Receiver<Vec<u8>>) {
+fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>, stop: Arc<AtomicBool>, rx: Receiver<Msg>) {
     let _ = app.emit("board-link", LinkStatus { port: &port, state: "open", error: None });
     let mut buf = [0u8; 2048];
     let mut pending: Vec<u8> = Vec::new();
@@ -117,11 +126,27 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
             }
             next_live = Instant::now() + Duration::from_millis(1000);
         }
-        while let Ok(bytes) = rx.try_recv() {
-            if let Err(e) = serial.write_all(&bytes) {
-                error = Some(e.to_string());
-                break;
+        while let Ok(msg) = rx.try_recv() {
+            match msg {
+                Msg::Bytes(bytes) => {
+                    if let Err(e) = serial.write_all(&bytes) {
+                        error = Some(e.to_string());
+                        break;
+                    }
+                }
+                Msg::Blackbox(job, reply) => {
+                    let (app2, port2) = (app.clone(), port.clone());
+                    let mut on_line = |line: &str| {
+                        handle_line(&app2, &port2, line);
+                    };
+                    let result = blackbox::run(&app, &mut serial, &mut pending, job, &mut on_line);
+                    let _ = reply.send(result);
+                    next_live = Instant::now() + Duration::from_millis(300);
+                }
             }
+        }
+        if error.is_some() {
+            break;
         }
         match serial.read(&mut buf) {
             Ok(0) => {}
@@ -176,7 +201,7 @@ impl LinkState {
         }
         let serial = open(port, stm32)?;
         let stop = Arc::new(AtomicBool::new(false));
-        let (tx, rx) = channel::<Vec<u8>>();
+        let (tx, rx) = channel::<Msg>();
         let (app2, port2, stop2) = (app.clone(), port.to_string(), stop.clone());
         let thread = thread::spawn(move || run(app2, port2, serial, stop2, rx));
         *guard = Some(Handle { port: port.to_string(), stop, tx, thread: Some(thread) });
@@ -198,10 +223,26 @@ impl LinkState {
         let guard = self.0.lock().map_err(|_| "связь: блокировка")?;
         match guard.as_ref() {
             Some(h) if h.thread.as_ref().map(|t| !t.is_finished()).unwrap_or(false) => {
-                h.tx.send(bytes).map_err(|_| "связь закрыта".to_string())
+                h.tx.send(Msg::Bytes(bytes)).map_err(|_| "связь закрыта".to_string())
             }
             _ => Err("плата не подключена".into()),
         }
+    }
+
+    /// Чёрный ящик через поток связи; ждать ответа долго нельзя только из UI —
+    /// команды Tauri зовут это в отдельном потоке (lib.rs, blocking).
+    pub fn blackbox(&self, job: blackbox::Job) -> Res<blackbox::Done> {
+        let (reply, answer) = channel::<Res<blackbox::Done>>();
+        {
+            let guard = self.0.lock().map_err(|_| "связь: блокировка")?;
+            match guard.as_ref() {
+                Some(h) if h.thread.as_ref().map(|t| !t.is_finished()).unwrap_or(false) => {
+                    h.tx.send(Msg::Blackbox(job, reply)).map_err(|_| "связь закрыта".to_string())?;
+                }
+                _ => return Err("плата не подключена".into()),
+            }
+        }
+        answer.recv_timeout(Duration::from_secs(30 * 60)).map_err(|_| "чёрный ящик: нет ответа от потока связи".to_string())?
     }
 
     pub fn port(&self) -> Option<String> {

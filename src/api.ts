@@ -219,7 +219,37 @@ export const api = {
   /** Команда ПК: STX, строка, перевод строки. */
   linkCommand: (command: string) => invoke<void>("link_send", { text: `${STX}${command}\n` }),
   linkPort: () => invoke<string | null>("link_port"),
+  /** Чёрный ящик: полёты на плате (по связи). */
+  bbList: () => invoke<BoardFlights>("blackbox_list"),
+  /** Выгрузить полёт в папку проекта; путь к .bbl. */
+  bbDownload: (flight: number, project: string | null) => invoke<string>("blackbox_download", { flight, project }),
+  bbFiles: (project: string | null) => invoke<LogFile[]>("blackbox_files", { project }),
+  bbRead: (path: string) => invoke<ArrayBuffer>("blackbox_read", { path }),
 };
+
+export interface BoardFlight {
+  n: number;
+  sectors: number;
+  kb: number;
+  seconds: number;
+  start: number;
+}
+
+export interface BoardFlights {
+  state: { state?: string; free_kb?: number; total_kb?: number; flights?: number; rate_bps?: number };
+  flights: BoardFlight[];
+}
+
+export interface LogFile {
+  path: string;
+  name: string;
+  bytes: number;
+  modified: number;
+}
+
+export function onBlackboxProgress(handler: (p: { flight: number; done: number; total: number }) => void): Promise<UnlistenFn> {
+  return listen<{ flight: number; done: number; total: number }>("blackbox-progress", (e) => handler(e.payload));
+}
 
 export function onBoardEvents(handlers: {
   live: (port: string, data: LiveFrame) => void;
