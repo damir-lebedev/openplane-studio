@@ -258,7 +258,7 @@ export function num(b: CopterBoard, name: string, fallback = 0): number {
 // ---------------- режимы ----------------
 
 /** Режимы, которые стоит показывать в «Режимах» первыми (номера BF). */
-export const MAIN_MODES = [0, 1, 2, 13, 27, 28];
+export const MAIN_MODES = [0, 1, 2, 13, 27, 28, 47];
 
 export const auxLabel = (aux: number) => `AUX${aux + 1}`;
 

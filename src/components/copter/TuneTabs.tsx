@@ -2,17 +2,22 @@
 // «стик → °/с»; остальные настройки группы — списками по темам.
 
 import { AXES, AXIS_LABELS, CopterBoard, CopterParam, num, PID_COLUMNS, RATE_COLUMNS, rateAt, tabParams } from "../../core/copterParams";
-import { t } from "../../i18n";
+import { N_, t } from "../../i18n";
 import { NeedBoard, ParamInput, ParamList, ParamRow, ProfilePicker, useCopterBoard } from "./common";
 
 /** Темы настроек PID-профиля по началу имени. */
 const PID_TOPICS: { title: string; sub?: string; match: (n: string) => boolean }[] = [
-  { title: "D max / D min", sub: "D сильнее на резких движениях, мягче в покое", match: (n) => n.startsWith("d_max") || n.startsWith("d_min") },
-  { title: "I-term", sub: "интеграл: держит курс при ветре и смещённом центре тяжести", match: (n) => n.startsWith("iterm") },
-  { title: "Feedforward", sub: "отклик на движение стика без ожидания ошибки", match: (n) => n.startsWith("feedforward") },
-  { title: "Anti-gravity и throttle boost", sub: "не клевать при резком газе", match: (n) => n.startsWith("anti_gravity") || n.startsWith("throttle_boost") },
-  { title: "TPA", sub: "PID слабее на большом газе", match: (n) => n.startsWith("tpa") },
-  { title: "Рысканье и absolute control", match: (n) => n.includes("yaw") || n.startsWith("abs_control") },
+  {
+    title: N_("Angle, Horizon, Acro trainer"),
+    sub: N_("самовыравнивание, наклон стиком и режим для обучения акро"),
+    match: (n) => n.startsWith("angle_") || n.startsWith("horizon_") || n.startsWith("acro_trainer"),
+  },
+  { title: N_("D max / D min"), sub: N_("D сильнее на резких движениях, мягче в покое"), match: (n) => n.startsWith("d_max") || n.startsWith("d_min") },
+  { title: N_("I-term"), sub: N_("интеграл: держит курс при ветре и смещённом центре тяжести"), match: (n) => n.startsWith("iterm") },
+  { title: N_("Feedforward"), sub: N_("отклик на движение стика без ожидания ошибки"), match: (n) => n.startsWith("feedforward") },
+  { title: N_("Anti-gravity и throttle boost"), sub: N_("не клевать при резком газе"), match: (n) => n.startsWith("anti_gravity") || n.startsWith("throttle_boost") },
+  { title: N_("TPA"), sub: N_("PID слабее на большом газе"), match: (n) => n.startsWith("tpa") },
+  { title: N_("Рысканье и absolute control"), match: (n) => n.includes("yaw") || n.startsWith("abs_control") },
 ];
 
 export function PidTab() {

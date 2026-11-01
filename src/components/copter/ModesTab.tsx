@@ -7,17 +7,18 @@ import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { AuxRow, auxCommand, auxLabel, clearAuxCommand, freeAuxSlot, MAIN_MODES } from "../../core/copterParams";
-import { t } from "../../i18n";
+import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 
 const MODE_HINTS: Record<number, string> = {
-  0: "моторы включены; ExpressLRS передаёт без задержки только AUX1",
-  1: "самовыравнивание: стик — угол, отпустил — ровно",
-  2: "как ANGLE у центра, у края стика — флипы",
-  13: "пищит, чтобы найти упавший коптер",
-  27: "сразу failsafe — проверка без выключения пульта",
-  28: "моторы держат управление на нуле газа",
+  0: N_("моторы включены; ExpressLRS передаёт без задержки только AUX1"),
+  1: N_("самовыравнивание: стик — угол, отпустил — ровно"),
+  2: N_("как ANGLE у центра, у края стика — флипы"),
+  13: N_("пищит, чтобы найти упавший коптер"),
+  27: N_("сразу failsafe — проверка без выключения пульта"),
+  28: N_("моторы держат управление на нуле газа"),
+  47: N_("ACRO с ограничением наклона — учиться акро (предел — «PID» → acro_trainer_angle_limit)"),
 };
 
 export function ModesTab() {
