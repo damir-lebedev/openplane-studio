@@ -168,4 +168,14 @@ describe("вкладки коптера", () => {
     tab("Расходы");
     expect(screen.getByText(/до 670 °\/с/)).toBeTruthy();
   });
+
+  it("GPS: этап возврата из @live, схема по живому расстоянию, подсказка выбрать GPS-RESCUE", () => {
+    useApp.setState({ clive: live({ alt: 25, gps: { fix: true, sats: 14, lat: 0, lon: 0, spd: 7, home: 240, dir: 15 }, rescue: "FLY_HOME" }) });
+    render(<CopterView />);
+    tab("GPS");
+    expect(screen.getByText("летит домой")).toBeTruthy();
+    expect(screen.getByText(/240 м до дома/)).toBeTruthy();
+    expect(screen.getByText(/failsafe_procedure = AUTO-LAND/)).toBeTruthy();
+    expect(document.querySelector(".rescue-path")?.getAttribute("d")).toMatch(/^M40\.0,/);
+  });
 });

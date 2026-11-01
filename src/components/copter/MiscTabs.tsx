@@ -80,11 +80,12 @@ function FailsafeBody() {
               {procedure === "DROP"
                 ? t("этап 2: моторы выключаются — коптер падает")
                 : procedure === "GPS-RESCUE"
-                  ? t("этап 2: возврат домой (пока — снижение на месте)")
+                  ? t("этап 2: возврат домой по GPS (схема — вкладка «GPS»)")
                   : t("этап 2: снижение и посадка, не дольше {s} с", { s: landing })}
             </span>
           </div>
         </div>
+        {procedure !== "GPS-RESCUE" && <p className="hint">{t("Летаете далеко (7\")? Выберите failsafe_procedure = GPS-RESCUE — по потере связи коптер вернётся домой сам.")}</p>}
         <p className="hint">{t("Проверьте без пропеллеров: выключите пульт — на OSD FAILSAFE, моторы встают.")}</p>
       </div>
       <ParamList title={t("Failsafe")} params={fs} />

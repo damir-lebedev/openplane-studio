@@ -1733,3 +1733,30 @@ textarea {
   color: var(--text-3);
   font-style: italic;
 }
+
+/* GPS Rescue: профиль возврата */
+.rescue-svg {
+  width: 100%;
+  height: auto;
+  margin-top: 8px;
+}
+.rescue-ground {
+  stroke: var(--line);
+  stroke-width: 2;
+}
+.rescue-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+.rescue-copter {
+  fill: var(--warn);
+}
+.rescue-home {
+  fill: var(--ok, #3fb950);
+}
+.rescue-label {
+  font-size: 12px;
+  fill: var(--text-2);
+}

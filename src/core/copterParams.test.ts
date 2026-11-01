@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { dumpedBoard, param } from "./__fixtures__/copterBoard";
-import { applyMessage, checkValue, parseBfDiff, rateAt, tabParams } from "./copterParams";
+import { applyMessage, checkValue, CopterParam, emptyBoard, parseBfDiff, rateAt, rescuePath, tabParams } from "./copterParams";
 
 describe("настройки коптера с платы", () => {
   it("дамп: заголовок, настройки по порядку, @rc, конец — по @modes", () => {
@@ -85,5 +85,33 @@ describe("настройки коптера с платы", () => {
     expect(unknown).toEqual(["resource MOTOR 1 B00", "feature -RX_PARALLEL_PWM", "serial 1 64 115200 57600 0 115200", "set gyro_1_spibus = 1"]);
     // просто вставленный diff (без заголовков ###) — тоже
     expect(parseBfDiff("set p_roll = 50", params).lines).toHaveLength(1);
+  });
+});
+
+describe("GPS Rescue: профиль возврата", () => {
+  const board = (vals: Record<string, string | number>) => {
+    const b = emptyBoard();
+    for (const [name, value] of Object.entries(vals)) b.params[name] = { name, value } as unknown as CopterParam;
+    return b;
+  };
+
+  it("MAX_ALT: наибольшая высота + initial_climb, снижение с descent_dist", () => {
+    const p = rescuePath(board({}), 300, 20, 35);
+    expect(p.ret).toBe(45);
+    expect(p.descent).toBe(20);
+    expect(p.tooClose).toBe(false);
+    // набор 25 м по 7.5 м/с + 280 м по 7.5 м/с + снижение 20 м вдвое медленнее + 4 м по 0.75 м/с
+    expect(p.seconds).toBeCloseTo(25 / 7.5 + 280 / 7.5 + 40 / 7.5 + 4 / 0.75, 5);
+  });
+
+  it("FIXED_ALT и CURRENT_ALT", () => {
+    expect(rescuePath(board({ gps_rescue_alt_mode: "FIXED_ALT", gps_rescue_return_alt: 60 }), 300, 20, 35).ret).toBe(60);
+    expect(rescuePath(board({ gps_rescue_alt_mode: "CURRENT_ALT" }), 300, 20, 35).ret).toBe(30);
+  });
+
+  it("ближе min_start_dist — посадка на месте", () => {
+    const p = rescuePath(board({}), 10, 10, 10);
+    expect(p.tooClose).toBe(true);
+    expect(p.seconds).toBeCloseTo(6 / 1.5 + 4 / 0.75, 5);
   });
 });

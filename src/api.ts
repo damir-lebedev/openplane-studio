@@ -166,6 +166,9 @@ export interface CopterLive {
   mah?: number;
   vtx?: { on: boolean; mhz: number; mw: number; pit: boolean; cap: number };
   hdg: number;
+  /** GPS Rescue: этап (CLIMB, FLY_HOME, DESCEND, LAND, ABORT) и почему прервался */
+  rescue?: string;
+  rescueFail?: string;
   gps?: { fix: boolean; sats: number; lat: number; lon: number; spd: number; home?: number; dir?: number };
   /** команда моторов 0…1 */
   motors: number[];

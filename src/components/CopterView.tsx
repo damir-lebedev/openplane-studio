@@ -14,6 +14,7 @@ import { t } from "../i18n";
 import { useApp } from "../store";
 import { FlashDialog } from "./board/FlashDialog";
 import { UnsavedBar, useCopterLink, useCopterLive } from "./copter/common";
+import { GpsTab } from "./copter/GpsTab";
 import { CliTab, FailsafeTab, ListTab, OtherTab, PowerTab, VtxTab } from "./copter/MiscTabs";
 import { ModesTab } from "./copter/ModesTab";
 import { MotorsTab } from "./copter/MotorsTab";
@@ -100,7 +101,7 @@ export function CopterView() {
           {tab === "failsafe" && <FailsafeTab />}
           {tab === "power" && <PowerTab />}
           {tab === "vtx" && <VtxTab />}
-          {tab === "gps" && <ListTab tab="gps" />}
+          {tab === "gps" && <GpsTab />}
           {tab === "blackbox" && <ListTab tab="blackbox" />}
           {tab === "other" && <OtherTab />}
           {tab === "cli" && <CliTab />}

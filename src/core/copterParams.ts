@@ -255,10 +255,36 @@ export function num(b: CopterBoard, name: string, fallback = 0): number {
   return Number.isFinite(v) ? v : fallback;
 }
 
+// ---------------- GPS Rescue ----------------
+
+/**
+ * Профиль возврата из настроек gps_rescue_* — как в прошивке (copter/GpsRescue.h):
+ * высота возврата по alt_mode, снижение с descent_dist линейно к landing_alt над
+ * домом, дальше вдвое медленнее. distM — до дома, altM — высота сейчас, maxAltM —
+ * наибольшая за полёт. seconds — оценка до касания.
+ */
+export function rescuePath(b: CopterBoard, distM: number, altM: number, maxAltM: number) {
+  const mode = String(b.params.gps_rescue_alt_mode?.value ?? "MAX_ALT");
+  const climb = num(b, "gps_rescue_initial_climb", 10);
+  const ret =
+    mode === "FIXED_ALT" ? num(b, "gps_rescue_return_alt", 30) : mode === "CURRENT_ALT" ? altM + climb : Math.max(maxAltM, altM) + climb;
+  const descent = Math.min(num(b, "gps_rescue_descent_dist", 20), distM);
+  const landAlt = num(b, "gps_rescue_landing_alt", 4);
+  const up = num(b, "gps_rescue_ascend_rate", 750) / 100;
+  const down = num(b, "gps_rescue_descend_rate", 150) / 100;
+  const speed = Math.max(0.5, num(b, "gps_rescue_ground_speed", 750) / 100);
+  const tooClose = distM < num(b, "gps_rescue_min_start_dist", 15);
+  const landS = (h: number) => Math.max(0, h - landAlt) / down + Math.min(landAlt, h) / (down / 2);   // ниже landing_alt — вдвое медленнее
+  if (tooClose) return { ret: altM, descent: 0, landAlt, tooClose, seconds: landS(altM), mode };
+  const climbS = Math.abs(ret - altM) / up;
+  const flyS = (distM - descent) / speed + (descent * 2) / speed;   // в снижении скорость убывает — в среднем вдвое
+  return { ret, descent, landAlt, tooClose, seconds: climbS + flyS + landS(Math.min(landAlt, ret)), mode };
+}
+
 // ---------------- режимы ----------------
 
 /** Режимы, которые стоит показывать в «Режимах» первыми (номера BF). */
-export const MAIN_MODES = [0, 1, 2, 13, 27, 28, 47];
+export const MAIN_MODES = [0, 1, 2, 13, 27, 28, 46, 47];
 
 export const auxLabel = (aux: number) => `AUX${aux + 1}`;
 
