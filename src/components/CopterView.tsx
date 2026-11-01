@@ -1,7 +1,7 @@
 // Страница коптера: вкладки как в конфигураторе Betaflight — «Коптер»
 // (сборка, переход с BF, первая настройка), «Подготовка», «Приёмник»,
 // «Режимы», «Моторы», «PID», «Расходы», «Фильтры», «Безопасность»,
-// «Питание», «Видео», «GPS», «Чёрный ящик», «Прочее», «CLI». Настройки живут
+// «Питание», «Видео», «OSD», «GPS», «Чёрный ящик», «Прочее», «CLI». Настройки живут
 // на плате: правка уходит на плату сразу, «Сохранить» — во флеш.
 
 import { CircleDot, Zap } from "lucide-react";
@@ -18,6 +18,7 @@ import { GpsTab } from "./copter/GpsTab";
 import { CliTab, FailsafeTab, ListTab, OtherTab, PowerTab, VtxTab } from "./copter/MiscTabs";
 import { ModesTab } from "./copter/ModesTab";
 import { MotorsTab } from "./copter/MotorsTab";
+import { OsdTab } from "./copter/OsdTab";
 import { OverviewTab } from "./copter/OverviewTab";
 import { ReceiverTab } from "./copter/ReceiverTab";
 import { SetupTab } from "./copter/SetupTab";
@@ -101,6 +102,7 @@ export function CopterView() {
           {tab === "failsafe" && <FailsafeTab />}
           {tab === "power" && <PowerTab />}
           {tab === "vtx" && <VtxTab />}
+          {tab === "osd" && <OsdTab />}
           {tab === "gps" && <GpsTab />}
           {tab === "blackbox" && <ListTab tab="blackbox" />}
           {tab === "other" && <OtherTab />}

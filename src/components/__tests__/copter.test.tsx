@@ -169,6 +169,33 @@ describe("вкладки коптера", () => {
     expect(screen.getByText(/до 670 °\/с/)).toBeTruthy();
   });
 
+  it("OSD: галочка показывает элемент, перетаскивание ставит позицию BF", () => {
+    act(() =>
+      useApp.setState((st) => ({
+        copterBoard: dumpedBoard([
+          ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+          param("osd_vbat_pos", { group: "osd", scope: "master", default: 2433, value: 2433, min: 0, max: 16383 }),
+          param("osd_throttle_pos", { group: "osd", scope: "master", default: 65, value: 65, min: 0, max: 16383 }),
+          param("osd_stat_max_alt", { type: "enum", group: "osd", scope: "master", options: ["OFF", "ON"], default: "ON", value: "ON" }),
+        ]),
+      })),
+    );
+    render(<CopterView />);
+    tab("OSD");
+    expect(screen.getByText("Статистика после посадки")).toBeTruthy();
+    // газ спрятан (65 = x1 y2 без 0x0800) — включили
+    fireEvent.click(screen.getAllByRole("checkbox")[1]);
+    expect(sent).toContain("set osd_throttle_pos 2113");
+    // батарея: x1 y12 → тащим на x10 y1 (экран 300×160: клетка 10×10)
+    const scr = document.querySelector(".osd-screen") as HTMLElement;
+    scr.getBoundingClientRect = () => ({ left: 0, top: 0, width: 300, height: 160, right: 300, bottom: 160, x: 0, y: 0, toJSON: () => ({}) });
+    const vbat = screen.getByTitle("Напряжение батареи");
+    fireEvent.pointerDown(vbat, { clientX: 15, clientY: 125, pointerId: 1 });
+    fireEvent.pointerMove(scr, { clientX: 105, clientY: 15, pointerId: 1 });
+    fireEvent.pointerUp(scr, { clientX: 105, clientY: 15, pointerId: 1 });
+    expect(sent).toContain("set osd_vbat_pos 2090");
+  });
+
   it("GPS: этап возврата из @live, схема по живому расстоянию, подсказка выбрать GPS-RESCUE", () => {
     useApp.setState({ clive: live({ alt: 25, gps: { fix: true, sats: 14, lat: 0, lon: 0, spd: 7, home: 240, dir: 15 }, rescue: "FLY_HOME" }) });
     render(<CopterView />);

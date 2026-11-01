@@ -174,6 +174,7 @@ export type CopterTab =
   | "failsafe"
   | "power"
   | "vtx"
+  | "osd"
   | "gps"
   | "blackbox"
   | "other"
@@ -191,6 +192,7 @@ export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "failsafe", title: N_("Безопасность"), board: true },
   { id: "power", title: N_("Питание"), board: true },
   { id: "vtx", title: N_("Видео"), board: true },
+  { id: "osd", title: N_("OSD"), board: true },
   { id: "gps", title: N_("GPS"), board: true },
   { id: "blackbox", title: N_("Чёрный ящик"), board: true },
   { id: "other", title: N_("Прочее"), board: true },
@@ -209,6 +211,7 @@ export const GROUP_TAB: Record<string, CopterTab> = {
   copter: "other",
   power: "power",
   vtx: "vtx",
+  osd: "osd",
   gps: "gps",
   blackbox: "blackbox",
   other: "other",
@@ -279,6 +282,39 @@ export function rescuePath(b: CopterBoard, distM: number, altM: number, maxAltM:
   const climbS = Math.abs(ret - altM) / up;
   const flyS = (distM - descent) / speed + (descent * 2) / speed;   // в снижении скорость убывает — в среднем вдвое
   return { ret, descent, landAlt, tooClose, seconds: climbS + flyS + landS(Math.min(landAlt, ret)), mode };
+}
+
+// ---------------- OSD ----------------
+
+/** osd_*_pos как в BF: x + 32·y, 0x0800 — показан (профиль 1), 0x1000/0x2000 — профили 2 и 3, 0x0400 — шестой бит x. */
+export const OSD_VISIBLE = 0x0800;
+export const OSD_PROFILES = 0x3800;
+export const OSD_COLS = 30;
+export const osdX = (p: number) => (p & 0x1f) | ((p >> 5) & 0x20);
+export const osdY = (p: number) => (p >> 5) & 0x1f;
+export const osdVisible = (p: number) => (p & OSD_PROFILES) !== 0;
+export const osdPos = (x: number, y: number, flags = OSD_VISIBLE) => (x & 0x1f) | ((y & 0x1f) << 5) | ((x & 0x20) << 5) | flags;
+/** Передвинуть, не трогая видимость в профилях. */
+export const osdMove = (p: number, x: number, y: number) => osdPos(x, y, p & OSD_PROFILES);
+/** Показать (профиль 1) или спрятать (во всех профилях). */
+export const osdToggle = (p: number) => (osdVisible(p) ? p & ~OSD_PROFILES : p | OSD_VISIBLE);
+
+export interface OsdElementParam {
+  /** имя BF без osd_ и _pos: vbat, link_quality… */
+  key: string;
+  param: CopterParam;
+  pos: number;
+}
+
+/** Элементы OSD платы (настройки osd_*_pos) в порядке прошивки. */
+export function osdElements(b: CopterBoard): OsdElementParam[] {
+  return b.order
+    .filter((n) => n.startsWith("osd_") && n.endsWith("_pos"))
+    .map((n) => {
+      const p = b.params[n];
+      const v = Number(b.pending[n] ?? p.value);
+      return { key: n.slice(4, -4), param: p, pos: Number.isFinite(v) ? v : Number(p.default) };
+    });
 }
 
 // ---------------- режимы ----------------

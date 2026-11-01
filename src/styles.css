@@ -1760,3 +1760,87 @@ textarea {
   font-size: 12px;
   fill: var(--text-2);
 }
+
+/* OSD: экран очков, элементы перетаскиваются */
+.osd-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 14px;
+  margin-top: 10px;
+}
+.osd-screen {
+  position: relative;
+  width: 100%;
+  container-type: inline-size;
+  border-radius: 10px;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px) 0 0 / 100% calc(100% / var(--rows, 16)),
+    radial-gradient(ellipse at 50% 35%, #3b5a6e 0%, #22333f 55%, #10181e 100%);
+  border: 1px solid var(--line);
+  font-family: "Cascadia Mono", Consolas, monospace;
+  user-select: none;
+  touch-action: none;
+}
+.osd-screen.locked .osd-el {
+  cursor: not-allowed;
+}
+.osd-el {
+  position: absolute;
+  display: flex;
+  cursor: grab;
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 0 2px #000, 0 0 2px #000;
+  border-radius: 3px;
+}
+.osd-el span {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(100cqw / 30 * 1.3);
+  white-space: pre;
+}
+.osd-el span.sym {
+  color: var(--accent);
+}
+.osd-el:hover,
+.osd-el.sel {
+  outline: 1px dashed var(--accent-line);
+  background: rgba(57, 208, 255, 0.08);
+}
+.osd-el.dragging {
+  cursor: grabbing;
+  outline: 1px solid var(--accent);
+  background: rgba(57, 208, 255, 0.18);
+}
+.osd-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 460px;
+  overflow: auto;
+}
+.osd-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.osd-item.sel {
+  background: var(--accent-soft);
+}
+.osd-item .dim {
+  color: var(--text-2);
+  font-size: 11px;
+}
+@media (max-width: 900px) {
+  .osd-layout {
+    grid-template-columns: 1fr;
+  }
+}
