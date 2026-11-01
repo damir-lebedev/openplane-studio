@@ -141,6 +141,25 @@ async fn firmware_upload(app: AppHandle, dir: String, env: String, port: Option<
 }
 
 #[tauri::command]
+async fn bf_board(app: AppHandle, source: String, args: Vec<String>) -> Res<firmware::TaskResult> {
+    blocking(move || firmware::bf_board(&app, Path::new(&source), &args)).await
+}
+
+#[tauri::command]
+fn path_exists(path: String) -> bool {
+    Path::new(&path).exists()
+}
+
+/// Текстовый файл платы (дамп CLI Betaflight, .txt) — для переноса настроек.
+#[tauri::command]
+fn text_read(path: String) -> Res<String> {
+    if Path::new(&path).extension().and_then(|e| e.to_str()) != Some("txt") {
+        return Err("читаются только .txt".into());
+    }
+    std::fs::read_to_string(&path).map_err(|e| format!("{path}: {e}"))
+}
+
+#[tauri::command]
 async fn devices_list() -> Res<Vec<devices::Device>> {
     blocking(|| Ok(devices::list())).await
 }
@@ -289,6 +308,9 @@ pub fn run() {
             firmware_apply,
             firmware_build,
             firmware_upload,
+            bf_board,
+            path_exists,
+            text_read,
             devices_list,
             board_identity,
             board_bootloader,

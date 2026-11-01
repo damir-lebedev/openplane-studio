@@ -145,6 +145,49 @@ export interface LiveFrame {
   hz: number;
 }
 
+/** Живое состояние коптера — "@live {...}" (CopterLink.h прошивки). */
+export interface CopterLive {
+  t: number;
+  arm: boolean;
+  state: "DISARMED" | "ARMED" | "FAILSAFE";
+  mode: string;
+  rx: "ok" | "lost" | "fs";
+  lq?: number;
+  ch: number[];
+  /** крен, тангаж, рысканье, ° */
+  att: [number, number, number];
+  alt: number;
+  vz: number;
+  thr: number;
+  v: number;
+  bat?: string;
+  cell?: number;
+  amps?: number;
+  mah?: number;
+  vtx?: { on: boolean; mhz: number; mw: number; pit: boolean; cap: number };
+  hdg: number;
+  gps?: { fix: boolean; sats: number; lat: number; lon: number; spd: number; home?: number; dir?: number };
+  /** команда моторов 0…1 */
+  motors: number[];
+  /** причины запрета ARM — коды BF (RXLOSS, ANGLE, CLI…) */
+  block: string[];
+  /** включённые режимы — номера BF */
+  modes: number[];
+  cpu: number;
+  hz: number;
+  unsaved: boolean;
+}
+
+/** Что за прошивка на плате по MSP (если не наша — Betaflight и т. п.). */
+export interface FcInfo {
+  variant?: string;
+  version?: string;
+  id?: string;
+  target?: string;
+  board?: string;
+  manufacturer?: string;
+}
+
 /** Снимок самолёта на прошивку (Hangar/<id>/history). Старые — без plane. */
 export interface Snapshot {
   file: string;
@@ -202,6 +245,10 @@ export const api = {
   firmwareBuild: (dir: string, env: string) => invoke<TaskResult>("firmware_build", { dir, env }),
   firmwareUpload: (dir: string, env: string, port: string | null) =>
     invoke<TaskResult>("firmware_upload", { dir, env, port }),
+  /** tools/bf_board.py из исходников (строки журнала — task-log с task = "bfboard") */
+  bfBoard: (source: string, args: string[]) => invoke<TaskResult>("bf_board", { source, args }),
+  pathExists: (path: string) => invoke<boolean>("path_exists", { path }),
+  textRead: (path: string) => invoke<string>("text_read", { path }),
   devicesList: () => invoke<Device[]>("devices_list"),
   boardIdentity: (port: string, stm32: boolean) => invoke<Identity | null>("board_identity", { port, stm32 }),
   boardBootloader: (port: string) => invoke<void>("board_bootloader", { port }),
@@ -259,8 +306,14 @@ export function onBoardEvents(handlers: {
   link: (status: LinkStatus) => void;
   /** прошивка на плате не умеет живые данные (старше приложения) */
   noLive: (port: string) => void;
+  /** ответ коптера на команду настроек: params, param, rc, modes, set, save… */
+  msg: (port: string, kind: string, data: unknown) => void;
+  /** MSP: что за прошивка на плате */
+  fc: (port: string, data: FcInfo) => void;
 }): Promise<UnlistenFn[]> {
   return Promise.all([
+    listen<{ port: string; kind: string; data: unknown }>("board-msg", (e) => handlers.msg(e.payload.port, e.payload.kind, e.payload.data)),
+    listen<{ port: string; data: FcInfo }>("board-fc", (e) => handlers.fc(e.payload.port, e.payload.data)),
     listen<{ port: string; data: LiveFrame }>("board-live", (e) => handlers.live(e.payload.port, e.payload.data)),
     listen<{ port: string; data: Identity }>("board-id", (e) => handlers.id(e.payload.port, e.payload.data)),
     listen<{ port: string; data: ScanResult }>("board-scan", (e) => handlers.scan(e.payload.port, e.payload.data)),

@@ -86,6 +86,17 @@ enum Got {
 /// Так старая прошивка отвечает на незнакомую команду ПК (её разбирает чёрный ящик).
 const REFUSED: &str = "BB:ERR неизвестная команда";
 
+/// Ответы коптера на команды настроек (CopterLink.h прошивки) — событием
+/// "board-msg"; "@param" (их сотни на "params") в консоль не идут.
+const COPTER_MSGS: &[&str] = &["params", "param", "rc", "modes", "set", "save", "revert", "profile", "error", "motor"];
+
+#[derive(Clone, Serialize)]
+struct BoardMsg<'a> {
+    port: &'a str,
+    kind: &'a str,
+    data: Value,
+}
+
 fn handle_line(app: &AppHandle, port: &str, line: &str) -> Got {
     let trimmed = line.trim();
     if trimmed.is_empty() {
@@ -102,8 +113,95 @@ fn handle_line(app: &AppHandle, port: &str, line: &str) -> Got {
             }
         }
     }
+    if let Some((kind, data)) = copter_msg(trimmed) {
+        let _ = app.emit("board-msg", BoardMsg { port, kind, data });
+        if kind == "param" {
+            return Got::Other;
+        }
+    }
     let _ = app.emit("board-line", BoardLine { port, line: trimmed.to_string() });
     Got::Other
+}
+
+/// "@set {...}" → ("set", JSON), если это ответ коптера.
+fn copter_msg(line: &str) -> Option<(&'static str, Value)> {
+    let (kind, json) = line.strip_prefix('@')?.split_once(' ')?;
+    let kind = COPTER_MSGS.iter().find(|k| **k == kind)?;
+    serde_json::from_str::<Value>(json).ok().map(|v| (*kind, v))
+}
+
+// ---- MSP: что за прошивка, если не наша (Betaflight) ----
+
+const MSP_FC_VARIANT: u8 = 2;
+const MSP_FC_VERSION: u8 = 3;
+const MSP_BOARD_INFO: u8 = 4;
+
+fn msp_request(cmd: u8) -> [u8; 6] {
+    [b'$', b'M', b'<', 0, cmd, cmd]
+}
+
+/// Вынуть из потока ответы MSP v1 ('$M>' размер команда данные xor):
+/// (команда, данные). Неполный кадр остаётся ждать хвоста.
+fn take_msp(pending: &mut Vec<u8>) -> Vec<(u8, Vec<u8>)> {
+    let mut out = Vec::new();
+    let mut i = 0;
+    while i + 3 <= pending.len() {
+        if &pending[i..i + 3] != b"$M>" {
+            i += 1;
+            continue;
+        }
+        if i + 5 > pending.len() {
+            break;
+        }
+        let size = pending[i + 3] as usize;
+        let end = i + 5 + size;
+        if end >= pending.len() {
+            break;
+        }
+        let cmd = pending[i + 4];
+        let payload = pending[i + 5..end].to_vec();
+        let x = payload.iter().fold((size as u8) ^ cmd, |a, b| a ^ b);
+        if x == pending[end] {
+            out.push((cmd, payload));
+            pending.drain(i..=end);
+        } else {
+            i += 3;
+        }
+    }
+    out
+}
+
+/// Строка «длина + текст» из ответа MSP.
+fn msp_text(p: &[u8], pos: &mut usize) -> Option<String> {
+    let n = *p.get(*pos)? as usize;
+    let s = p.get(*pos + 1..*pos + 1 + n)?;
+    *pos += 1 + n;
+    Some(String::from_utf8_lossy(s).into_owned())
+}
+
+/// Поля ответа MSP — в JSON события "board-fc".
+fn msp_fields(fc: &mut serde_json::Map<String, Value>, cmd: u8, p: &[u8]) {
+    match cmd {
+        MSP_FC_VARIANT if p.len() >= 4 => {
+            fc.insert("variant".into(), Value::String(String::from_utf8_lossy(&p[..4]).into_owned()));
+        }
+        MSP_FC_VERSION if p.len() >= 3 => {
+            fc.insert("version".into(), Value::String(format!("{}.{}.{}", p[0], p[1], p[2])));
+        }
+        MSP_BOARD_INFO if p.len() >= 8 => {
+            fc.insert("id".into(), Value::String(String::from_utf8_lossy(&p[..4]).into_owned()));
+            let mut pos = 8;
+            for key in ["target", "board", "manufacturer"] {
+                match msp_text(p, &mut pos) {
+                    Some(s) => {
+                        fc.insert(key.into(), Value::String(s));
+                    }
+                    None => break,
+                }
+            }
+        }
+        _ => {}
+    }
 }
 
 fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>, stop: Arc<AtomicBool>, rx: Receiver<Msg>) {
@@ -116,8 +214,13 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
     let mut live_seen = false;
     let mut refused = 0u32;
     let mut polling = true;
-    // Сразу — паспорт и живые данные.
+    // Сразу — паспорт и живые данные; и MSP: если на плате Betaflight, он
+    // ответит, кто он (наша прошивка тоже ответит — её узнают по "@id").
     let _ = serial.write_all(b"\x02id\n");
+    let mut fc = serde_json::Map::new();
+    for cmd in [MSP_FC_VARIANT, MSP_FC_VERSION, MSP_BOARD_INFO] {
+        let _ = serial.write_all(&msp_request(cmd));
+    }
     while !stop.load(Ordering::Relaxed) {
         if polling && Instant::now() >= next_live {
             if let Err(e) = serial.write_all(b"\x02live\n") {
@@ -152,6 +255,16 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
             Ok(0) => {}
             Ok(n) => {
                 pending.extend_from_slice(&buf[..n]);
+                let answers = take_msp(&mut pending);
+                if !answers.is_empty() {
+                    let info = answers.iter().any(|(cmd, _)| *cmd == MSP_BOARD_INFO);
+                    for (cmd, p) in answers {
+                        msp_fields(&mut fc, cmd, &p);
+                    }
+                    if info {
+                        let _ = app.emit("board-fc", BoardJson { port: &port, data: Value::Object(fc.clone()) });
+                    }
+                }
                 while let Some(pos) = pending.iter().position(|&b| b == b'\n') {
                     let line: Vec<u8> = pending.drain(..=pos).collect();
                     match handle_line(&app, &port, &String::from_utf8_lossy(&line)) {
@@ -251,5 +364,55 @@ impl LinkState {
             .as_ref()
             .filter(|h| h.thread.as_ref().map(|t| !t.is_finished()).unwrap_or(false))
             .map(|h| h.port.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn answer(cmd: u8, payload: &[u8]) -> Vec<u8> {
+        let mut f = vec![b'$', b'M', b'>', payload.len() as u8, cmd];
+        f.extend_from_slice(payload);
+        f.push(payload.iter().fold((payload.len() as u8) ^ cmd, |a, b| a ^ b));
+        f
+    }
+
+    #[test]
+    fn msp_answers_are_taken_out_of_the_stream() {
+        let mut stream = b"@id {}\n".to_vec();
+        stream.extend(answer(2, b"BTFL"));
+        stream.extend(b"text\n");
+        let mut info = b"S405\0\0\0\0".to_vec();
+        info.extend(b"\x0cGETFUNF405V3\x0cGETFUNF405V3\x04GETF");
+        let tail = answer(4, &info);
+        stream.extend(&tail[..10]);
+        let got = take_msp(&mut stream);
+        assert_eq!(got, vec![(2, b"BTFL".to_vec())]);
+        assert_eq!(stream, [b"@id {}\ntext\n".as_slice(), &tail[..10]].concat());   // хвост ждёт
+        stream.extend(&tail[10..]);
+        let got = take_msp(&mut stream);
+        assert_eq!(got.len(), 1);
+        let mut fc = serde_json::Map::new();
+        msp_fields(&mut fc, got[0].0, &got[0].1);
+        msp_fields(&mut fc, 2, b"BTFL");
+        assert_eq!(fc["board"], "GETFUNF405V3");
+        assert_eq!(fc["manufacturer"], "GETF");
+        assert_eq!(fc["variant"], "BTFL");
+        // испорченная сумма — не ответ
+        let mut bad = answer(3, &[4, 5, 1]);
+        *bad.last_mut().unwrap() ^= 0xFF;
+        assert!(take_msp(&mut bad).is_empty());
+    }
+
+    #[test]
+    fn copter_answers_are_recognised() {
+        let (kind, v) = copter_msg("@set {\"name\":\"p_roll\",\"ok\":true}").unwrap();
+        assert_eq!(kind, "set");
+        assert_eq!(v["name"], "p_roll");
+        assert_eq!(copter_msg("@modes [[0,\"ARM\",true]]").unwrap().0, "modes");
+        assert!(copter_msg("@live {}").is_none());
+        assert!(copter_msg("@param не json").is_none());
+        assert!(copter_msg("Мотор 1").is_none());
     }
 }

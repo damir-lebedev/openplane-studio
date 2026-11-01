@@ -2,7 +2,8 @@
 
 import { create } from "zustand";
 
-import { api, AppInfo, CalibFlags, Device, errorText, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
+import { api, AppInfo, CalibFlags, CopterLive, Device, errorText, FcInfo, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
+import { applyMessage, CopterBoard, emptyBoard, ParamValue, setCommand } from "./core/copterParams";
 import { blankCopter, copterFromKit, CopterProject, isCopter, newCopterId } from "./core/copter";
 import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
 import { Manifest } from "./core/manifest";
@@ -94,6 +95,13 @@ interface AppState {
   linkHold: string | null;
   live: LiveFrame | null;
   liveAt: number;
+  /** живые кадры коптера (у них другие поля) */
+  clive: CopterLive | null;
+  cliveAt: number;
+  /** настройки коптера на плате, что на связи */
+  copterBoard: CopterBoard;
+  /** MSP: прошивка на плате по портам (Betaflight узнаётся так) */
+  fc: Record<string, FcInfo>;
   consoleLines: string[];
   /** сколько строк консоли пришло всего (consoleLines хранит последние) */
   consoleSeq: number;
@@ -146,6 +154,13 @@ interface AppState {
   startProc(kind: ProcKind): Promise<void>;
   clearProc(): void;
   setBoardPanel(open: boolean): void;
+  /** все настройки коптера с платы ("params") */
+  copterLoad(): Promise<void>;
+  copterSet(name: string, value: ParamValue): Promise<void>;
+  /** команда настроек как есть: aux …, map …, profile N, motor … */
+  copterCommand(cmd: string): Promise<void>;
+  copterSave(): Promise<void>;
+  copterRevert(): Promise<void>;
 }
 
 const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -194,6 +209,10 @@ export const useApp = create<AppState>((set, get) => ({
   linkHold: null,
   live: null,
   liveAt: 0,
+  clive: null,
+  cliveAt: 0,
+  copterBoard: emptyBoard(),
+  fc: {},
   consoleLines: [],
   consoleSeq: 0,
   scan: null,
@@ -237,7 +256,12 @@ export const useApp = create<AppState>((set, get) => ({
     if (!eventsBound) {
       eventsBound = true;
       void onBoardEvents({
-        live: (_port, data) => set({ live: data, liveAt: Date.now() }),
+        live: (_port, data) => {
+          if ("motors" in (data as object) && "state" in (data as object)) set({ clive: data as unknown as CopterLive, cliveAt: Date.now() });
+          else set({ live: data, liveAt: Date.now() });
+        },
+        msg: (_port, kind, data) => set((s) => ({ copterBoard: applyMessage(s.copterBoard, kind, data) })),
+        fc: (port, data) => set((s) => ({ fc: { ...s.fc, [port]: data } })),
         id: (port, identity) => {
           set((s) => ({ ports: { ...s.ports, [port]: { identity, at: Date.now() } } }));
           if (identity.vehicle === "copter") {
@@ -268,6 +292,8 @@ export const useApp = create<AppState>((set, get) => ({
           set((s) => ({
             link: { ...s.link, port: st.state === "open" ? st.port : s.link.port, state: st.state === "open" ? "open" : st.state === "error" ? "error" : "idle", error: st.error ?? undefined },
             live: st.state === "open" ? s.live : null,
+            clive: st.state === "open" ? s.clive : null,
+            copterBoard: st.state === "open" ? s.copterBoard : emptyBoard(),
             proc: st.state !== "open" && s.proc?.state === "run" ? { ...s.proc, state: "fail", text: t("связь с платой пропала") } : s.proc,
           })),
       });
@@ -532,7 +558,7 @@ export const useApp = create<AppState>((set, get) => ({
         const held = get().linkHold === cdc.port;
         if (!sameOpen && !cooling && !held) void get().connect(cdc.port, true);
       } else if (link.state === "open" && link.port && !present.has(link.port)) {
-        set({ link: { port: null, state: "idle", attemptAt: 0 }, live: null });
+        set({ link: { port: null, state: "idle", attemptAt: 0 }, live: null, clive: null, copterBoard: emptyBoard() });
       }
       // Связь есть, а паспорта нет (плата ещё загружалась, когда спросили) — спросить снова.
       const now = get().link;
@@ -602,7 +628,7 @@ export const useApp = create<AppState>((set, get) => ({
   async disconnect(manual = false) {
     const port = get().link.port;
     await api.linkStop().catch(() => {});
-    set({ link: { port: null, state: "idle", attemptAt: Date.now() }, live: null, linkHold: manual ? port : get().linkHold });
+    set({ link: { port: null, state: "idle", attemptAt: Date.now() }, live: null, clive: null, copterBoard: emptyBoard(), linkHold: manual ? port : get().linkHold });
   },
 
   async command(cmd) {
@@ -644,6 +670,35 @@ export const useApp = create<AppState>((set, get) => ({
 
   setBoardPanel(open) {
     set({ boardPanel: open });
+  },
+
+  async copterLoad() {
+    set((s) => ({ copterBoard: { ...emptyBoard(), loading: true, motorTest: s.copterBoard.motorTest } }));
+    await api.linkCommand("params");
+    // плата не ответила (старая прошивка или занята) — не крутить «загружаю» вечно
+    setTimeout(() => {
+      const b = get().copterBoard;
+      if (b.loading && !b.header) set({ copterBoard: { ...b, loading: false, errors: { ...b.errors, params: t("плата не ответила на params") } } });
+    }, 5000);
+  },
+
+  async copterSet(name, value) {
+    set((s) => ({ copterBoard: { ...s.copterBoard, pending: { ...s.copterBoard.pending, [name]: value } } }));
+    await api.linkCommand(setCommand(name, value));
+  },
+
+  async copterCommand(cmd) {
+    await api.linkCommand(cmd);
+  },
+
+  async copterSave() {
+    await api.linkCommand("save");
+  },
+
+  async copterRevert() {
+    await api.linkCommand("revert");
+    // после revert значения на плате прежние — перечитать
+    setTimeout(() => void get().copterLoad(), 300);
   },
 
   toast(kind, text) {

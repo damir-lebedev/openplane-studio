@@ -233,7 +233,7 @@ function followLog() {
       const what = l.line.startsWith("Linking") ? t("Компоновка") : t("Компилирую ({n})", { n: compiled });
       activity(`${what}…`);
     }
-    if (l.task === "upload") {
+    if (l.task === "upload" || l.task === "bfboard") {
       const m = l.line.match(/(?:Download|Erase)[^\d]*(\d{1,3})%/) ?? l.line.match(/\((\d{1,3}) ?%\)/);
       if (m) activity(l.line.includes("Erase") ? t("Стираю…") : t("Заливаю…"), Number(m[1]) / 100);
     }
@@ -353,10 +353,47 @@ export async function runFlash(planeId: string) {
   }
 }
 
+/** Порт с Betaflight (MSP ответил не нашей прошивкой) — для переноса платы. */
+export function betaflightPort(): string | null {
+  const app = useApp.getState();
+  for (const [port, fc] of Object.entries(app.fc)) {
+    const ours = app.ports[port]?.identity;
+    if (fc.variant === "BTFL" && !ours && app.devices.some((d) => d.port === port)) return port;
+  }
+  return null;
+}
+
+/** Папка файлов платы в проекте: дамп BF, родная прошивка. */
+export function boardFilesDir(copterId: string): string | null {
+  const dir = useApp.getState().info?.hangar_dir;
+  return dir ? `${dir}/${copterId}/board` : null;
+}
+
+async function bfTool(source: string, args: string[], what: string) {
+  const r = await api.bfBoard(source, args);
+  if (!r.ok) {
+    const last = r.tail.trim().split("\n").filter(Boolean).pop() ?? "";
+    throw new FlashError(what, last || t("Подробности — в журнале ниже."), "retry");
+  }
+  return r;
+}
+
+/** Связь приложения отпускает порт, чтобы его открыл bf_board.py. */
+async function releasePort(port: string) {
+  const app = useApp.getState();
+  if (app.link.port === port) await app.disconnect(true);
+  await sleep(300);
+}
+
 /**
  * Прошивка коптера: та же дорога, но конфигурации в исходниках нет —
  * настройки коптера живут на плате (CLI). Приложение вшивает только паспорт
  * (название, хэш, коммит) и после заливки сверяет его.
+ *
+ * Плата из-под Betaflight без публичной распиновки (GETFUN F405V3): сначала
+ * дамп CLI с платы (resource, dump hardware, diff all) — в папку проекта,
+ * из него заголовок платы в копию исходников; плата уходит в загрузчик
+ * командой bl, родная прошивка сохраняется в проект — и только потом заливка.
  */
 export async function runCopterFlash(copterId: string) {
   const app = useApp.getState();
@@ -366,20 +403,50 @@ export async function runCopterFlash(copterId: string) {
   if (!copter || !manifest || !source) return;
   const env = findCopterEnv(manifest, copter.board);
   const dfu = (env?.uploadProtocol ?? "dfu") === "dfu";
+  const bfPort = betaflightPort();
+  const filesDir = boardFilesDir(copterId);
+  const target = env?.boardFile?.split("/").pop()?.replace(/\.h$/, "") ?? "BOARD";
+  const needDump = !!env?.needsBoardDump && !copter.boardDump;
+  const steps = initialSteps(dfu);
+  if (needDump) steps.unshift({ id: "dump", title: t("Распиновка с Betaflight"), status: "wait" });
+  if (bfPort && dfu) steps.splice(steps.findIndex((s) => s.id === "upload"), 0, { id: "backup", title: t("Родная прошивка — в запас"), status: "wait" });
 
-  app.startFlash({ planeId: copterId, vehicle: "copter", running: true, steps: initialSteps(dfu), progress: null, activity: t("Готовлю исходники…"), log: [] });
+  app.startFlash({ planeId: copterId, vehicle: "copter", running: true, steps, progress: null, activity: t("Готовлю исходники…"), log: [] });
   const unlisten = await followLog();
 
   let record: FlashRecord | null = null;
-  let current = "build";
+  let current = needDump ? "dump" : "build";
   try {
+    if (!env) throw new FlashError(t("Нет такой сборки"), t("В исходниках прошивки нет сборки коптера {env}. Выберите плату на странице коптера.", { env: copter.board || "—" }));
+
+    // 0. распиновка с платы под Betaflight
+    if (needDump) {
+      setStep("dump", "run");
+      if (!bfPort || !filesDir) {
+        throw new FlashError(
+          t("Распиновка платы ещё не снята"),
+          t("Подключите плату с родным Betaflight по USB (Betaflight Configurator закрыт) — приложение само снимет распиновку и сохранит родную прошивку."),
+          "retry",
+        );
+      }
+      activity(t("Читаю распиновку из Betaflight ({port})…", { port: bfPort }));
+      await releasePort(bfPort);
+      const dump = `${filesDir}/${target}_bf.txt`;
+      await bfTool(source, ["read", "--port", bfPort, "--out", dump], t("Betaflight не отдал распиновку"));
+      const fc = useApp.getState().fc[bfPort];
+      const info = { dump, target, bf: fc?.version, bfBoard: fc?.board, at: new Date().toISOString() };
+      useApp.getState().updateCopter(copterId, (c) => (c.boardDump = { ...c.boardDump, ...info }));
+      copter.boardDump = { ...copter.boardDump, ...info };
+      setStep("dump", "ok", fc?.board ? `${fc.board} · BF ${fc.version ?? "?"}` : undefined);
+      current = "build";
+    }
+
     // 1. сборка
     setStep("build", "run");
-    if (!env) throw new FlashError(t("Нет такой сборки"), t("В исходниках прошивки нет сборки коптера {env}. Выберите плату на странице коптера.", { env: copter.board || "—" }));
-    if (env.needsBoardDump) {
+    if (env.needsBoardDump && !copter.boardDump) {
       throw new FlashError(
         t("Распиновка платы ещё не снята"),
-        t("Заголовок платы {file} — заглушка. Снимите распиновку с платы (шаги на странице коптера) и повторите.", { file: env.boardFile ?? env.env }),
+        t("Заголовок платы {file} — заглушка. Подключите плату с Betaflight и повторите.", { file: env.boardFile ?? env.env }),
       );
     }
     const commit = await api.firmwareCommit(source);
@@ -389,6 +456,14 @@ export async function runCopterFlash(copterId: string) {
     appendLog(t("Исходники: {src} → {dir} (скопировано {n})", { src: source, dir: prepared.dir, n: prepared.copied }));
     const applied = await api.firmwareApply(source, prepared.dir, config);
     if (!applied.ok) throw new FlashError(t("Паспорт не записался"), (applied.errors ?? []).join("\n"));
+    if (env.needsBoardDump && copter.boardDump && env.boardFile) {
+      activity(t("Заголовок платы из дампа…"));
+      await bfTool(
+        source,
+        ["header", copter.boardDump.dump, "--baro", boardBaro(target), "--out", `${prepared.dir}/include/${env.boardFile}`, "--note", `дамп ${copter.boardDump.at.slice(0, 10)}`],
+        t("Заголовок платы не получился из дампа"),
+      );
+    }
     activity(t("Собираю прошивку…"));
     const built = await api.firmwareBuild(prepared.dir, copter.board);
     if (!built.ok) {
@@ -400,9 +475,34 @@ export async function runCopterFlash(copterId: string) {
     // 2. плата
     current = "board";
     setStep("board", "run");
-    const port = await prepareBoard(copter.board, dfu);
+    let port: string | null = null;
+    if (bfPort && dfu) {
+      activity(t("Betaflight уходит в загрузчик (команда bl)…"));
+      await releasePort(bfPort);
+      await bfTool(source, ["dfu", "--port", bfPort], t("Betaflight не ушёл в загрузчик"));
+      if (!(await waitDevice((d) => d.kind === "stm32-dfu", 12000))) {
+        throw new FlashError(t("Плата не перешла в режим прошивки"), t("Команда bl отправлена, но загрузчик не появился. Зажмите BOOT и вставьте USB."), "bootloader");
+      }
+    } else {
+      port = await prepareBoard(copter.board, dfu);
+    }
     if (dfu) await checkDriver();
     setStep("board", "ok", port ?? (dfu ? "STM32 BOOTLOADER" : undefined));
+
+    // 2а. родная прошивка в запас — один раз, пока плата в загрузчике
+    if (bfPort && dfu && filesDir) {
+      current = "backup";
+      setStep("backup", "run");
+      const backup = `${filesDir}/${target}_original.bin`;
+      if (await api.pathExists(backup)) {
+        setStep("backup", "skip", t("уже сохранена"));
+      } else {
+        activity(t("Читаю родную прошивку (1 МБ)…"));
+        await bfTool(source, ["backup", "--out", backup], t("Родная прошивка не сохранилась"));
+        useApp.getState().updateCopter(copterId, (c) => c.boardDump && (c.boardDump.backup = backup));
+        setStep("backup", "ok", backup.split("/").pop());
+      }
+    }
 
     // 3. заливка
     current = "upload";
@@ -426,6 +526,7 @@ export async function runCopterFlash(copterId: string) {
     failFlash(e, current);
   } finally {
     unlisten();
+    useApp.setState({ linkHold: null });   // связь снова подключается сама
   }
 
   if (record) {
@@ -435,6 +536,47 @@ export async function runCopterFlash(copterId: string) {
       c.history = [done, ...c.history].slice(0, 50);
     });
   }
+}
+
+/**
+ * Вернуть родную прошивку (Betaflight) из запаса в проекте: плата с нашей
+ * прошивкой уходит в загрузчик клавишей D, затем dfu-util.
+ */
+export async function restoreOriginal(copterId: string): Promise<void> {
+  const app = useApp.getState();
+  const copter = app.copters.find((c) => c.id === copterId);
+  const source = app.settings.firmwareSource;
+  const backup = copter?.boardDump?.backup;
+  if (!copter || !source || !backup) return;
+  const steps: FlashStep[] = [
+    { id: "board", title: t("Плата в режим прошивки"), status: "wait" },
+    { id: "upload", title: t("Родная прошивка обратно"), status: "wait" },
+  ];
+  app.startFlash({ planeId: copterId, vehicle: "copter", running: true, steps, progress: null, activity: "", log: [] });
+  const unlisten = await followLog();
+  let current = "board";
+  try {
+    setStep("board", "run");
+    await prepareBoard(copter.board, true);
+    await checkDriver();
+    setStep("board", "ok");
+    current = "upload";
+    setStep("upload", "run");
+    activity(t("Заливаю родную прошивку…"));
+    await bfTool(source, ["restore", backup], t("Родная прошивка не записалась"));
+    setStep("upload", "ok");
+    flash().setFlash((f) => ({ ...f, running: false, activity: "", done: { verified: true, text: t("На плате снова родная прошивка ({file}).", { file: backup.split("/").pop() ?? backup }) } }));
+  } catch (e) {
+    failFlash(e, current);
+  } finally {
+    unlisten();
+  }
+}
+
+/** Барометр платы для заголовка: Betaflight его тип не сообщает (драйвера SPL06 у него нет). */
+const BOARD_BARO: Record<string, string> = { GETFUNF405V3: "SPL06" };
+export function boardBaro(target: string): string {
+  return BOARD_BARO[target] ?? "SPL06";
 }
 
 async function verifyCopter(name: string, hash: string, dfu: boolean): Promise<{ ok: boolean; text: string }> {

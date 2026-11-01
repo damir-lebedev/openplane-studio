@@ -70,6 +70,19 @@ export interface CopterSwitches {
   beeper: number;
 }
 
+export interface BoardDump {
+  /** дамп CLI Betaflight (version, resource, dump hardware, diff all) */
+  dump: string;
+  /** родная прошивка целиком (1 МБ), если сохранена */
+  backup?: string;
+  /** имя заголовка платы (GETFUNF405V3) */
+  target: string;
+  /** версия Betaflight и таргет по MSP */
+  bf?: string;
+  bfBoard?: string;
+  at: string;
+}
+
 export interface CopterProject {
   schema: 1;
   vehicle: "copter";
@@ -88,6 +101,10 @@ export interface CopterProject {
   switches: CopterSwitches;
   /** когда первую настройку записали в плату */
   setupWrittenAt?: string;
+  /** плата из-под Betaflight: дамп CLI и родная прошивка в папке проекта (board/) */
+  boardDump?: BoardDump;
+  /** когда настройки из Betaflight перенесены на нашу прошивку */
+  bfImportedAt?: string;
   lastFlash?: FlashRecord;
   history: FlashRecord[];
 }

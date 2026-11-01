@@ -1,6 +1,6 @@
 [package]
 name = "openplane-studio"
-version = "0.1.0"
+version = "0.2.0"
 description = "OpenPlane Studio — настройка и прошивка полётного контроллера OpenPlane"
 authors = ["Damn"]
 license = "LicenseRef-OpenPlane"

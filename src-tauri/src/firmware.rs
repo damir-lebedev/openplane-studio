@@ -8,7 +8,7 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::AppHandle;
 
-use crate::util::{cache_dir, command, err, find_pio, find_python, run_capture, run_streaming, Res};
+use crate::util::{cache_dir, command, core_dir, err, find_pio, find_python, run_capture, run_streaming, Res};
 
 /// Что копировать из репозитория прошивки: только то, из чего она собирается.
 const COPY_DIRS: &[&str] = &["include", "src", "lib"];
@@ -205,4 +205,25 @@ pub fn upload(app: &AppHandle, dir: &Path, env: &str, port: Option<&str>) -> Res
     }
     let (code, tail) = run_streaming(app, "upload", cmd)?;
     Ok(TaskResult { ok: code == 0, code, tail, firmware: firmware_file(dir, env) })
+}
+
+/// tools/bf_board.py из исходников: плата из-под Betaflight — опрос, дамп CLI,
+/// загрузчик DFU (bl), бэкап родной прошивки, заголовок платы, возврат родной.
+/// Папки для файлов после --out создаются заранее.
+pub fn bf_board(app: &AppHandle, source: &Path, args: &[String]) -> Res<TaskResult> {
+    let script = source.join("tools").join("bf_board.py");
+    if !script.is_file() {
+        return Err(format!("в {} нет tools/bf_board.py — исходники прошивки старые", source.display()));
+    }
+    for pair in args.windows(2) {
+        if pair[0] == "--out" {
+            if let Some(dir) = Path::new(&pair[1]).parent() {
+                fs::create_dir_all(dir).map_err(err("папка для файлов платы"))?;
+            }
+        }
+    }
+    let mut cmd = command(python()?);
+    cmd.arg(script).args(args).env("PLATFORMIO_CORE_DIR", core_dir()).current_dir(source);
+    let (code, tail) = run_streaming(app, "bfboard", cmd)?;
+    Ok(TaskResult { ok: code == 0, code, tail, firmware: None })
 }

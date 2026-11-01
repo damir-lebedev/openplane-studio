@@ -7,7 +7,7 @@ import { configHash, PlaneProject, sensorLabel, toFirmwareConfig } from "../core
 import { TEMPLATES } from "../core/templates";
 import { locale, t } from "../i18n";
 import { useApp } from "../store";
-import { capLabel } from "./CopterView";
+import { capLabel } from "./copter/OverviewTab";
 import { PlanePreview } from "./PlanePreview";
 import { Choice, Modal } from "./ui";
 
