@@ -55,7 +55,9 @@ function FailsafeBody() {
   const board = useCopterBoard();
   const all = tabParams(board, "failsafe");
   const fs = all.filter((p) => p.name.startsWith("failsafe"));
-  const arm = all.filter((p) => !p.name.startsWith("failsafe"));
+  const crash = all.filter((p) => p.name.startsWith("crash_"));
+  const arm = all.filter((p) => !p.name.startsWith("failsafe") && !p.name.startsWith("crash_"));
+  const crashMode = String(board.params.crash_recovery?.value ?? "OFF");
   const delay = num(board, "failsafe_delay", 15) / 10;
   const landing = num(board, "failsafe_landing_time", 60);
   const procedure = String(board.params.failsafe_procedure?.value ?? "AUTO-LAND");
@@ -90,6 +92,19 @@ function FailsafeBody() {
       </div>
       <ParamList title={t("Failsafe")} params={fs} />
       <ParamList title={t("ARM и защита")} params={arm} />
+      {crash.length > 0 && (
+        <ParamList
+          title={t("Удар в воздухе (crash recovery)")}
+          sub={
+            crashMode === "OFF"
+              ? t("Выключено, как в Betaflight. ON — после удара в ACRO коптер сам выровняется за треть секунды и вернёт управление; флип стиком ударом не считается.")
+              : crashMode === "DISARM"
+                ? t("DISARM: удар — моторы стоп сразу.")
+                : t("Включено: удар в ACRO/HORIZON — коптер сам выравнивается и возвращает управление, как только ровно.")
+          }
+          params={crash}
+        />
+      )}
     </div>
   );
 }
