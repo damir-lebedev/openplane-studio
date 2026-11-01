@@ -5,11 +5,11 @@
 import { Move } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { tabParams } from "../../core/copterParams";
+import { num, rcAutoCutoff, rcStepResponse, tabParams } from "../../core/copterParams";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Seg } from "../ui";
-import { NeedBoard, ParamList, useCopterBoard, useCopterLink, useCopterLive } from "./common";
+import { NeedBoard, ParamList, ParamRow, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 
 const STICKS: Record<string, string> = { A: "Крен (A)", E: "Тангаж (E)", R: "Рысканье (R)", T: "Газ (T)" };
 const MAPS = ["AETR1234", "TAER1234"];
@@ -67,9 +67,52 @@ function ReceiverBody() {
         <StickRange />
       </div>
 
+      <RcSmoothingCard />
+
       <div className="wide">
-        <ParamList title={t("Приёмник")} params={tabParams(board, "receiver")} />
+        <ParamList title={t("Приёмник")} params={tabParams(board, "receiver", SMOOTHING)} />
       </div>
+    </div>
+  );
+}
+
+const SMOOTHING = ["rc_smoothing", "rc_smoothing_auto_factor", "rc_smoothing_auto_factor_throttle", "rc_smoothing_setpoint_cutoff", "rc_smoothing_throttle_cutoff", "deadband", "yaw_deadband"];
+
+/** Сглаживание стиков: частота кадров, срезы и как стик доходит до моторов. */
+function RcSmoothingCard() {
+  const board = useCopterBoard();
+  const live = useCopterLive();
+  const params = SMOOTHING.map((n) => board.params[n]).filter(Boolean);
+  if (params.length === 0) return null;
+  const on = String(board.params.rc_smoothing?.value ?? "ON") === "ON";
+  const frameHz = live?.rxhz && live.rxhz > 1 ? live.rxhz : 250;
+  const manual = num(board, "rc_smoothing_setpoint_cutoff", 0);
+  const cutoff = on ? (live?.rcsp ?? (manual || rcAutoCutoff(frameHz, num(board, "rc_smoothing_auto_factor", 30)))) : 0;
+  const pts = rcStepResponse(frameHz, cutoff);
+  const W = 420, H = 130, L = 8, B = 18;
+  const x = (ms: number) => L + ((W - 2 * L) * ms) / 40;
+  const y = (v: number) => H - B - (H - B - 8) * v;
+  const line = (k: "raw" | "smooth") => pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p[k]).toFixed(1)}`).join(" ");
+  return (
+    <div className="card">
+      <h3>{t("Сглаживание стиков")}</h3>
+      <div className="kv">
+        <span>{t("Кадры приёмника")}</span>
+        <span className="mono">{live?.rxhz ? `${Math.round(live.rxhz)} ${t("Гц")}` : t("нет данных — считаю 250 Гц")}</span>
+        <span>{t("Срез стиков · газа")}</span>
+        <span className="mono">{on ? `${Math.round(cutoff)} · ${Math.round(live?.rcth ?? cutoff)} ${t("Гц")}` : t("выключено")}</span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="rescue-svg" role="img" aria-label={t("Стик рывком: кадры и после сглаживания")}>
+        <line x1={L} x2={W - L} y1={y(0)} y2={y(0)} className="rescue-ground" />
+        <path d={line("raw")} className="rc-raw" />
+        <path d={line("smooth")} className="rescue-path" />
+        <text x={x(1)} y={H - 4} className="rescue-label">0</text>
+        <text x={x(40)} y={H - 4} textAnchor="end" className="rescue-label">40 {t("мс")}</text>
+      </svg>
+      <p className="hint">{t("Серым — стик, как его присылает приёмник (ступеньки на каждом кадре); голубым — что получат моторы. Больше rc_smoothing_auto_factor — плавнее, но позже.")}</p>
+      {params.map((p) => (
+        <ParamRow key={p.name} p={p} />
+      ))}
     </div>
   );
 }

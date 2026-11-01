@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { dumpedBoard, param } from "./__fixtures__/copterBoard";
-import { applyMessage, checkValue, CopterParam, emptyBoard, parseBfDiff, rateAt, rescuePath, tabParams } from "./copterParams";
+import { applyMessage, checkValue, CopterParam, emptyBoard, parseBfDiff, rateAt, rcAutoCutoff, rcStepResponse, rescuePath, tabParams } from "./copterParams";
 
 describe("настройки коптера с платы", () => {
   it("дамп: заголовок, настройки по порядку, @rc, конец — по @modes", () => {
@@ -113,5 +113,22 @@ describe("GPS Rescue: профиль возврата", () => {
     const p = rescuePath(board({}), 10, 10, 10);
     expect(p.tooClose).toBe(true);
     expect(p.seconds).toBeCloseTo(6 / 1.5 + 4 / 0.75, 5);
+  });
+});
+
+describe("сглаживание стиков", () => {
+  it("срез — как в прошивке: кадры × 1.5 / (1 + factor/10), не ниже 15 Гц", () => {
+    expect(rcAutoCutoff(250, 30)).toBeCloseTo(93.75, 5);
+    expect(rcAutoCutoff(50, 30)).toBeCloseTo(18.75, 5);
+    expect(rcAutoCutoff(20, 30)).toBe(15);
+  });
+
+  it("ступеньки кадров и плавная кривая: без фильтра — как пришло, с фильтром — догоняет позже", () => {
+    const raw = rcStepResponse(250, 0);
+    expect(raw.every((p) => p.smooth === p.raw)).toBe(true);
+    const sm = rcStepResponse(250, 94);
+    const at10 = sm.find((p) => p.t >= 10)!;
+    expect(at10.smooth).toBeLessThan(at10.raw);
+    expect(sm[sm.length - 1].smooth).toBeGreaterThan(0.98);
   });
 });

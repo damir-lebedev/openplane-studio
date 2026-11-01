@@ -166,6 +166,10 @@ export interface CopterLive {
   mah?: number;
   vtx?: { on: boolean; mhz: number; mw: number; pit: boolean; cap: number };
   hdg: number;
+  /** частота кадров приёмника, Гц, и срезы сглаживания стиков и газа (0 — выключено) */
+  rxhz?: number;
+  rcsp?: number;
+  rcth?: number;
   /** GPS Rescue: этап (CLIMB, FLY_HOME, DESCEND, LAND, ABORT) и почему прервался */
   rescue?: string;
   rescueFail?: string;

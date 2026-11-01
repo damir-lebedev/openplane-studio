@@ -1844,3 +1844,10 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.rc-raw {
+  fill: none;
+  stroke: var(--text-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}

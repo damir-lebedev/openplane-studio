@@ -284,6 +284,36 @@ export function rescuePath(b: CopterBoard, distM: number, altM: number, maxAltM:
   return { ret, descent, landAlt, tooClose, seconds: climbS + flyS + landS(Math.min(landAlt, ret)), mode };
 }
 
+// ---------------- сглаживание стиков ----------------
+
+/** Срез сглаживания как в прошивке (copter/RcSmoothing.h): кадры × 1.5 / (1 + factor/10), не ниже 15 Гц. */
+export function rcAutoCutoff(frameHz: number, factor: number): number {
+  return frameHz > 0 ? Math.max(15, (frameHz * 1.5) / (1 + factor / 10)) : 15;
+}
+
+/**
+ * Стик рывком 0 → 1 за ms миллисекунд: что приходит кадрами (ступеньки) и что
+ * после PT3 со срезом cutoffHz (0 — без фильтра), шаг 0.25 мс.
+ */
+export function rcStepResponse(frameHz: number, cutoffHz: number, ms = 40, rampMs = 12): { t: number; raw: number; smooth: number }[] {
+  const dt = 0.00025;
+  const k = cutoffHz > 0 ? 1 - Math.exp(-2 * Math.PI * cutoffHz * 1.961459177 * dt) : 1;
+  const frame = 1 / Math.max(1, frameHz);
+  let a = 0, b = 0, c = 0, raw = 0, nextFrame = 0;
+  const out: { t: number; raw: number; smooth: number }[] = [];
+  for (let t = 0; t <= ms / 1000 + 1e-9; t += dt) {
+    if (t >= nextFrame) {
+      raw = Math.min(1, Math.max(0, t / (rampMs / 1000)));
+      nextFrame += frame;
+    }
+    a += k * (raw - a);
+    b += k * (a - b);
+    c += k * (b - c);
+    out.push({ t: t * 1000, raw, smooth: c });
+  }
+  return out;
+}
+
 // ---------------- OSD ----------------
 
 /** osd_*_pos как в BF: x + 32·y, 0x0800 — показан (профиль 1), 0x1000/0x2000 — профили 2 и 3, 0x0400 — шестой бит x. */
