@@ -2180,5 +2180,13 @@
   "рыск влево — назад; из главного — выйти без сохранения": "yaw left — back; from the main page — exit without saving",
   "тангаж на себя": "pitch back",
   "тангаж от себя": "pitch forward",
-  "тангаж — строка выше или ниже": "pitch — line up or down"
+  "тангаж — строка выше или ниже": "pitch — line up or down",
+  "D усиливает шум сильнее всего — его фильтры ниже. Свои в каждом PID-профиле.": "D amplifies noise the most, so its filters sit lower. Each PID profile has its own.",
+  "D: срез {hz} Гц, задержка {ms} мс": "D: cutoff {hz} Hz, delay {ms} ms",
+  "АЧХ фильтров": "Filter frequency response",
+  "Гироскоп: срез {hz} Гц, задержка {ms} мс": "Gyro: cutoff {hz} Hz, delay {ms} ms",
+  "Две ступени ФНЧ (тип и срез, первая — может расти с газом) и два режектора под резонанс рамы. Имена — как в Betaflight.": "Two lowpass stages (type and cutoff; the first can rise with throttle) and two notches for frame resonance. Names are as in Betaflight.",
+  "Сверху — проходит как есть, ниже — гасится. Вибрации моторов — справа (сотни герц), полёт — слева. Каждая ступень добавляет задержку: коптер отвечает позже.": "Top passes as is, lower is damped. Motor vibration is on the right (hundreds of hertz), flying is on the left. Every stage adds delay: the quad responds later.",
+  "Что пропускают фильтры": "What the filters let through",
+  "динамический срез растёт с газом": "the dynamic cutoff rises with throttle"
 }

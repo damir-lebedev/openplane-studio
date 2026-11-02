@@ -501,6 +501,31 @@ describe("вкладки коптера", () => {
     expect(screen.getByText("11.6 дБ")).toBeTruthy();
   });
 
+  it("фильтры: АЧХ из настроек, газ двигает динамический срез, списки гироскопа и D", () => {
+    const TYPES = ["PT1", "BIQUAD", "PT2", "PT3"];
+    const fp = (name: string, value: number | string) =>
+      param(name, { group: "filters", scope: name.startsWith("dterm") ? "pid" : "master", type: typeof value === "string" ? "enum" : "int", options: typeof value === "string" ? TYPES : undefined, min: 0, max: 1000, value, default: value });
+    const vals: [string, number | string][] = [
+      ["gyro_lpf1_type", "PT1"], ["gyro_lpf1_static_hz", 250], ["gyro_lpf1_dyn_min_hz", 250], ["gyro_lpf1_dyn_max_hz", 450], ["gyro_lpf1_dyn_expo", 5],
+      ["gyro_lpf2_type", "PT1"], ["gyro_lpf2_static_hz", 450], ["gyro_notch1_hz", 0], ["gyro_notch1_cutoff", 0], ["gyro_notch2_hz", 0], ["gyro_notch2_cutoff", 0],
+      ["dterm_lpf1_type", "PT1"], ["dterm_lpf1_static_hz", 75], ["dterm_lpf1_dyn_min_hz", 75], ["dterm_lpf1_dyn_max_hz", 150], ["dterm_lpf1_dyn_expo", 5],
+      ["dterm_lpf2_type", "PT1"], ["dterm_lpf2_static_hz", 150], ["dterm_notch_hz", 0], ["dterm_notch_cutoff", 0],
+    ];
+    act(() =>
+      useApp.setState((st) => ({
+        copterBoard: dumpedBoard([...st.copterBoard.order.map((n) => st.copterBoard.params[n]), ...vals.map(([n, v]) => fp(n, v))]),
+      })),
+    );
+    render(<CopterView />);
+    tab("Фильтры");
+    const chart = screen.getByTestId("filter-chart");
+    expect(chart.querySelectorAll(".filter-curve")).toHaveLength(2);
+    expect(screen.getByText(/Гироскоп: срез 3\d\d Гц/)).toBeTruthy();
+    fireEvent.change(chart.querySelector("input[type=range]")!, { target: { value: "0" } });
+    expect(screen.getByText(/Гироскоп: срез 250 Гц/)).toBeTruthy();
+    expect(screen.getByText(/D: срез 75 Гц/)).toBeTruthy();
+  });
+
   it("расходы: кривая и максимум по оси", () => {
     render(<CopterView />);
     tab("Расходы");

@@ -2991,3 +2991,67 @@ textarea {
   gap: 6px;
   margin-top: 8px;
 }
+
+/* АЧХ фильтров */
+.filter-svg {
+  width: 100%;
+  height: auto;
+  margin-top: 6px;
+}
+.filter-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.filter-label {
+  fill: var(--text-3);
+  font-size: 11px;
+}
+.filter-curve {
+  fill: none;
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+}
+.filter-curve.gyro {
+  stroke: var(--accent);
+}
+.filter-curve.d {
+  stroke: var(--warn);
+}
+.filter-notch {
+  stroke: var(--accent-line);
+  stroke-dasharray: 4 4;
+}
+.filter-notch.d {
+  stroke: var(--warn);
+  opacity: 0.6;
+}
+.filter-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  font-size: 13px;
+  margin-top: 4px;
+}
+.filter-key::before {
+  content: "";
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.filter-key.gyro::before {
+  background: var(--accent);
+}
+.filter-key.d::before {
+  background: var(--warn);
+}
+.filter-throttle {
+  gap: 10px;
+  margin-top: 8px;
+}
+.filter-throttle input {
+  flex: 1;
+  max-width: 260px;
+}

@@ -3,7 +3,9 @@
 
 import { AXES, AXIS_LABELS, CopterBoard, CopterParam, num, PID_COLUMNS, RATE_COLUMNS, rateAt, tabParams } from "../../core/copterParams";
 import { N_, t } from "../../i18n";
+import { FILTER_PARAMS } from "../../core/filters";
 import { MarginBar, NeedBoard, ParamInput, ParamList, ParamRow, ParamSlider, ProfilePicker, useCopterBoard } from "./common";
+import { FilterChart } from "./FilterChart";
 
 /** Темы настроек PID-профиля по началу имени. */
 const PID_TOPICS: { title: string; sub?: string; match: (n: string) => boolean }[] = [
@@ -161,8 +163,19 @@ function FiltersBody() {
         mode={modes}
         sliders={sliders}
       />
+      <FilterChart />
+      <ParamList
+        title={t("Гироскоп")}
+        sub={t("Две ступени ФНЧ (тип и срез, первая — может расти с газом) и два режектора под резонанс рамы. Имена — как в Betaflight.")}
+        params={FILTER_PARAMS.gyro.filter((n) => board.params[n]).map((n) => board.params[n])}
+      />
+      <ParamList
+        title={t("D")}
+        sub={t("D усиливает шум сильнее всего — его фильтры ниже. Свои в каждом PID-профиле.")}
+        params={FILTER_PARAMS.dterm.filter((n) => board.params[n]).map((n) => board.params[n])}
+      />
       <div className="wide">
-        <ParamList title={t("Ещё")} params={tabParams(board, "filters", names)} />
+        <ParamList title={t("Ещё")} params={tabParams(board, "filters", [...names, ...FILTER_PARAMS.gyro, ...FILTER_PARAMS.dterm])} />
       </div>
     </div>
   );
