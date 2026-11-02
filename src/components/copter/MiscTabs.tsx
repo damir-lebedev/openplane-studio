@@ -233,6 +233,31 @@ function OtherBody() {
         params={model}
       />
       <ParamList title={t("Прочее")} params={rest} />
+      <FlashCard flash={board.header?.flash} />
+    </div>
+  );
+}
+
+/** Флеш настроек платы: сколько занято — заданное руками, тумблеры, калибровки. */
+export function FlashCard({ flash }: { flash?: [number, number] }) {
+  if (!flash) return null;
+  const [used, total] = flash;
+  const share = total ? used / total : 0;
+  const level = share > 0.9 ? "bad" : share > 0.7 ? "warn" : "ok";
+  const kb = (n: number) => (n / 1024).toFixed(1);
+  return (
+    <div className="card">
+      <h3>{t("Память настроек")}</h3>
+      <div className={`margin-bar ${level}`}>
+        <div className="row" style={{ gap: 8 }}>
+          <span className="grow">{t("Занято")}</span>
+          <span className="mono">{t("{used} из {total} КБ", { used: kb(used), total: kb(total) })}</span>
+        </div>
+        <div className="margin-track">
+          <div className={`margin-zone ${level}`} style={{ width: `${Math.min(100, share * 100)}%` }} />
+        </div>
+        <div className="hint">{t("Заданное руками, тумблеры и калибровки — после «Сохранить». Diff Betaflight на сотни строк помещается.")}</div>
+      </div>
     </div>
   );
 }

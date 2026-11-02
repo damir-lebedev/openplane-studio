@@ -21,6 +21,14 @@ import {
 } from "./copterParams";
 
 describe("настройки коптера с платы", () => {
+  it("флеш настроек: из заголовка, save обновляет «занято»", () => {
+    const b = applyMessage(emptyBoard(), "params", { count: 1, profiles: 4, profile: 0, rateprofile: 0, build: "", source: "MODEL", unsaved: false, flash: [300, 8192] });
+    expect(b.header?.flash).toEqual([300, 8192]);
+    const s = applyMessage(b, "save", { ok: true, stored: true, flash: [3100, 8192] });
+    expect(s.header?.flash).toEqual([3100, 8192]);
+    expect(s.unsaved).toBe(false);
+  });
+
   it("дамп: заголовок, настройки по порядку, @rc, конец — по @modes", () => {
     const b = dumpedBoard([param("p_roll"), param("serialrx_provider", { type: "enum", group: "receiver", scope: "master", options: ["IBUS", "SBUS", "CRSF"], value: "CRSF", default: "CRSF" })]);
     expect(b.loading).toBe(false);

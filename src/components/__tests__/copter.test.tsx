@@ -388,3 +388,12 @@ describe("вкладки коптера", () => {
     expect(document.querySelector(".rescue-path")?.getAttribute("d")).toMatch(/^M40\.0,/);
   });
 });
+
+describe("память настроек", () => {
+  it("«Прочее»: занято N из M и цвет по заполнению", async () => {
+    const { FlashCard } = await import("../copter/MiscTabs");
+    const { container } = render(<FlashCard flash={[7800, 8192]} />);
+    expect(screen.getByText("7.6 из 8.0 КБ")).toBeTruthy();
+    expect(container.querySelector(".margin-bar.bad")).toBeTruthy();
+  });
+});

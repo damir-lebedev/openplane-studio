@@ -1656,5 +1656,9 @@
   "функции флажки": "features flags",
   "я с betaflight переход отличия": "coming from betaflight switch differences",
   "На чём летит коптер. От платы зависят распиновка, регуляторы и как её прошивать; другую плату можно выбрать в любой момент — настройки коптера останутся.": "What the copter flies on. The board decides the pinout, the ESCs and how it is flashed; you can pick another board any time — the copter's settings stay.",
-  "распиновку снимем с платы": "pinout will be read from the board"
+  "распиновку снимем с платы": "pinout will be read from the board",
+  "Память настроек": "Settings memory",
+  "Занято": "Used",
+  "{used} из {total} КБ": "{used} of {total} KB",
+  "Заданное руками, тумблеры и калибровки — после «Сохранить». Diff Betaflight на сотни строк помещается.": "Your own settings, switches and calibrations — after «Save». A Betaflight diff of hundreds of lines fits."
 }

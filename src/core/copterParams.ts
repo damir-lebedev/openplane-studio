@@ -47,6 +47,8 @@ export interface ParamsHeader {
   dshotCommands?: boolean;
   /** запас контура для PID, что работают (прошивка пересчитывает на каждую правку PID и фильтров) */
   margin?: LoopMargin;
+  /** флеш настроек: занято и всего, байт (обновляется и ответом на save) */
+  flash?: [number, number];
 }
 
 /** Запасы устойчивости контура угловой скорости (copter/Presets.h checkLoop). */
@@ -139,7 +141,7 @@ export function applyMessage(b: CopterBoard, kind: string, data: unknown, now = 
     case "profile":
       return b.header ? { ...b, header: { ...b.header, profile: Number(d.profile), rateprofile: Number(d.rateprofile) }, unsaved: true } : b;
     case "save": {
-      const header = d.margin && b.header ? { ...b.header, margin: d.margin as LoopMargin } : b.header;
+      const header = b.header ? { ...b.header, ...(d.margin ? { margin: d.margin as LoopMargin } : {}), ...(d.flash ? { flash: d.flash as [number, number] } : {}) } : b.header;
       return d.ok ? { ...b, header, unsaved: false, errors: {} } : { ...b, header, errors: { ...b.errors, save: String(d.error ?? "не сохранилось") } };
     }
     case "revert":
