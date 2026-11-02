@@ -19,6 +19,7 @@ import { useApp } from "../store";
 import { FlashDialog } from "./board/FlashDialog";
 import { Seg } from "./ui";
 import { UnsavedBar, useCopterLink, useCopterLive } from "./copter/common";
+import { BeeperTab } from "./copter/BeeperTab";
 import { FlightTab } from "./copter/FlightTab";
 import { GpsTab } from "./copter/GpsTab";
 import { CliTab, FailsafeTab, ListTab, OtherTab, PowerTab, VtxTab } from "./copter/MiscTabs";
@@ -158,6 +159,7 @@ export function CopterView() {
           {tab === "osd" && <OsdTab />}
           {tab === "gps" && <GpsTab />}
           {tab === "blackbox" && <ListTab tab="blackbox" />}
+          {tab === "beeper" && <BeeperTab />}
           {tab === "other" && <OtherTab />}
           {tab === "cli" && <CliTab />}
         </div>

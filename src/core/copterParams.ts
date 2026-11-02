@@ -150,9 +150,10 @@ export function applyMessage(b: CopterBoard, kind: string, data: unknown, now = 
       return { ...b, errors: { ...b.errors, [String(d.cmd ?? "?")]: String(d.error ?? "") } };
     case "motor":
       return { ...b, motorTest: Array.isArray(d.m) ? (d.m as number[]) : b.motorTest };
-    case "dshot": {
+    case "dshot":
+    case "beep": {
       const errors = { ...b.errors };
-      delete errors.dshot;
+      delete errors[kind];
       return { ...b, errors };
     }
   }
@@ -206,6 +207,7 @@ export type CopterTab =
   | "osd"
   | "gps"
   | "blackbox"
+  | "beeper"
   | "other"
   | "cli";
 
@@ -225,6 +227,7 @@ export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "osd", title: N_("OSD"), board: true },
   { id: "gps", title: N_("GPS"), board: true },
   { id: "blackbox", title: N_("Чёрный ящик"), board: true },
+  { id: "beeper", title: N_("Пищалка"), board: true },
   { id: "other", title: N_("Прочее"), board: true },
   { id: "cli", title: N_("CLI"), board: true },
 ];
@@ -257,6 +260,7 @@ export const GROUP_TAB: Record<string, CopterTab> = {
   gps: "gps",
   blackbox: "blackbox",
   other: "other",
+  beeper: "beeper",
 };
 
 /** Настройки вкладки в порядке прошивки; skip — те, что вкладка рисует сама. */

@@ -2184,3 +2184,46 @@ textarea {
 .bf-diff:first-of-type {
   border-top: 0;
 }
+
+/* Пищалка: условия BF строками, команды стиками — две ручки пульта */
+.beeper-list {
+  display: grid;
+  gap: 2px;
+}
+.beeper-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.beeper-row:hover {
+  background: var(--bg-hover, rgba(127, 127, 127, 0.08));
+}
+.beeper-row.dim {
+  opacity: 0.55;
+}
+.stick-combos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.stick-combo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gimbal-box {
+  fill: none;
+  stroke: currentColor;
+  opacity: 0.35;
+}
+.gimbal-line {
+  stroke: currentColor;
+  opacity: 0.5;
+  stroke-width: 2;
+}
+.gimbal-dot {
+  fill: var(--accent, #3b82f6);
+}

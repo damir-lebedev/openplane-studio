@@ -3,10 +3,13 @@
 // Своя таблица aux заменяет тумблеры прошивки целиком: при первой правке
 // приложение переносит их в таблицу, чтобы ARM не пропал. У FLIP OVER
 // AFTER CRASH (turtle mode) — схема: какие моторы закрутятся от стиков пульта.
+// Внизу — команды стиками картинками (калибровки, профили, горизонт; ARM
+// стиками — если ARM нет в таблице).
 
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { gimbals, STICK_ARM, STICK_COMBOS, StickCombo } from "../../core/beeper";
 import { AuxRow, auxCommand, auxLabel, clearAuxCommand, freeAuxSlot, MAIN_MODES } from "../../core/copterParams";
 import { sticksFromChannels, turtleMix } from "../../core/turtle";
 import { N_, t } from "../../i18n";
@@ -20,7 +23,9 @@ const MODE_HINTS: Record<number, string> = {
   0: N_("моторы включены; ExpressLRS передаёт без задержки только AUX1"),
   1: N_("самовыравнивание: стик — угол, отпустил — ровно"),
   2: N_("как ANGLE у центра, у края стика — флипы"),
-  13: N_("пищит, чтобы найти упавший коптер"),
+  13: N_("пищит, чтобы найти упавший коптер (и моторами — вкладка «Пищалка»)"),
+  37: N_("пищит числом спутников GPS"),
+  51: N_("команды стиками не работают (ARM стиками — работает)"),
   27: N_("сразу failsafe — проверка без выключения пульта"),
   28: N_("моторы держат управление на нуле газа"),
   35: N_("turtle mode: упал на спину — ARM с этим режимом, и стик переворачивает коптер моторами (только DShot)"),
@@ -105,6 +110,7 @@ function ModesBody() {
           </div>
         );
       })}
+      <StickCommandsCard armFromSticks={!rows.some((r) => r[1] === 0)} />
       {others.length > 0 && (
         <div className="card">
           <div className="row" style={{ gap: 8 }}>
@@ -121,6 +127,52 @@ function ModesBody() {
         </div>
       )}
     </div>
+  );
+}
+
+// Команды стиками, как в BF: две ручки пульта (Mode 2) на каждую команду.
+function StickCommandsCard({ armFromSticks }: { armFromSticks: boolean }) {
+  const board = useCopterBoard();
+  const combos = armFromSticks ? [...STICK_ARM, ...STICK_COMBOS] : STICK_COMBOS;
+  return (
+    <div className="card">
+      <h3>{t("Команды стиками")}</h3>
+      <p className="sub">
+        {t("Без ARM: поставьте стики в углы, как на картинке, и подержите — плата пискнет в ответ (профиль N — N раз). Газ слева (Mode 2).")}
+        {armFromSticks && " " + t("ARM нет в таблице режимов — армится стиками, как в Betaflight.")}
+      </p>
+      <div className="stick-combos">
+        {combos.map((c, i) => (
+          <div key={i} className="stick-combo">
+            <Gimbals combo={c} />
+            <div className="hint">
+              {t(c.title)}
+              {c.when === "level" && <span className="prow-scope">ANGLE</span>}
+              {c.when === "acro" && <span className="prow-scope">ACRO</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+      {board.params.min_check && <ParamRow p={board.params.min_check} title={t("Стик ниже — «низ»")} />}
+      {board.params.max_check && <ParamRow p={board.params.max_check} title={t("Стик выше — «верх»")} />}
+    </div>
+  );
+}
+
+function Gimbals({ combo }: { combo: StickCombo }) {
+  const g = gimbals(combo);
+  const box = (x0: number, [x, y]: [number, number]) => (
+    <g>
+      <rect x={x0} y={2} width={36} height={36} rx={6} className="gimbal-box" />
+      <line x1={x0 + 20} y1={20} x2={x0 + 20 + x * 13} y2={20 - y * 13} className="gimbal-line" />
+      <circle cx={x0 + 20 + x * 13} cy={20 - y * 13} r={4} className="gimbal-dot" />
+    </g>
+  );
+  return (
+    <svg viewBox="0 0 84 40" width={84} height={40}>
+      {box(0, g.left)}
+      {box(46, g.right)}
+    </svg>
   );
 }
 
