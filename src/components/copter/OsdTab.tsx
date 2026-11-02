@@ -12,6 +12,7 @@ import { preflightOsd } from "../../core/preflight";
 import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamList, useCopterBoard, useCopterLink, useCopterLive } from "./common";
+import { OsdMenuCard } from "./OsdMenuCard";
 
 export function OsdTab() {
   return (
@@ -251,6 +252,7 @@ function OsdBody() {
         )}
         <p className="hint">{t("Значки нарисованы похожими знаками; в очках — шрифт Betaflight из чипа OSD. Режим PAL/NTSC плата выбирает по камере сама.")}</p>
       </div>
+      <OsdMenuCard />
       <ParamList title={t("Статистика после посадки")} sub={t("После DISARM — пока не двинете газ или тангаж вверх (или минуту).")} params={stats} />
       <ParamList title={t("Предупреждения и тревоги")} sub={t("Одно главное предупреждение — в центре; значение за порогом мигает.")} params={warns} />
     </div>

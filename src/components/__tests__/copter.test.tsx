@@ -534,6 +534,24 @@ describe("вкладки коптера", () => {
     expect(sent).toContain("set osd_vbat_pos 2090");
   });
 
+  it("OSD: меню в очках — тренажёр стрелками, на плату ничего не уходит", () => {
+    render(<CopterView />);
+    tab("OSD");
+    const card = screen.getByTestId("osd-menu-card");
+    const scr = card.querySelector(".cms-screen") as HTMLElement;
+    expect(scr.querySelector(".cms-row")?.textContent?.trim()).toBe("MENU");
+    const before = sent.length;
+    fireEvent.keyDown(scr, { key: "ArrowDown" });
+    fireEvent.keyDown(scr, { key: "ArrowRight" });
+    expect(scr.querySelector(".cms-row")?.textContent?.trim()).toBe("PID  PROFILE 1");
+    fireEvent.keyDown(scr, { key: "ArrowRight" });
+    expect(screen.getByText(/p_roll \d+ → \d+ — на плату не отправлено/)).toBeTruthy();
+    fireEvent.keyDown(scr, { key: "Escape" });
+    fireEvent.keyDown(scr, { key: "Escape" });
+    expect(screen.getByText("В очках: изменения отменены, меню закрыто.")).toBeTruthy();
+    expect(sent.length).toBe(before);
+  });
+
   it("GPS: этап возврата из @live, схема по живому расстоянию, подсказка выбрать GPS-RESCUE", () => {
     useApp.setState({ clive: live({ alt: 25, gps: { fix: true, sats: 14, lat: 0, lon: 0, spd: 7, home: 240, dir: 15 }, rescue: "FLY_HOME" }) });
     render(<CopterView />);
