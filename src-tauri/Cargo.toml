@@ -20,6 +20,7 @@ serde_json = "1"
 serialport = "4"
 nusb = "0.2"
 sysinfo = "0.39"
+sha2 = "0.10"
 
 [profile.release]
 codegen-units = 1

@@ -84,6 +84,12 @@ jobs:
     permissions:
       contents: write
     steps:
+      # «Что нового» — текст аннотированного тега (git tag -a vX.Y.Z -m "…"):
+      # его же показывает карточка обновления в приложении.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: repo
       - uses: actions/download-artifact@v4
         with:
           path: out
@@ -94,7 +100,13 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           ls -la out
-          cat > notes.md <<'EOF'
+          # checkout подменяет аннотированный тег лёгким — забрать настоящий
+          git -C repo fetch --force --tags origin
+          git -C repo tag -l --format='%(contents)' "$TAG" | sed '/^-----BEGIN PGP/,$d' > changes.md
+          if [ -s changes.md ]; then
+            { echo "## Что нового"; echo; cat changes.md; echo; } > notes.md
+          fi
+          cat >> notes.md <<'EOF'
           Установщики OpenPlane Studio — работают без интернета: внутри Python, PlatformIO,
           компилятор и пакеты STM32 (H7, F4), библиотеки и исходники прошивки,
           WebView2 и драйвер режима прошивки (Windows).

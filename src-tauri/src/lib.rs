@@ -11,6 +11,7 @@ mod link;
 mod setup;
 mod source;
 mod system;
+mod update;
 mod util;
 
 use std::path::{Path, PathBuf};
@@ -63,6 +64,30 @@ fn app_info(app: AppHandle) -> Res<AppInfo> {
         python: find_python().map(s),
         firmware_guess: guess_firmware().map(s),
     })
+}
+
+#[tauri::command]
+async fn update_check() -> Res<update::UpdateInfo> {
+    blocking(update::check).await
+}
+
+#[tauri::command]
+async fn update_download(app: AppHandle, asset: update::Asset) -> Res<String> {
+    blocking(move || {
+        update::cleanup(&app, Some(&asset.name))?;
+        update::download(&app, &asset)
+    })
+    .await
+}
+
+#[tauri::command]
+fn update_install(app: AppHandle, path: String) -> Res<bool> {
+    update::install(&app, &path)
+}
+
+#[tauri::command]
+fn update_cleanup(app: AppHandle) -> Res<()> {
+    update::cleanup(&app, None)
 }
 
 #[tauri::command]
@@ -293,6 +318,10 @@ pub fn run() {
             blackbox_files,
             blackbox_read,
             app_info,
+            update_check,
+            update_download,
+            update_install,
+            update_cleanup,
             settings_load,
             settings_save,
             hangar_list,

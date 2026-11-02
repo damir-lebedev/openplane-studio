@@ -12,6 +12,7 @@ import { Rail } from "./components/Rail";
 import { Settings } from "./components/Settings";
 import { SetupDialog } from "./components/Setup";
 import { Toasts } from "./components/Toasts";
+import { UpdateCard } from "./components/Update";
 import { needsOnboarding } from "./core/pilot";
 import { getLanguage } from "./i18n";
 import { useApp } from "./store";
@@ -71,6 +72,7 @@ export default function App() {
       <BoardPanel />
       <SetupDialog />
       {onboarding && <Onboarding />}
+      <UpdateCard />
       <Toasts />
     </div>
   );

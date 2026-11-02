@@ -2,13 +2,14 @@
 
 import { create } from "zustand";
 
-import { api, AppInfo, CalibFlags, CopterLive, Device, errorText, FcInfo, Identity, inTauri, LiveFrame, onBoardEvents, ScanResult, Settings } from "./api";
+import { api, AppInfo, CalibFlags, CopterLive, Device, errorText, FcInfo, Identity, inTauri, LiveFrame, onBoardEvents, onUpdateProgress, ScanResult, Settings } from "./api";
 import { applyMessage, CopterBoard, emptyBoard, ParamValue, setCommand } from "./core/copterParams";
 import { blankCopter, copterFromKit, CopterProject, isCopter, newCopterId } from "./core/copter";
 import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
 import { Manifest } from "./core/manifest";
 import { setLanguage, t } from "./i18n";
 import { findTemplate, fromTemplate } from "./core/templates";
+import { checkOnStart, shouldOffer, UpdateState } from "./core/update";
 import {
   blankProject,
   FULL_STEPS,
@@ -112,9 +113,18 @@ interface AppState {
   boardPanel: boolean;
   /** анкета пилота открыта заново из «Настроек» (первый раз — сама, пока нет профиля) */
   onboarding: boolean;
+  /** обновление приложения: проверка, загрузка, установка */
+  update: UpdateState;
 
   init(): Promise<void>;
   setOnboarding(open: boolean): void;
+  /** manual — по кнопке: показать и «у вас последняя», и ошибку */
+  checkUpdate(manual: boolean): Promise<void>;
+  downloadUpdate(): Promise<void>;
+  installUpdate(): Promise<void>;
+  /** «Позже» (до следующего запуска) или «Пропустить эту версию» */
+  dismissUpdate(skip: boolean): Promise<void>;
+  showUpdate(): void;
   setSection(section: Section): void;
   saveSettings(patch: Partial<Settings>): Promise<void>;
   refreshInfo(): Promise<void>;
@@ -178,6 +188,7 @@ let lastEdit = { id: "", at: 0 };
 let toastSeq = 0;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let eventsBound = false;
+let unlistenUpdate: (() => void) | null = null;
 let procTimer: ReturnType<typeof setInterval> | null = null;
 const querying = new Set<string>();
 
@@ -223,6 +234,7 @@ export const useApp = create<AppState>((set, get) => ({
   proc: null,
   boardPanel: false,
   onboarding: false,
+  update: { phase: "idle" },
 
   async init() {
     if (!inTauri()) {
@@ -254,6 +266,8 @@ export const useApp = create<AppState>((set, get) => ({
         await api.settingsSave({ ...settings, firmwareSource });
       }
       await get().reloadManifest();
+      // Обновления — чуть погодя, чтобы не мешать запуску; без сети — молча.
+      if (checkOnStart(get().settings)) setTimeout(() => void get().checkUpdate(false), 4000);
     } catch (e) {
       set({ ready: true, manifestError: errorText(e) });
     }
@@ -314,6 +328,70 @@ export const useApp = create<AppState>((set, get) => ({
 
   setOnboarding(open) {
     set({ onboarding: open });
+  },
+
+  async checkUpdate(manual) {
+    const phase = get().update.phase;
+    if (phase === "checking" || phase === "downloading" || phase === "installing") return;
+    set({ update: { phase: "checking", manual } });
+    try {
+      const info = await api.updateCheck();
+      if (!info.newer) {
+        set({ update: { phase: "none", info, manual } });
+        void api.updateCleanup().catch(() => undefined); // установщики прошлых обновлений
+        return;
+      }
+      const offer = shouldOffer(info, get().settings, manual);
+      set({ update: { phase: "available", info, manual, hidden: !offer } });
+    } catch (e) {
+      set({ update: { phase: "error", error: errorText(e), manual, hidden: !manual } });
+    }
+  },
+
+  async downloadUpdate() {
+    const info = get().update.info;
+    if (!info?.asset || get().update.phase === "downloading") return;
+    if (!unlistenUpdate) {
+      unlistenUpdate = await onUpdateProgress((p) =>
+        set((s) => (s.update.phase === "downloading" ? { update: { ...s.update, done: p.done, total: p.total || s.update.total } } : {})),
+      );
+    }
+    set({ update: { phase: "downloading", info, done: 0, total: info.asset.size, startedAt: Date.now() } });
+    try {
+      const path = await api.updateDownload(info.asset);
+      set({ update: { phase: "ready", info, path, done: info.asset.size, total: info.asset.size } });
+    } catch (e) {
+      set({ update: { phase: "error", info, error: errorText(e), manual: true } });
+    }
+  },
+
+  async installUpdate() {
+    const { path, info } = get().update;
+    if (!path || !info) return;
+    if (get().flash?.running) {
+      get().toast("warn", t("Сначала дождитесь конца прошивки — потом обновление"));
+      return;
+    }
+    set({ update: { ...get().update, phase: "installing" } });
+    try {
+      const closing = await api.updateInstall(path);
+      if (!closing) {
+        set({ update: { ...get().update, phase: "ready" } });
+        get().toast("info", t("Перетащите OpenPlane Studio в «Программы» и запустите заново"));
+      }
+    } catch (e) {
+      set({ update: { phase: "error", info, error: errorText(e), manual: true } });
+    }
+  },
+
+  async dismissUpdate(skip) {
+    const info = get().update.info;
+    set((s) => ({ update: { ...s.update, hidden: true } }));
+    if (skip && info) await get().saveSettings({ updateSkip: info.version });
+  },
+
+  showUpdate() {
+    set((s) => ({ update: { ...s.update, hidden: false } }));
   },
 
   async saveSettings(patch) {

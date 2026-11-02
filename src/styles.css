@@ -905,6 +905,33 @@ textarea {
   border-color: rgba(227, 179, 65, 0.5);
 }
 
+/* обновление приложения — над тостами */
+.update-card {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 380px;
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+  background: #1a2737;
+  border: 1px solid var(--accent-line);
+  box-shadow: var(--shadow);
+  z-index: 59;
+  animation: pop 0.18s ease-out;
+}
+.update-card ~ .toasts {
+  bottom: 220px;
+}
+.update-notes {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--text-2);
+  max-height: 160px;
+  overflow: auto;
+}
+
 /* плата в шапке */
 .pill {
   display: inline-flex;

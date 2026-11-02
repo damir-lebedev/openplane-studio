@@ -7,6 +7,7 @@ import { CopterFirmwareConfig, CopterProject } from "./core/copter";
 import { Manifest } from "./core/manifest";
 import { FirmwareFingerprint } from "./core/migrate";
 import type { PilotProfile } from "./core/pilot";
+import type { UpdateAsset, UpdateInfo } from "./core/update";
 import { FirmwareConfig, FlashRecord, PlaneProject } from "./core/project";
 
 export interface AppInfo {
@@ -52,6 +53,10 @@ export interface Settings {
   currentPlane?: string;
   /** язык интерфейса: "ru", "en"; пусто — по языку системы */
   language?: string;
+  /** проверять обновления приложения при запуске (пусто — да) */
+  updateCheck?: boolean;
+  /** версия, которую попросили пропустить: при запуске не предлагается */
+  updateSkip?: string;
 }
 
 export interface Device {
@@ -242,6 +247,12 @@ export const inTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS
 
 export const api = {
   appInfo: () => invoke<AppInfo>("app_info"),
+  updateCheck: () => invoke<UpdateInfo>("update_check"),
+  /** путь к скачанному и проверенному установщику (ход — onUpdateProgress) */
+  updateDownload: (asset: UpdateAsset) => invoke<string>("update_download", { asset }),
+  /** true — установщик запущен и приложение закрывается (Windows) */
+  updateInstall: (path: string) => invoke<boolean>("update_install", { path }),
+  updateCleanup: () => invoke<void>("update_cleanup"),
   settingsLoad: () => invoke<Settings>("settings_load"),
   settingsSave: (settings: Settings) => invoke<void>("settings_save", { settings }),
   hangarList: () => invoke<(PlaneProject | CopterProject)[]>("hangar_list"),
@@ -337,6 +348,10 @@ export function onBoardEvents(handlers: {
     listen<LinkStatus>("board-link", (e) => handlers.link(e.payload)),
     listen<{ port: string }>("board-nolive", (e) => handlers.noLive(e.payload.port)),
   ]);
+}
+
+export function onUpdateProgress(handler: (p: { done: number; total: number }) => void): Promise<UnlistenFn> {
+  return listen<{ done: number; total: number }>("update-progress", (e) => handler(e.payload));
 }
 
 export function onTaskLog(handler: (line: LogLine) => void): Promise<UnlistenFn> {

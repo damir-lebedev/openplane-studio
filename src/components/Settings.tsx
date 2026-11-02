@@ -7,6 +7,7 @@ import { getLanguage, LANGUAGES, t } from "../i18n";
 import { useApp } from "../store";
 import { SetupPanel } from "./Setup";
 import { Section } from "./ui";
+import { UpdateSettings } from "./Update";
 
 function DriverCard() {
   const devices = useApp((s) => s.devices);
@@ -176,6 +177,10 @@ export function Settings() {
             </button>
           ))}
         </div>
+      </Section>
+
+      <Section title={t("Обновления")} sub={t("приложение OpenPlane Studio")}>
+        <UpdateSettings />
       </Section>
 
       <Section title={t("Профиль пилота")} sub={t("что видно в приложении")}>
