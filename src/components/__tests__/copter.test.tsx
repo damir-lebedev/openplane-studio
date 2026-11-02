@@ -156,9 +156,12 @@ describe("режимы «Новичок» и «Профи»", () => {
   it("мастер доходит до «можно лететь» на фейковой плате", () => {
     useApp.setState({ clive: live({ block: [] }) });
     render(<CopterView />);
-    expect(screen.getByRole("heading", { name: "Рама и винты" })).toBeTruthy();
+    // первый шаг — плата (карточки из манифеста; в тесте его нет)
+    expect(screen.getByRole("heading", { name: "Плата" })).toBeTruthy();
     const next = () => fireEvent.click(screen.getByRole("button", { name: "Дальше" }));
     const confirm = (text: RegExp) => fireEvent.click(screen.getByLabelText(text));
+    next();
+    expect(screen.getByRole("heading", { name: "Рама и винты" })).toBeTruthy();
     next();
     confirm(/Стики двигают нужные полосы/);
     next();

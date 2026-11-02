@@ -2,7 +2,7 @@
 // прошивка — в проект, одной кнопкой «Прошить»), перенос настроек из BF,
 // видеопередатчик, тумблеры, первая настройка, комплектующие, прошивки.
 
-import { ArrowRightLeft, CircleAlert, CircleCheck, Copy, History, TriangleAlert, Upload, Zap } from "lucide-react";
+import { ArrowRightLeft, CircleAlert, CircleCheck, Copy, Cpu, History, TriangleAlert, Upload, Usb, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api, errorText } from "../../api";
@@ -28,6 +28,7 @@ import {
   vtxFrequency,
 } from "../../core/copter";
 import { IMPORT_SKIP_GROUPS, ImportLine, parseBfDiff } from "../../core/copterParams";
+import { Choice } from "../ui";
 import { betaflightPort, restoreOriginal, runCopterFlash } from "../../flash";
 import { locale, t } from "../../i18n";
 import { useApp } from "../../store";
@@ -314,6 +315,41 @@ function ImportDialog({ copter, dumpPath, onClose }: { copter: CopterProject; du
   );
 }
 
+/** Плата коптера карточками — как шаг «Плата» у самолёта; та, что на связи, помечена. */
+export function BoardChoices({ copter }: { copter: CopterProject }) {
+  const manifest = useApp((s) => s.manifest);
+  const updateCopter = useApp((s) => s.updateCopter);
+  const { identity } = useCopterLink();
+  const envs = copterEnvs(manifest);
+  return (
+    <div className="choices wide">
+      {envs.map((e) => {
+        const build = findCopterBuild(manifest, e.build);
+        return (
+          <Choice
+            key={e.env}
+            icon={<Cpu size={16} color="var(--accent)" />}
+            title={t(e.title)}
+            desc={[build ? t(build.title) : null, e.esc, e.uploadProtocol === "dfu" ? "USB DFU" : e.uploadProtocol].filter(Boolean).join(" · ")}
+            selected={copter.board === e.env}
+            onClick={() => updateCopter(copter.id, (c) => (c.board = e.env))}
+            badge={
+              <div className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                {e.needsBoardDump && <span className="badge warn">{t("распиновку снимем с платы")}</span>}
+                {identity?.board === e.env && (
+                  <span className="badge accent">
+                    <Usb size={12} /> {t("подключена")}
+                  </span>
+                )}
+              </div>
+            }
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export function OverviewTab({ copter }: { copter: CopterProject }) {
   const manifest = useApp((s) => s.manifest);
   const updateCopter = useApp((s) => s.updateCopter);
@@ -333,15 +369,8 @@ export function OverviewTab({ copter }: { copter: CopterProject }) {
           <input className="input" value={copter.name} onChange={(e) => edit((c) => (c.name = e.target.value))} />
         </div>
         <div className="field" style={{ marginTop: 10 }}>
-          <label>{t("Сборка прошивки")}</label>
-          <select className="select" value={copter.board} onChange={(e) => edit((c) => (c.board = e.target.value))}>
-            {!env && <option value={copter.board}>{copter.board || t("не выбрана")}</option>}
-            {envs.map((e) => (
-              <option key={e.env} value={e.env}>
-                {t(e.title)}
-              </option>
-            ))}
-          </select>
+          <label>{t("Плата")}</label>
+          <BoardChoices copter={copter} />
         </div>
         {env && (
           <div className="kv" style={{ marginTop: 12 }}>

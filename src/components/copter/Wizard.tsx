@@ -15,11 +15,12 @@ import { useApp } from "../../store";
 import { Seg } from "../ui";
 import { NeedBoard, ParamInput, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 import { FrameDiagram, MotorsBody } from "./MotorsTab";
-import { SwitchesCard, VtxCard, WriteSetup } from "./OverviewTab";
+import { BoardChoices, SwitchesCard, VtxCard, WriteSetup } from "./OverviewTab";
 import { ChannelBars } from "./ReceiverTab";
 import { Calibrations } from "./SetupTab";
 
 export const WIZARD_STEPS = [
+  { id: "board", title: N_("Плата") },
   { id: "frame", title: N_("Рама и винты") },
   { id: "radio", title: N_("Пульт и режимы") },
   { id: "motors", title: N_("Моторы без винтов") },
@@ -42,8 +43,8 @@ const CONFIRM: Partial<Record<WizardStep, string>> = {
 
 export function Wizard({ copter }: { copter: CopterProject }) {
   const done = new Set(copter.wizardDone ?? []);
-  const first = WIZARD_STEPS.find((s) => s.id !== "frame" && s.id !== "ready" && !done.has(s.id))?.id ?? "ready";
-  const [step, setStep] = useState<WizardStep>(done.size ? first : "frame");
+  const first = WIZARD_STEPS.find((s) => s.id !== "board" && s.id !== "frame" && s.id !== "ready" && !done.has(s.id))?.id ?? "ready";
+  const [step, setStep] = useState<WizardStep>(done.size ? first : "board");
   const i = WIZARD_STEPS.findIndex((s) => s.id === step);
   return (
     <div className="wizard">
@@ -103,6 +104,15 @@ function Lead({ title, children }: { title: string; children: ReactNode }) {
 
 function StepBody({ step, copter, go }: { step: WizardStep; copter: CopterProject; go: (s: WizardStep) => void }) {
   switch (step) {
+    case "board":
+      return (
+        <>
+          <Lead title={t("Плата")}>
+            {t("На чём летит коптер. От платы зависят распиновка, регуляторы и как её прошивать; другую плату можно выбрать в любой момент — настройки коптера останутся.")}
+          </Lead>
+          <BoardChoices copter={copter} />
+        </>
+      );
     case "frame":
       return <FrameStep />;
     case "radio":

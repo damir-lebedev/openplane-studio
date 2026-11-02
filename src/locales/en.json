@@ -1264,7 +1264,6 @@
   "наоборот": "reversed",
   "напряжение": "voltage",
   "не больше {v}": "at most {v}",
-  "не выбрана": "not chosen",
   "не выйдет: {r}": "will not work: {r}",
   "не идёт": "not active",
   "не из приложения": "not from the app",
@@ -1655,5 +1654,7 @@
   "тумблеры режимы arm": "switches modes arm",
   "фильтры режекторы шум вибрации фнч": "filters notch noise vibration lowpass",
   "функции флажки": "features flags",
-  "я с betaflight переход отличия": "coming from betaflight switch differences"
+  "я с betaflight переход отличия": "coming from betaflight switch differences",
+  "На чём летит коптер. От платы зависят распиновка, регуляторы и как её прошивать; другую плату можно выбрать в любой момент — настройки коптера останутся.": "What the copter flies on. The board decides the pinout, the ESCs and how it is flashed; you can pick another board any time — the copter's settings stay.",
+  "распиновку снимем с платы": "pinout will be read from the board"
 }
