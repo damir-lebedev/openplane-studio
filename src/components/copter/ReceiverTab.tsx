@@ -6,6 +6,7 @@ import { Move } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { num, rcAutoCutoff, rcStepResponse, tabParams } from "../../core/copterParams";
+import { linkBars, rssiSourceText } from "../../core/link";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Seg } from "../ui";
@@ -78,11 +79,40 @@ function ReceiverBody() {
         <StickRange />
       </div>
 
+      <LinkCard />
+
       <RcSmoothingCard />
 
       <div className="wide">
         <ParamList title={t("Приёмник")} params={tabParams(board, "receiver", SMOOTHING)} />
       </div>
+    </div>
+  );
+}
+
+/** Связь с пультом: LQ и RSSI полосами, пороги OSD чертой. */
+function LinkCard() {
+  const board = useCopterBoard();
+  const live = useCopterLive();
+  const bars = linkBars(live, num(board, "osd_link_quality_alarm", 80), num(board, "osd_rssi_alarm", 20));
+  return (
+    <div className="card">
+      <h3>{t("Связь с пультом")}</h3>
+      <p className="sub">{t("LQ — сколько пакетов доходит, RSSI — сила сигнала. Черта — порог предупреждения в очках.")}</p>
+      {bars.length === 0 && <p className="muted">{live ? t("Приёмник не сообщает качество связи.") : t("Жду живые кадры с платы…")}</p>}
+      <div className="ch-bars">
+        {bars.map((b) => (
+          <div key={b.key} className={`ch-bar link-${b.level}`}>
+            <span className="ch-name">{b.key === "lq" ? "LQ" : "RSSI"}</span>
+            <div className="ch-track">
+              {b.alarm > 0 && <div className="ch-mid" style={{ left: `${b.alarm}%` }} />}
+              <div className="ch-fill" style={{ width: `${Math.max(0, Math.min(100, b.value))}%` }} />
+            </div>
+            <span className="mono ch-val">{b.dbm !== undefined ? `${b.dbm} dBm` : `${b.value}%`}</span>
+          </div>
+        ))}
+      </div>
+      {live && <p className="hint">{t("RSSI: {src}", { src: t(rssiSourceText(live.rssisrc)) })}</p>}
     </div>
   );
 }

@@ -439,6 +439,16 @@ describe("вкладки коптера", () => {
     expect(sent).toContain("map TAER1234");
   });
 
+  it("приёмник: связь LQ и RSSI полосами, ниже порога — жёлтая", () => {
+    useApp.setState({ clive: live({ lq: 60, rssi: 50, rssisrc: "protocol", dbm: -65 }) });
+    render(<CopterView />);
+    tab("Приёмник");
+    expect(screen.getByText("Связь с пультом")).toBeTruthy();
+    expect(screen.getByText("-65 dBm")).toBeTruthy();
+    expect(screen.getByText("RSSI: от приёмника (CRSF, dBm)")).toBeTruthy();
+    expect(document.querySelectorAll(".link-low")).toHaveLength(1);   // LQ 60 < 80
+  });
+
   it("без платы вкладки просят подключить коптер", () => {
     useApp.setState({ link: { port: null, state: "idle", attemptAt: 0 } });
     render(<CopterView />);

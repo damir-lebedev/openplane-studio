@@ -2825,3 +2825,9 @@ textarea {
   border-radius: var(--radius-sm);
   background: var(--panel-2);
 }
+.link-low .ch-fill {
+  background: var(--warn);
+}
+.link-none .ch-fill {
+  background: var(--err);
+}

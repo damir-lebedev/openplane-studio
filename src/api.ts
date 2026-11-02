@@ -166,6 +166,11 @@ export interface CopterLive {
   mode: string;
   rx: "ok" | "lost" | "fs";
   lq?: number;
+  /** сила сигнала пульта, % (copter/Rssi.h), и откуда она */
+  rssi?: number;
+  rssisrc?: "channel" | "frames" | "protocol";
+  /** уровень сигнала, dBm — только CRSF */
+  dbm?: number;
   ch: number[];
   /** крен, тангаж, рысканье, ° */
   att: [number, number, number];

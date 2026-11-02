@@ -43,12 +43,13 @@ const TITLES: Record<string, string> = {
   power: N_("Мощность, Вт"),
   gps_lat: N_("Широта"),
   gps_lon: N_("Долгота"),
+  rssi_value: N_("Сила сигнала (RSSI)"),
   preflight: N_("Перед полётом (до ARM)"),
 };
 
 // Значки шрифта BF — похожими знаками (клетка — один символ, как в чипе);  в начале — значок, рисуется цветом.
 const S = "";
-const SYM = { lq: S + "ℓ", satL: S + "◂", satR: S + "▸", volt: S + "V", amp: S + "A", mah: S + "ᵐ", metre: S + "M", alt: S + "▴", fly: S + "◷", thr: S + "▮", speed: S + "»", kph: S + "ᵏ", mps: S + "ˢ", watt: S + "W", lat: S + "φ", lon: S + "λ", home: S + "↑", cross: S + "✛" };
+const SYM = { rssi: S + "ʀ", lq: S + "ℓ", satL: S + "◂", satR: S + "▸", volt: S + "V", amp: S + "A", mah: S + "ᵐ", metre: S + "M", alt: S + "▴", fly: S + "◷", thr: S + "▮", speed: S + "»", kph: S + "ᵏ", mps: S + "ˢ", watt: S + "W", lat: S + "φ", lon: S + "λ", home: S + "↑", cross: S + "✛" };
 
 /** Клетки элемента: живые значения, если плата на связи, иначе пример. */
 function cells(key: string, live: CopterLive | null, craft: string): string[] {
@@ -100,6 +101,8 @@ function cells(key: string, live: CopterLive | null, craft: string): string[] {
       return [SYM.lat, ...ch((g?.lat ?? 55.7512345).toFixed(7))];
     case "gps_lon":
       return [SYM.lon, ...ch((g?.lon ?? 37.6184321).toFixed(7))];
+    case "rssi_value":
+      return [SYM.rssi, ...ch(String(live?.rssi ?? 99))];
     case "preflight":
       return live?.arm ? [] : ch(preflightOsd(live));
     default:

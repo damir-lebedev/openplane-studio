@@ -2114,5 +2114,14 @@
   "потолка нет": "no ceiling",
   "потолок {m} м": "ceiling {m} m",
   "уже уверенно, простор": "confident now, open space",
-  "0 — этого предела нет.": "0 — no such limit."
+  "0 — этого предела нет.": "0 — no such limit.",
+  "LQ — сколько пакетов доходит, RSSI — сила сигнала. Черта — порог предупреждения в очках.": "LQ is how many packets get through, RSSI is signal strength. The line is the goggles warning threshold.",
+  "Приёмник не сообщает качество связи.": "The receiver does not report link quality.",
+  "Связь с пультом": "Radio link",
+  "Сила сигнала (RSSI)": "Signal strength (RSSI)",
+  "из канала пульта (rssi_channel)": "from a radio channel (rssi_channel)",
+  "не сообщается: задайте rssi_channel или включите rssi_src_frame_errors": "not reported: set rssi_channel or enable rssi_src_frame_errors",
+  "от приёмника (CRSF, dBm)": "from the receiver (CRSF, dBm)",
+  "по битым кадрам (rssi_src_frame_errors)": "from frame errors (rssi_src_frame_errors)",
+  "RSSI: {src}": "RSSI: {src}"
 }
