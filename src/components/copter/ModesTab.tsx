@@ -1,15 +1,20 @@
 // «Режимы»: режимы на тумблерах как вкладка Modes в BF — у каждого режима
 // диапазоны (канал AUX, от–до), живая метка канала и подсветка «включён».
 // Своя таблица aux заменяет тумблеры прошивки целиком: при первой правке
-// приложение переносит их в таблицу, чтобы ARM не пропал.
+// приложение переносит их в таблицу, чтобы ARM не пропал. У FLIP OVER
+// AFTER CRASH (turtle mode) — схема: какие моторы закрутятся от стиков пульта.
 
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { AuxRow, auxCommand, auxLabel, clearAuxCommand, freeAuxSlot, MAIN_MODES } from "../../core/copterParams";
+import { sticksFromChannels, turtleMix } from "../../core/turtle";
 import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
-import { NeedBoard, useCopterBoard, useCopterLink, useCopterLive } from "./common";
+import { NeedBoard, ParamRow, useCopterBoard, useCopterLink, useCopterLive } from "./common";
+import { FrameDiagram } from "./MotorsTab";
+
+const TURTLE_MODE = 35;
 
 const MODE_HINTS: Record<number, string> = {
   0: N_("моторы включены; ExpressLRS передаёт без задержки только AUX1"),
@@ -18,6 +23,7 @@ const MODE_HINTS: Record<number, string> = {
   13: N_("пищит, чтобы найти упавший коптер"),
   27: N_("сразу failsafe — проверка без выключения пульта"),
   28: N_("моторы держат управление на нуле газа"),
+  35: N_("turtle mode: упал на спину — ARM с этим режимом, и стик переворачивает коптер моторами (только DShot)"),
   46: N_("возврат домой по GPS — как при потере связи (схема — вкладка «GPS»)"),
   47: N_("ACRO с ограничением наклона — учиться акро (предел — «PID» → acro_trainer_angle_limit)"),
 };
@@ -87,6 +93,7 @@ function ModesBody() {
               </div>
               <span className={`pill${active.has(id) ? " ok" : ""}`}>{active.has(id) ? t("включён") : t("выключен")}</span>
             </div>
+            {id === TURTLE_MODE && <TurtlePreview />}
             {ranges.length === 0 && <p className="hint">{t("Не на тумблере.")}</p>}
             {ranges.map((r) => (
               <RangeRow key={r[0]} row={r} auxCount={auxCount} us={live?.ch[r[2] + 4]} disabled={armed} onChange={(n) => void write(n)} onRemove={() => void remove(r[0])} />
@@ -113,6 +120,46 @@ function ModesBody() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Turtle mode: схема рамы — какие моторы закрутятся (наоборот) от стиков
+// пульта прямо сейчас; сила — по crashflip_expo и crashflip_motor_percent.
+function TurtlePreview() {
+  const board = useCopterBoard();
+  const live = useCopterLive();
+  const motors = board.header?.frame?.motors ?? [];
+  if (!motors.length) return null;
+  const expo = Number(board.params.crashflip_expo?.value ?? 35) / 100;
+  const other = Number(board.params.crashflip_motor_percent?.value ?? 0) / 100;
+  const sticks = live ? sticksFromChannels(live.ch, board.rc?.map ?? "AETR1234") : { roll: 0, pitch: 0, yaw: 0 };
+  const out = turtleMix(motors, sticks.roll, sticks.pitch, sticks.yaw, expo, other);
+  const flipping = out.some((v) => v > 0);
+  return (
+    <div className="turtle">
+      {board.header?.dshotCommands === false && (
+        <p className="hint warn-text">{t("Регуляторы не DShot: крутить наоборот их нечем — режим ничего не делает.")}</p>
+      )}
+      <div className="turtle-body">
+        <FrameDiagram motors={motors} out={out} size={170} reversed />
+        <div className="turtle-text">
+          <p className="hint">
+            {t("Коптер лежит на спине: включите режим и ARM (наклон не проверяется). Стик вправо — крутятся правые моторы, и коптер встаёт через левый бок; от себя — передние; по диагонали — один угол; рысканье — пара моторов, развернуться на месте. Газ не нужен.")}
+          </p>
+          <p className="hint">
+            {live?.turtle
+              ? t("Сейчас заармлен в turtle mode: моторы крутятся наоборот. Перевернулся — DISARM, режим выключить, ARM как обычно.")
+              : live
+                ? flipping
+                  ? t("Со стиками как сейчас закрутились бы моторы на схеме.")
+                  : t("Отклоните стик — схема покажет, какие моторы закрутятся.")
+                : t("Подключите пульт — схема покажет моторы от стиков.")}
+          </p>
+        </div>
+      </div>
+      {board.params.crashflip_expo && <ParamRow p={board.params.crashflip_expo} title={t("Экспо стика")} />}
+      {board.params.crashflip_motor_percent && <ParamRow p={board.params.crashflip_motor_percent} title={t("Остальные моторы")} />}
     </div>
   );
 }

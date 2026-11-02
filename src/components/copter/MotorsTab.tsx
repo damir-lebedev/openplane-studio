@@ -1,9 +1,11 @@
 // «Моторы»: схема рамы (номера как в Betaflight, куда крутится каждый),
 // проверка моторов ползунками — только с подтверждением «пропеллеры сняты»;
 // команда повторяется каждые 0,4 с, плата держит её 1 с: приложение
-// закрылось или связь пропала — моторы встали сами.
+// закрылось или связь пропала — моторы встали сами. У регуляторов DShot —
+// направление мотора и «пискнуть» командой (dshot N 7|8 12, как мастер
+// направления конфигуратора BF): мотор выбирается кликом по схеме.
 
-import { TriangleAlert } from "lucide-react";
+import { TriangleAlert, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { FrameMotor, tabParams } from "../../core/copterParams";
@@ -53,12 +55,14 @@ function MotorsBody() {
   const setOne = (i: number, v: number) => setValues((vs) => vs.map((x, k) => (k === i ? v : x)));
   const setAll = (v: number) => setValues(motors.map(() => v));
   const propsOut = board.params.props_out;
+  const [picked, setPicked] = useState(0);
+  const dshot = !!board.header?.dshotCommands;
 
   return (
     <div className="copter-grid">
       <div className="card">
         <h3>{t("Рама")}</h3>
-        <FrameDiagram motors={motors} out={live?.motors} />
+        <FrameDiagram motors={motors} out={live?.motors} reversed={!!live?.turtle} selected={dshot ? picked : undefined} onPick={dshot ? setPicked : undefined} />
         <p className="hint">
           {t("Вид сверху, нос — вверх. Номера — выходы M1–M{n} платы, как в Betaflight. Стрелка — куда должен крутиться мотор.", { n: motors.length })}
         </p>
@@ -97,6 +101,8 @@ function MotorsBody() {
         <p className="hint">{t("Не больше {max} % тяги. Плата держит команду 1 с: закрыли приложение или вынули кабель — моторы встанут сами.", { max })}</p>
       </div>
 
+      {dshot && <DirectionCard motors={motors} picked={picked} busy={armed || spinning} />}
+
       <div className="wide">
         <ParamList title={t("Моторы и регуляторы")} params={tabParams(board, "motors")} />
       </div>
@@ -104,14 +110,80 @@ function MotorsBody() {
   );
 }
 
-/** Рама сверху: x — к носу (вверх на картинке), y — вправо. */
-function FrameDiagram({ motors, out }: { motors: FrameMotor[]; out?: number[] }) {
-  const size = 260;
-  const c = size / 2;
+/** Где мотор на раме, словами: «передний правый». */
+export function motorWhere(m: FrameMotor): string {
+  const fore = m[0] > 0.2 ? t("передний") : m[0] < -0.2 ? t("задний") : "";
+  const side = m[1] > 0.2 ? t("правый") : m[1] < -0.2 ? t("левый") : "";
+  return [fore, side].filter(Boolean).join(" ") || t("в центре");
+}
+
+// Направление мотора командой DShot: «обычное» (7) или «обратное» (8) и
+// «сохранить» (12) — регулятор запоминает; «пискнуть» (1) — найти мотор.
+function DirectionCard({ motors, picked, busy }: { motors: FrameMotor[]; picked: number; busy: boolean }) {
+  const cmd = useApp((s) => s.copterCommand);
+  const error = useApp((s) => s.copterBoard.errors.dshot);
+  const [sent, setSent] = useState("");
+  const m = motors[picked];
+  if (!m) return null;
+  const send = (what: string, line: string) => {
+    setSent(what);
+    void cmd(line);
+  };
+  return (
+    <div className="card">
+      <h3>{t("Направление моторов")}</h3>
+      <p className="hint">{t("Регуляторы DShot: направление меняется отсюда, без BLHeliSuite. Крутните мотор ползунком и сравните со стрелкой на схеме; не туда — «Обратное» (или назад «Обычное»). Мотор выбирается кликом по схеме.")}</p>
+      <div className="row" style={{ gap: 8, margin: "10px 0" }}>
+        <span className="pill ok">
+          <span className="txt mono">M{picked + 1}</span>
+        </span>
+        <span className="grow">
+          {motorWhere(m)} · {t("должен крутиться")} {m[2] === "cw" ? t("по часовой") : t("против часовой")}
+        </span>
+      </div>
+      <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+        <button className="btn" disabled={busy} onClick={() => send(t("M{n} пискнул", { n: picked + 1 }), `dshot ${picked} 1`)}>
+          <Volume2 size={15} />
+          {t("Пискнуть")}
+        </button>
+        <button className="btn" disabled={busy} onClick={() => send(t("M{n}: обычное направление, сохранено в регуляторе", { n: picked + 1 }), `dshot ${picked} 7 12`)}>
+          {t("Обычное")}
+        </button>
+        <button className="btn" disabled={busy} onClick={() => send(t("M{n}: обратное направление, сохранено в регуляторе", { n: picked + 1 }), `dshot ${picked} 8 12`)}>
+          {t("Обратное")}
+        </button>
+        <button className="btn ghost" disabled={busy} onClick={() => send(t("Пискнули все"), "dshot all 1")}>
+          {t("Пискнуть всеми")}
+        </button>
+      </div>
+      {error ? <p className="hint warn-text">{error}</p> : sent && <p className="hint">{sent}</p>}
+      <p className="hint">{t("Команды уходят, только пока моторы стоят и коптер не заармлен. «Обычное» и «Обратное» — относительно того, как мотор припаян; провода не трогайте.")}</p>
+    </div>
+  );
+}
+
+/** Рама сверху: x — к носу (вверх на картинке), y — вправо. out — сила 0…1
+ * (меньше нуля — стоит); reversed — моторы крутятся наоборот (turtle mode). */
+export function FrameDiagram({
+  motors,
+  out,
+  size = 260,
+  reversed = false,
+  selected,
+  onPick,
+}: {
+  motors: FrameMotor[];
+  out?: number[];
+  size?: number;
+  reversed?: boolean;
+  selected?: number;
+  onPick?: (i: number) => void;
+}) {
+  const c = 130;
   const arm = 88;
   const pos = (m: FrameMotor) => ({ x: c + m[1] * arm, y: c - m[0] * arm });
   return (
-    <svg className="frame-svg" viewBox={`0 0 ${size} ${size}`} width={size} height={size}>
+    <svg className="frame-svg" viewBox="0 0 260 260" width={size} height={size}>
       <polygon points={`${c},${c - 34} ${c - 12},${c - 14} ${c + 12},${c - 14}`} className="frame-nose" />
       {motors.map((m, i) => {
         const p = pos(m);
@@ -121,16 +193,17 @@ function FrameDiagram({ motors, out }: { motors: FrameMotor[]; out?: number[] })
       {motors.map((m, i) => {
         const p = pos(m);
         const level = out ? Math.max(0, Math.min(1, out[i] ?? 0)) : 0;
-        const cw = m[2] === "cw";
+        const cw = (m[2] === "cw") !== reversed;
         return (
-          <g key={i} transform={`translate(${p.x} ${p.y})`}>
+          <g key={i} transform={`translate(${p.x} ${p.y})`} className={onPick ? "frame-pick" : undefined} onClick={onPick ? () => onPick(i) : undefined}>
             <circle r={30} className="frame-prop" style={{ fillOpacity: 0.08 + level * 0.6 }} />
+            {selected === i && <circle r={36} className="frame-sel" />}
             <path d={cw ? "M -18 -18 A 26 26 0 0 1 18 -18" : "M 18 -18 A 26 26 0 0 0 -18 -18"} className="frame-spin" markerEnd="url(#arrow)" />
             <text y={6} textAnchor="middle" className="frame-num">
               {i + 1}
             </text>
             <text y={46} textAnchor="middle" className="frame-dir">
-              {cw ? t("по часовой") : t("против")}
+              {reversed ? (level > 0 ? t("наоборот") : t("стоит")) : cw ? t("по часовой") : t("против")}
             </text>
           </g>
         );

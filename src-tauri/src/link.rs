@@ -88,7 +88,7 @@ const REFUSED: &str = "BB:ERR неизвестная команда";
 
 /// Ответы коптера на команды настроек (CopterLink.h прошивки) — событием
 /// "board-msg"; "@param" (их сотни на "params") в консоль не идут.
-const COPTER_MSGS: &[&str] = &["params", "param", "rc", "modes", "set", "save", "revert", "profile", "error", "motor"];
+const COPTER_MSGS: &[&str] = &["params", "param", "rc", "modes", "set", "save", "revert", "profile", "error", "motor", "dshot"];
 
 #[derive(Clone, Serialize)]
 struct BoardMsg<'a> {

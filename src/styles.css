@@ -1674,6 +1674,33 @@ textarea {
   fill: var(--text-3);
   font-size: 10px;
 }
+.turtle {
+  margin: 4px 0 10px;
+}
+.turtle-body {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.turtle-body .frame-svg {
+  margin: 0;
+  flex: none;
+}
+.turtle-text {
+  flex: 1;
+}
+.frame-pick {
+  cursor: pointer;
+}
+.frame-pick:hover .frame-prop {
+  stroke-width: 2;
+}
+.frame-sel {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 4;
+}
 .axis-table td,
 .axis-table th {
   text-align: center;

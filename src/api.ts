@@ -174,8 +174,10 @@ export interface CopterLive {
   rescue?: string;
   rescueFail?: string;
   gps?: { fix: boolean; sats: number; lat: number; lon: number; spd: number; home?: number; dir?: number };
-  /** команда моторов 0…1 */
+  /** команда моторов 0…1 (−1 — стоит, turtle mode) */
   motors: number[];
+  /** заармлен в turtle mode: моторы крутятся наоборот */
+  turtle?: boolean;
   /** причины запрета ARM — коды BF (RXLOSS, ANGLE, CLI…) */
   block: string[];
   /** включённые режимы — номера BF */

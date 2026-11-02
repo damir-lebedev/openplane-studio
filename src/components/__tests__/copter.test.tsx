@@ -127,6 +127,38 @@ describe("вкладки коптера", () => {
     vi.useRealTimers();
   });
 
+  it("моторы: направление у DShot — мотор кликом по схеме, команды dshot", () => {
+    render(<CopterView />);
+    tab("Моторы");
+    expect(screen.queryByText("Направление моторов")).toBeNull();   // не DShot — карточки нет
+    cleanup();
+    act(() => useApp.setState((s) => ({ copterBoard: { ...s.copterBoard, header: { ...s.copterBoard.header!, dshotCommands: true } } })));
+    const { container } = render(<CopterView />);
+    tab("Моторы");
+    expect(screen.getByText("Направление моторов")).toBeTruthy();
+    fireEvent.click(container.querySelectorAll(".frame-pick")[1]);   // M2 — передний правый
+    expect(screen.getByText(/передний правый/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Обратное" }));
+    fireEvent.click(screen.getByRole("button", { name: "Пискнуть" }));
+    fireEvent.click(screen.getByRole("button", { name: "Пискнуть всеми" }));
+    expect(sent.filter((c) => c.startsWith("dshot"))).toEqual(["dshot 1 8 12", "dshot 1 1", "dshot all 1"]);
+  });
+
+  it("режимы: turtle mode — схема моторов от стиков пульта", () => {
+    act(() =>
+      useApp.setState((s) => ({
+        copterBoard: { ...s.copterBoard, header: { ...s.copterBoard.header!, dshotCommands: true }, modes: [...s.copterBoard.modes, [35, "FLIP OVER AFTER CRASH", true]] },
+        clive: live({ ch: [2000, 1500, 1000, 1500, 1900, 1000, 1000, 1000, 1500, 1500, 1500, 1500] }),   // крен вправо до упора
+      })),
+    );
+    const { container } = render(<CopterView />);
+    tab("Режимы");
+    expect(screen.getByText("FLIP OVER AFTER CRASH")).toBeTruthy();
+    const props = [...container.querySelectorAll(".turtle .frame-dir")].map((e) => e.textContent);
+    expect(props).toEqual(["наоборот", "наоборот", "стоит", "стоит"]);   // правые
+    expect(screen.getByText(/закрутились бы моторы/)).toBeTruthy();
+  });
+
   it("подготовка: причины запрета ARM словами", () => {
     render(<CopterView />);
     tab("Подготовка");

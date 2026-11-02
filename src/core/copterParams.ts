@@ -43,6 +43,8 @@ export interface ParamsHeader {
   unsaved: boolean;
   frame?: { type: string; motors: FrameMotor[] };
   motorTestMax?: number;
+  /** регуляторы DShot: команды «пискнуть», направление, turtle mode */
+  dshotCommands?: boolean;
 }
 
 /** Строка aux: [№, режим, канал AUX (0 = AUX1), от, до, логика, связь] — как в CLI BF. */
@@ -129,6 +131,11 @@ export function applyMessage(b: CopterBoard, kind: string, data: unknown, now = 
       return { ...b, errors: { ...b.errors, [String(d.cmd ?? "?")]: String(d.error ?? "") } };
     case "motor":
       return { ...b, motorTest: Array.isArray(d.m) ? (d.m as number[]) : b.motorTest };
+    case "dshot": {
+      const errors = { ...b.errors };
+      delete errors.dshot;
+      return { ...b, errors };
+    }
   }
   return b;
 }
@@ -350,7 +357,7 @@ export function osdElements(b: CopterBoard): OsdElementParam[] {
 // ---------------- режимы ----------------
 
 /** Режимы, которые стоит показывать в «Режимах» первыми (номера BF). */
-export const MAIN_MODES = [0, 1, 2, 13, 27, 28, 46, 47];
+export const MAIN_MODES = [0, 1, 2, 13, 27, 28, 35, 46, 47];
 
 export const auxLabel = (aux: number) => `AUX${aux + 1}`;
 
