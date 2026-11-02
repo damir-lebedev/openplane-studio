@@ -3,7 +3,7 @@
 // состояние, как их прислала бы прошивка; вызовы Rust подменены — видно,
 // какие команды ушли на плату.
 
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CopterLive } from "../../api";
@@ -203,6 +203,34 @@ describe("вкладки коптера", () => {
     expect(screen.getByText(/не сохранены/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     expect(sent).toContain("save");
+  });
+
+  it("поиск по имени BF открывает вкладку и подсвечивает строку", async () => {
+    render(<CopterView />);
+    const box = screen.getByRole("textbox", { name: "Поиск настроек" });
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: "motor_poles" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(screen.getByRole("button", { name: "Моторы" }).className).toContain(" on");
+    await waitFor(() => expect(document.querySelector(".found")?.getAttribute("data-param")).toBe("motor_poles"));
+  });
+
+  it("новичок ищет p_roll — переходит в «Профи» на PID", async () => {
+    useApp.setState({ settings: {} });
+    render(<CopterView />);
+    const box = screen.getByRole("textbox", { name: "Поиск настроек" });
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: "p_roll" } });
+    fireEvent.click(screen.getAllByRole("option")[0]);
+    await waitFor(() => expect(screen.getByRole("button", { name: "PID" }).className).toContain(" on"));
+  });
+
+  it("«Я с Betaflight»: вкладка BF ведёт на нашу", () => {
+    render(<CopterView />);
+    tab("Я с Betaflight");
+    expect(screen.getByText("Video Transmitter")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Приёмник" })[1]);
+    expect(screen.getByRole("button", { name: "Приёмник" }).className).toContain(" on");
   });
 
   it("за границы — не отправляется", () => {

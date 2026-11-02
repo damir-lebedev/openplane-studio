@@ -190,6 +190,7 @@ export type CopterTab =
   | "wizard"
   | "flight"
   | "overview"
+  | "frombf"
   | "setup"
   | "receiver"
   | "modes"
@@ -208,6 +209,7 @@ export type CopterTab =
 
 export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "overview", title: N_("Коптер"), board: false },
+  { id: "frombf", title: N_("Я с Betaflight"), board: false },
   { id: "setup", title: N_("Подготовка"), board: true },
   { id: "receiver", title: N_("Приёмник"), board: true },
   { id: "modes", title: N_("Режимы"), board: true },

@@ -1,16 +1,18 @@
 // Страница коптера. «Новичок» — мастер «По шагам» и «Настройка полёта»
 // (ползунки без имён настроек); «Профи» — вкладки как в конфигураторе
 // Betaflight — «Коптер»
-// (сборка, переход с BF, первая настройка), «Подготовка», «Приёмник»,
+// (сборка, переход с BF, первая настройка), «Я с Betaflight» (где у нас что),
+// «Подготовка», «Приёмник»,
 // «Режимы», «Моторы», «PID», «Расходы», «Фильтры», «Безопасность»,
 // «Питание», «Видео», «OSD», «GPS», «Чёрный ящик», «Прочее», «CLI». Настройки живут
-// на плате: правка уходит на плату сразу, «Сохранить» — во флеш.
+// на плате: правка уходит на плату сразу, «Сохранить» — во флеш. Поиск в
+// шапке находит настройку по имени BF или словами и подсвечивает её.
 
 import { CircleDot, Zap } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { findCopterEnv } from "../core/copter";
-import { CopterMode, CopterTab, tabsFor } from "../core/copterParams";
+import { BEGINNER_TABS, CopterMode, CopterTab, tabsFor } from "../core/copterParams";
 import { betaflightPort, runCopterFlash } from "../flash";
 import { t } from "../i18n";
 import { useApp } from "../store";
@@ -25,6 +27,7 @@ import { MotorsTab } from "./copter/MotorsTab";
 import { OsdTab } from "./copter/OsdTab";
 import { OverviewTab } from "./copter/OverviewTab";
 import { ReceiverTab } from "./copter/ReceiverTab";
+import { CopterSearch, FromBfTab, GoTo } from "./copter/Search";
 import { SetupTab } from "./copter/SetupTab";
 import { FiltersTab, PidTab, RatesTab } from "./copter/TuneTabs";
 import { Wizard } from "./copter/Wizard";
@@ -40,9 +43,35 @@ export function CopterView() {
   const [picked, setTab] = useState<CopterTab>(tabs[0].id);
   // сменили режим — вкладки другого режима нет: первая своя
   const tab = tabs.some((x) => x.id === picked) ? picked : tabs[0].id;
+  const [focus, setFocus] = useState<{ param: string; at: number } | null>(null);
   const link = useCopterLink();
   const live = useCopterLive();
   const fc = useApp((s) => s.fc);
+
+  // найденная настройка: прокрутить к ней и подсветить, когда вкладка нарисована
+  useEffect(() => {
+    if (!focus) return;
+    let el: HTMLElement | null = null;
+    const show = setTimeout(() => {
+      el = document.querySelector<HTMLElement>(`[data-param="${focus.param}"]`);
+      el?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+      el?.classList.add("found");
+    }, 30);
+    const hide = setTimeout(() => el?.classList.remove("found"), 2500);
+    return () => {
+      clearTimeout(show);
+      clearTimeout(hide);
+      el?.classList.remove("found");
+    };
+  }, [focus, tab]);
+
+  /** Поиск и «Я с Betaflight»: вкладка другого режима — переключить режим. */
+  const go: GoTo = (to, param) => {
+    const want: CopterMode = BEGINNER_TABS.some((x) => x.id === to) ? "beginner" : "pro";
+    if (want !== mode) void saveSettings({ copterMode: want });
+    setTab(to);
+    setFocus(param ? { param, at: Date.now() } : null);
+  };
 
   if (!copter) {
     return (
@@ -87,6 +116,7 @@ export function CopterView() {
           </p>
         </div>
         <div className="row" style={{ gap: 10 }}>
+          <CopterSearch onGo={go} />
           <Seg
             value={mode}
             onChange={(m) => void saveSettings({ copterMode: m })}
@@ -114,6 +144,7 @@ export function CopterView() {
           {tab === "wizard" && <Wizard copter={copter} />}
           {tab === "flight" && <FlightTab />}
           {tab === "overview" && <OverviewTab copter={copter} />}
+          {tab === "frombf" && <FromBfTab onGo={go} />}
           {tab === "setup" && <SetupTab />}
           {tab === "receiver" && <ReceiverTab />}
           {tab === "modes" && <ModesTab />}

@@ -138,7 +138,7 @@ export function ParamInput({ p, width, compact }: { p: CopterParam; width?: numb
   const cls = `${bad || error ? " bad" : ""}${pending !== undefined ? " pending" : ""}`;
   if (p.type === "enum") {
     return (
-      <select className={`select${cls}`} style={{ width }} disabled={armed} value={String(value)} title={title} onChange={(e) => send(e.target.value)}>
+      <select className={`select${cls}`} data-param={p.name} style={{ width }} disabled={armed} value={String(value)} title={title} onChange={(e) => send(e.target.value)}>
         {(p.options ?? []).map((o) => (
           <option key={o} value={o}>
             {o}
@@ -150,6 +150,7 @@ export function ParamInput({ p, width, compact }: { p: CopterParam; width?: numb
   return (
     <input
       className={`input${compact ? " compact" : ""}${cls}`}
+      data-param={p.name}
       style={{ width: width ?? (p.type === "string" ? 180 : 90) }}
       disabled={armed}
       value={text}
@@ -172,7 +173,7 @@ const FROM_TEXT: Record<CopterParam["from"], string> = {
   battery: "из батареи",
 };
 
-/** Строка настройки: имя BF, описание, поле, единицы, умолчание и «вернуть». */
+/** Строка настройки: описание крупно, имя BF мелко (по нему ищет поиск), поле, единицы, умолчание и «вернуть». */
 export function ParamRow({ p, title }: { p: CopterParam; title?: string }) {
   const set = useApp((s) => s.copterSet);
   const error = useApp((s) => s.copterBoard.errors[p.name]);
@@ -180,7 +181,7 @@ export function ParamRow({ p, title }: { p: CopterParam; title?: string }) {
   const def = isDefault(p);
   const from = FROM_TEXT[p.from];
   return (
-    <div className={`prow${def ? "" : " changed"}`}>
+    <div className={`prow${def ? "" : " changed"}`} data-param={p.name}>
       <div className="prow-text">
         <div className="prow-title">{title ?? p.text}</div>
         <div className="prow-name mono">
@@ -277,7 +278,7 @@ export function ParamSlider({ p, title, min, max, step = 5 }: { p: CopterParam; 
   const { armed } = useCopterLink();
   const value = Number(pending ?? p.value);
   return (
-    <div className={`pslider${isDefault(p) ? "" : " changed"}`}>
+    <div className={`pslider${isDefault(p) ? "" : " changed"}`} data-param={p.name}>
       <div className="prow-text">
         <div className="prow-title">{title}</div>
         <div className="prow-name mono">{p.name}</div>
