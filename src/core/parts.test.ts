@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildFromParams, CATALOG, estimateBuild, partParams, searchCatalog } from "./parts";
+import { buildFromParams, CATALOG, estimateBuild, partParams, searchCatalog, suggestCurrentLimit } from "./parts";
 
 const five = {
   motor: { statorMm: 22, heightMm: 7, kv: 1950 },
@@ -10,6 +10,18 @@ const five = {
 };
 
 describe("что ещё подключено", () => {
+  it("предлагает предел тока, когда полный газ больше батареи или регуляторов", () => {
+    const e = estimateBuild(five);
+    const bare = { ...five, esc: undefined, battery: { ...five.battery, c: 0 } };
+    expect(suggestCurrentLimit(bare, estimateBuild(bare))).toBeNull();
+    // регуляторы 20 А × 4 = 80 А, батарея больше — предел по регуляторам
+    const weak = { ...five, esc: { continuousA: 20, burstA: 25 }, battery: { ...five.battery, c: 200 } };
+    expect(suggestCurrentLimit(weak, estimateBuild(weak))).toBe(e.fullAmps > 80 ? 80 : null);
+    // всего хватает — не ограничивать
+    const big = { ...five, esc: { continuousA: 200, burstA: 250 }, battery: { ...five.battery, c: 1000 } };
+    expect(suggestCurrentLimit(big, estimateBuild(big))).toBeNull();
+  });
+
   it("5\" 2207 1950KV на 6S — как на стендах и в прошивке: ~45 А и ~1.6 кг тяги на мотор", () => {
     const e = estimateBuild(five);
     expect(e.fullAmpsPerMotor).toBeGreaterThan(35);

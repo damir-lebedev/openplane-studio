@@ -286,6 +286,24 @@ export const WARNING_TEXT: Record<BuildWarning, string> = {
   "battery-c": N_("Полный газ просит больше, чем батарея отдаёт длительно (C × ёмкость): просадка и нагрев. Прошивка предупредит (BATT OVERLOAD)."),
 };
 
+/** Живое `ovl` прошивки → надпись как в очках. */
+export const OVERLOAD_TEXT: Record<string, string> = { ESC: "ESC OVERLOAD", BATT: "BATT OVERLOAD", LIMIT: "CURRENT LIMIT" };
+
+/**
+ * Предел общего тока для current_limit_a (P04b), когда полный газ просит
+ * больше, чем выдержат батарея (C × ёмкость) или регуляторы (длительный ×
+ * моторы): меньшее из двух, вниз до целых ампер. null — ограничивать незачем.
+ */
+export function suggestCurrentLimit(b: BuildInput, e: BuildEstimate): number | null {
+  const n = b.motors ?? 4;
+  const limits: number[] = [];
+  if (e.batteryMaxA > 0) limits.push(e.batteryMaxA);
+  if (b.esc && b.esc.continuousA > 0) limits.push(b.esc.continuousA * n);
+  if (!limits.length) return null;
+  const limit = Math.floor(Math.min(...limits));
+  return e.fullAmps > limit ? limit : null;
+}
+
 // ---------------- настройки платы ----------------
 
 /** Значения деталей → настройки описания коптера (имена — Params.h). */

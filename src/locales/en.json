@@ -1929,5 +1929,11 @@
   "г": "g",
   "до {a} А на мотор за полёт": "up to {a} A per motor this flight",
   "какая камера (для себя и шпаргалки)": "which camera (for you and the cheat sheet)",
-  "у Li-ion токоотдача — с банки (≈ 45 А у 21700 → 10C)": "Li-ion current comes from the cell (≈ 45 A for a 21700 → 10C)"
+  "у Li-ion токоотдача — с банки (≈ 45 А у 21700 → 10C)": "Li-ion current comes from the cell (≈ 45 A for a 21700 → 10C)",
+  "Без ограничения": "No limit",
+  "Можно ограничить общий ток {a} А: прошивка плавно опустит потолок моторов, а не даст сгореть регулятору или вздуться батарее. Тяги на полном газе станет меньше.": "You can limit total current to {a} A: the firmware will smoothly lower the motor ceiling instead of letting the ESC burn or the battery puff. Full-throttle thrust will be lower.",
+  "Ограничение тока: {a} А — выше потолок моторов плавно опускается, в очках CURRENT LIMIT.": "Current limit: {a} A — above it the motor ceiling smoothly drops, goggles show CURRENT LIMIT.",
+  "Ограничить до {a} А": "Limit to {a} A",
+  "Без ARM передатчик не обдувается и греется: через минуту на мощности очки покажут VTX HOT. Лучше без ARM — самый слабый уровень (или режим VTX PIT MODE).": "Disarmed, the VTX gets no airflow and heats up: after a minute at power the goggles show VTX HOT. Better use the lowest level while disarmed (or VTX PIT MODE).",
+  "Слабее без ARM": "Low power when disarmed"
 }

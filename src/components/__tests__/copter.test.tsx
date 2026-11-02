@@ -434,6 +434,7 @@ describe("что подключено (P03) и перегрузка по ток�
       m("battery_c_rating", 0, { from: "table" }),
       m("esc_current_a", 0, { from: "table" }),
       m("esc_burst_current_a", 0, { from: "table" }),
+      m("current_limit_a", 0, { from: "table", group: "power" }),
     ];
   };
 
@@ -467,6 +468,24 @@ describe("что подключено (P03) и перегрузка по ток�
       })),
     );
     expect(screen.getByText(/мотор тянет больше пикового тока регулятора — сгорит/)).toBeTruthy();
+
+    // P04b: регуляторам 20 А × 4 — предел 80 А одной кнопкой
+    await act(async () => fireEvent.click(screen.getByText("Ограничить до 80 А")));
+    expect(sent).toContain("set current_limit_a 80");
+  });
+
+  it("ограничение тока задано — видно и снимается; CURRENT LIMIT в живых", async () => {
+    useApp.setState({
+      copterBoard: dumpedBoard(build().map((p) => (p.name === "current_limit_a" ? { ...p, value: 90 } : p))),
+      clive: live({ amps: 95, mah: 300, ovl: "LIMIT", mma: 24 }),
+      cliveAt: Date.now(),
+    });
+    render(<CopterView />);
+    tab("Что подключено");
+    expect(screen.getByText(/Ограничение тока: 90 А/)).toBeTruthy();
+    expect(screen.getByText(/· CURRENT LIMIT/)).toBeTruthy();
+    await act(async () => fireEvent.click(screen.getByText("Без ограничения")));
+    expect(sent).toContain("set current_limit_a 0");
   });
 
   it("батарея из каталога: химия в написании платы, C — в battery_c_rating", async () => {
@@ -484,5 +503,17 @@ describe("что подключено (P03) и перегрузка по ток�
     tab("Питание");
     expect(screen.getByText(/ESC OVERLOAD ·/)).toBeTruthy();
     expect(screen.getByText(/до 52.4 А на мотор за полёт/)).toBeTruthy();
+  });
+
+  it("«Видео»: без ARM на полной мощности — напоминание и кнопка «Слабее без ARM» (P04b)", async () => {
+    const lp = (value: string) =>
+      param("vtx_low_power_disarm", { group: "vtx", scope: "master", type: "enum", options: ["OFF", "ON", "UNTIL_FIRST_ARM"], default: "OFF", value });
+    useApp.setState({ copterBoard: dumpedBoard([...build(), lp("OFF")]) });
+    render(<CopterView />);
+    tab("Видео");
+    await act(async () => fireEvent.click(screen.getByText("Слабее без ARM")));
+    expect(sent).toContain("set vtx_low_power_disarm ON");
+    act(() => useApp.setState({ copterBoard: dumpedBoard([...build(), lp("ON")]) }));
+    expect(screen.queryByText("Слабее без ARM")).toBeNull();
   });
 });

@@ -8,7 +8,7 @@ import { useState } from "react";
 
 import type { CopterParts } from "../../core/copter";
 import { CopterParam, ParamValue } from "../../core/copterParams";
-import { buildFromParams, CatalogItem, estimateBuild, KIND_TITLES, partParams, PartKind, searchCatalog, WARNING_TEXT } from "../../core/parts";
+import { buildFromParams, CatalogItem, estimateBuild, KIND_TITLES, OVERLOAD_TEXT, partParams, PartKind, searchCatalog, suggestCurrentLimit, WARNING_TEXT } from "../../core/parts";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamRow, shown, useCopterBoard, useCopterLink, useCopterLive } from "./common";
@@ -101,6 +101,38 @@ function PartCard({ kind, icon: Icon, params, part }: (typeof KINDS)[number]) {
 
 const fmt = (n: number, digits = 0) => n.toFixed(digits);
 
+// P04b: полный газ больше, чем выдержат батарея или регуляторы, — одной
+// кнопкой предел current_limit_a (по умолчанию выключен).
+function CurrentLimit({ suggest }: { suggest: number | null }) {
+  const board = useCopterBoard();
+  const set = useApp((s) => s.copterSet);
+  const { armed } = useCopterLink();
+  const p = board.params.current_limit_a;
+  if (!p) return null;
+  const now = Number(shown("current_limit_a", p)) || 0;
+  if (!now && suggest === null) return null;
+  return (
+    <div className="parts-meter">
+      <p className="hint">
+        {now
+          ? t("Ограничение тока: {a} А — выше потолок моторов плавно опускается, в очках CURRENT LIMIT.", { a: now })
+          : t("Можно ограничить общий ток {a} А: прошивка плавно опустит потолок моторов, а не даст сгореть регулятору или вздуться батарее. Тяги на полном газе станет меньше.", { a: suggest ?? 0 })}
+      </p>
+      {suggest !== null && now !== suggest && (
+        <button className="btn small" disabled={armed} onClick={() => void set("current_limit_a", suggest)}>
+          <Zap size={13} />
+          {t("Ограничить до {a} А", { a: suggest })}
+        </button>
+      )}
+      {now > 0 && (
+        <button className="btn small" disabled={armed} onClick={() => void set("current_limit_a", 0)}>
+          {t("Без ограничения")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function Summary() {
   const board = useCopterBoard();
   const live = useCopterLive();
@@ -172,10 +204,11 @@ function Summary() {
         </p>
       ))}
       {!esc && <p className="hint">{t("Ток регулятора не задан — прошивка не следит за его перегрузкой.")}</p>}
+      <CurrentLimit suggest={suggestCurrentLimit(build, e)} />
       {live?.mma !== undefined && (
         <p className="hint">
           <Zap size={13} /> {t("За этот полёт — до {a} А на мотор", { a: fmt(live.mma, 1) })}
-          {live.ovl ? ` · ${live.ovl === "ESC" ? "ESC OVERLOAD" : "BATT OVERLOAD"}` : ""}
+          {live.ovl ? ` · ${OVERLOAD_TEXT[live.ovl] ?? live.ovl}` : ""}
         </p>
       )}
     </div>

@@ -175,7 +175,7 @@ export interface CopterLive {
   amps?: number;
   mah?: number;
   /** перегрузка по току сейчас (copter/EscGuard.h): "ESC", "BATT" или "" */
-  ovl?: "ESC" | "BATT" | "";
+  ovl?: "ESC" | "BATT" | "LIMIT" | "";
   /** наибольший ток на мотор за полёт, А */
   mma?: number;
   vtx?: { on: boolean; mhz: number; mw: number; pit: boolean; cap: number };

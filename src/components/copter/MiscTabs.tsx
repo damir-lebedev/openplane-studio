@@ -8,9 +8,10 @@ import { useEffect, useRef, useState } from "react";
 import { api, errorText } from "../../api";
 import { VTX_BANDS, vtxFrequency } from "../../core/copter";
 import { CopterParam, CopterTab, num, tabParams } from "../../core/copterParams";
+import { OVERLOAD_TEXT } from "../../core/parts";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
-import { NeedBoard, ParamList, useCopterBoard, useCopterLink, useCopterLive } from "./common";
+import { NeedBoard, ParamList, shown, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -145,7 +146,7 @@ function PowerBody() {
             <>
               <span>{t("Перегрузка по току")}</span>
               <span className={`mono${live.ovl ? " warn-text" : ""}`}>
-                {live.ovl === "ESC" ? "ESC OVERLOAD" : live.ovl === "BATT" ? "BATT OVERLOAD" : t("нет")} ·{" "}
+                {live.ovl ? (OVERLOAD_TEXT[live.ovl] ?? live.ovl) : t("нет")} ·{" "}
                 {t("до {a} А на мотор за полёт", { a: live.mma.toFixed(1) })}
               </span>
             </>
@@ -190,6 +191,10 @@ function VtxBody() {
   const channel = num(board, "vtx_channel");
   const mhz = vtxFrequency(band, channel);
   const letter = VTX_BANDS.find((b) => b.id === band)?.letter;
+  const set = useApp((s) => s.copterSet);
+  const { armed } = useCopterLink();
+  const lowPower = board.params.vtx_low_power_disarm;
+  const hotOnBench = lowPower && String(shown(lowPower.name, lowPower)).toUpperCase() === "OFF";
   return (
     <div className="copter-grid">
       <div className="card">
@@ -214,6 +219,14 @@ function VtxBody() {
           )}
         </div>
         <p className="hint">{t("Полоса: 1 A, 2 B, 3 E, 4 F, 5 R (Raceband), 6 L… Мощность с тумблера — на вкладке «Коптер» → «Тумблеры».")}</p>
+        {hotOnBench && (
+          <div className="parts-meter">
+            <p className="hint warn-text">{t("Без ARM передатчик не обдувается и греется: через минуту на мощности очки покажут VTX HOT. Лучше без ARM — самый слабый уровень (или режим VTX PIT MODE).")}</p>
+            <button className="btn small" disabled={armed} onClick={() => void set("vtx_low_power_disarm", "ON")}>
+              {t("Слабее без ARM")}
+            </button>
+          </div>
+        )}
       </div>
       <ParamList title={t("Настройки")} params={tabParams(board, "vtx")} />
     </div>
