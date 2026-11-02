@@ -414,3 +414,75 @@ describe("память настроек", () => {
     expect(container.querySelector(".margin-bar.bad")).toBeTruthy();
   });
 });
+
+describe("что подключено (P03) и перегрузка по току (P04)", () => {
+  const build = () => {
+    const m = (name: string, value: number | string, patch: Partial<Parameters<typeof param>[1]> = {}) =>
+      param(name, { group: "copter", scope: "master", from: "build", min: 0, max: 100000, default: value, value, ...patch });
+    return [
+      m("copter_mass_g", 680),
+      m("copter_wheelbase_mm", 225),
+      m("prop_diameter_in", 5.1, { type: "float" }),
+      m("prop_pitch_in", 4.3, { type: "float" }),
+      m("prop_blades", 3),
+      m("motor_stator_mm", 22, { type: "float" }),
+      m("motor_height_mm", 7, { type: "float" }),
+      m("motor_kv", 1950),
+      m("battery_cells", 6),
+      m("battery_mah", 1300),
+      m("battery_chemistry", "LIPO", { type: "enum", options: ["LIPO", "LIHV", "LIION"] }),
+      m("battery_c_rating", 0, { from: "table" }),
+      m("esc_current_a", 0, { from: "table" }),
+      m("esc_burst_current_a", 0, { from: "table" }),
+    ];
+  };
+
+  beforeEach(() => {
+    sent.length = 0;
+    connect();
+    useApp.setState({ copterBoard: dumpedBoard(build()) });
+  });
+  afterEach(cleanup);
+
+  it("выбор из каталога уходит на плату, итог считает тягу и висение; регулятор 20 А — «сгорит»", async () => {
+    render(<CopterView />);
+    tab("Что подключено");
+    expect(screen.getByText("Что из этого выходит")).toBeTruthy();
+    expect(screen.getByText("Тяговооружённость")).toBeTruthy();
+    expect(screen.getByText("Ток регулятора не задан — прошивка не следит за его перегрузкой.")).toBeTruthy();
+
+    // мотор 2810 1300KV из каталога
+    const cards = document.querySelectorAll(".parts-card");
+    fireEvent.click(cards[0].querySelector("button")!);
+    fireEvent.change(screen.getByPlaceholderText("Поиск: 2207, 7\", li-ion…"), { target: { value: "2810" } });
+    await act(async () => fireEvent.click(screen.getByText("2810 1300KV")));
+    expect(sent).toEqual(expect.arrayContaining(["set motor_stator_mm 28", "set motor_height_mm 10", "set motor_kv 1300"]));
+    expect(useApp.getState().currentCopter()!.parts.motors).toBe("2810 1300KV");
+
+    // регулятор 20 А на 5" 2207 — мало
+    sent.length = 0;
+    act(() =>
+      useApp.setState(() => ({
+        copterBoard: dumpedBoard(build().map((p) => (p.name === "esc_current_a" ? { ...p, value: 20 } : p.name === "esc_burst_current_a" ? { ...p, value: 25 } : p))),
+      })),
+    );
+    expect(screen.getByText(/мотор тянет больше пикового тока регулятора — сгорит/)).toBeTruthy();
+  });
+
+  it("батарея из каталога: химия в написании платы, C — в battery_c_rating", async () => {
+    render(<CopterView />);
+    tab("Что подключено");
+    const cards = document.querySelectorAll(".parts-card");
+    fireEvent.click(cards[2].querySelector("button")!);
+    await act(async () => fireEvent.click(screen.getByText("6S1P 21700 Li-ion 4000 мА·ч")));
+    expect(sent).toEqual(expect.arrayContaining(["set battery_chemistry LIION", "set battery_c_rating 10", "set battery_mah 4000"]));
+  });
+
+  it("«Питание»: перегрузка сейчас и наибольший ток на мотор за полёт", () => {
+    useApp.setState({ clive: live({ amps: 160, mah: 300, ovl: "ESC", mma: 52.4 }), cliveAt: Date.now() });
+    render(<CopterView />);
+    tab("Питание");
+    expect(screen.getByText(/ESC OVERLOAD ·/)).toBeTruthy();
+    expect(screen.getByText(/до 52.4 А на мотор за полёт/)).toBeTruthy();
+  });
+});

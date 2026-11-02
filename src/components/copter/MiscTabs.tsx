@@ -141,7 +141,17 @@ function PowerBody() {
           <span className="mono">{live?.amps !== undefined ? `${live.amps.toFixed(1)} ${t("А")} · ${Math.round(live.mah ?? 0)} ${t("мА·ч")}` : t("не измеряется")}</span>
           <span>{t("Состояние")}</span>
           <span className="mono">{live?.bat ?? "—"}</span>
+          {live?.mma !== undefined && (
+            <>
+              <span>{t("Перегрузка по току")}</span>
+              <span className={`mono${live.ovl ? " warn-text" : ""}`}>
+                {live.ovl === "ESC" ? "ESC OVERLOAD" : live.ovl === "BATT" ? "BATT OVERLOAD" : t("нет")} ·{" "}
+                {t("до {a} А на мотор за полёт", { a: live.mma.toFixed(1) })}
+              </span>
+            </>
+          )}
         </div>
+        <p className="hint">{t("Ток регулятора и C батареи — на вкладке «Что подключено»: по ним прошивка предупреждает в очках ESC OVERLOAD и BATT OVERLOAD.")}</p>
       </div>
       <div className="card">
         <h3>{t("Калибровка по мультиметру")}</h3>

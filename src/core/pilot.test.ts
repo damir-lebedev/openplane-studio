@@ -38,8 +38,8 @@ describe("наборы по ответам", () => {
 });
 
 describe("что видно", () => {
-  it("новичок: мастер и ползунки, без вкладок «Основы»", () => {
-    expect(ids(makeProfile(answers()))).toEqual(["wizard", "flight"]);
+  it("новичок: мастер, ползунки и «Что подключено», без вкладок «Основы»", () => {
+    expect(ids(makeProfile(answers()))).toEqual(["wizard", "flight", "parts"]);
   });
 
   it("новичок с «Гонками»: мастер плюс гоночные вкладки", () => {
@@ -52,15 +52,15 @@ describe("что видно", () => {
 
   it("летает: «Основа» без мастера; профи — всё, кроме вкладок новичка", () => {
     const flying = ids(makeProfile(answers({ experience: "flying" })));
-    expect(flying).toEqual(["overview", "frombf", "setup", "receiver", "modes", "motors", "failsafe", "power", "beeper"]);
+    expect(flying).toEqual(["overview", "parts", "frombf", "setup", "receiver", "modes", "motors", "failsafe", "power", "beeper"]);
     const pro = ids(makeProfile(answers({ experience: "pro" })));
     expect(pro).toContain("cli");
     expect(pro).not.toContain("wizard");
   });
 
-  it("«Показать всё» — все 20 вкладок, мастер первым", () => {
+  it("«Показать всё» — все 21 вкладка, мастер первым", () => {
     const all = ids({ ...makeProfile(answers()), showAll: true });
-    expect(all).toHaveLength(20);
+    expect(all).toHaveLength(21);
     expect(all[0]).toBe("wizard");
   });
 
@@ -94,7 +94,7 @@ describe("переход с «Новичок/Профи» без потерь", 
     expect(needsOnboarding({})).toBe(true);
     expect(needsOnboarding({ copterMode: "pro" })).toBe(true);
     expect(profileOf({ copterMode: "pro" }).showAll).toBe(true);
-    expect(ids(profileOf({ copterMode: "beginner" }))).toEqual(["wizard", "flight"]);
+    expect(ids(profileOf({ copterMode: "beginner" }))).toEqual(["wizard", "flight", "parts"]);
     // самолёты, которыми уже пользовались, не пропадают
     expect(sectionVisible(profileOf({}), "board")).toBe(true);
   });

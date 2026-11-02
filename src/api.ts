@@ -174,6 +174,10 @@ export interface CopterLive {
   cell?: number;
   amps?: number;
   mah?: number;
+  /** перегрузка по току сейчас (copter/EscGuard.h): "ESC", "BATT" или "" */
+  ovl?: "ESC" | "BATT" | "";
+  /** наибольший ток на мотор за полёт, А */
+  mma?: number;
   vtx?: { on: boolean; mhz: number; mw: number; pit: boolean; cap: number };
   hdg: number;
   /** частота кадров приёмника, Гц, и срезы сглаживания стиков и газа (0 — выключено) */

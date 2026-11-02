@@ -135,6 +135,7 @@ const TAB_PACKS: Record<CopterTab, (Pack | "guided")[]> = {
   wizard: ["guided"],
   flight: ["guided"],
   overview: ["base"],
+  parts: ["guided", "base"],
   frombf: ["base"],
   setup: ["base"],
   receiver: ["base"],

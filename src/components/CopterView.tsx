@@ -2,7 +2,8 @@
 // новичку — мастер «По шагам» и «Настройка полёта» (ползунки без имён
 // настроек), остальным — «Основа» и вкладки их наборов, «Показать всё» —
 // все вкладки как в конфигураторе Betaflight — «Коптер»
-// (сборка, переход с BF, первая настройка), «Я с Betaflight» (где у нас что),
+// (сборка, переход с BF, первая настройка), «Что подключено» (мотор, винты,
+// батарея, регулятор — то, чего плата не видит), «Я с Betaflight» (где у нас что),
 // «Подготовка», «Приёмник»,
 // «Режимы», «Моторы», «PID», «Расходы», «Фильтры», «Безопасность»,
 // «Питание», «Видео», «OSD», «GPS», «Чёрный ящик», «Прочее», «CLI». Настройки живут
@@ -28,6 +29,7 @@ import { ModesTab } from "./copter/ModesTab";
 import { MotorsTab } from "./copter/MotorsTab";
 import { OsdTab } from "./copter/OsdTab";
 import { OverviewTab } from "./copter/OverviewTab";
+import { PartsTab } from "./copter/PartsTab";
 import { ReceiverTab } from "./copter/ReceiverTab";
 import { CopterSearch, FromBfTab, GoTo } from "./copter/Search";
 import { SetupTab } from "./copter/SetupTab";
@@ -165,6 +167,7 @@ export function CopterView() {
           {tab === "filters" && <FiltersTab />}
           {tab === "failsafe" && <FailsafeTab />}
           {tab === "power" && <PowerTab />}
+          {tab === "parts" && <PartsTab />}
           {tab === "vtx" && <VtxTab />}
           {tab === "osd" && <OsdTab />}
           {tab === "gps" && <GpsTab />}
