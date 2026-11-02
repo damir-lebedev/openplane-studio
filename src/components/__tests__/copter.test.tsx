@@ -469,6 +469,16 @@ describe("вкладки коптера", () => {
     expect(document.querySelectorAll(".link-low")).toHaveLength(1);   // LQ 60 < 80
   });
 
+  it("приёмник: настройка с пульта — шаги, экран пульта, поиск карты", async () => {
+    render(<CopterView />);
+    tab("Приёмник");
+    expect(screen.getByText("Настройка с пульта")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Экран пульта: SYS → Tools → Betaflight setup" })).toBeTruthy();
+    expect(document.querySelectorAll(".radio-steps li.ok")).toHaveLength(2);   // CRSF; телеметрия по умолчанию
+    fireEvent.click(screen.getByRole("button", { name: /Скачать на SD пульта/ }));
+    expect(await screen.findByText(/Карта пульта не найдена/)).toBeTruthy();
+  });
+
   it("без платы вкладки просят подключить коптер", () => {
     useApp.setState({ link: { port: null, state: "idle", attemptAt: 0 } });
     render(<CopterView />);

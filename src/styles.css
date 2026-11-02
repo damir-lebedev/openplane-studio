@@ -2855,3 +2855,67 @@ textarea {
 .fs-drill .btn + .btn {
   margin-left: 8px;
 }
+
+/* «Настройка с пульта» (RadioSetup.tsx) */
+.radio-setup h3 svg {
+  vertical-align: -3px;
+}
+.radio-setup-body {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.radio-steps {
+  flex: 1 1 360px;
+  margin: 6px 0;
+  padding-left: 20px;
+}
+.radio-steps li {
+  margin-bottom: 10px;
+}
+.radio-steps li b {
+  display: block;
+}
+.radio-steps li b svg {
+  vertical-align: -3px;
+}
+.radio-steps li.ok b {
+  color: var(--ok);
+}
+.radio-steps li.bad b {
+  color: var(--warn);
+}
+.radio-steps .hint {
+  display: block;
+  margin: 2px 0 6px;
+}
+.radio-steps .btn + .btn {
+  margin-left: 6px;
+}
+.radio-screen {
+  flex: 0 0 auto;
+  width: 272px;
+}
+.radio-bezel {
+  fill: #20242b;
+  stroke: #3a404a;
+}
+.radio-lcd {
+  fill: #c9d7b4;
+}
+.radio-title,
+.radio-sel {
+  fill: #27321d;
+}
+.radio-text {
+  font: 7px monospace;
+  fill: #27321d;
+}
+.radio-text.inv {
+  fill: #c9d7b4;
+}
+.radio-key {
+  font: 5px sans-serif;
+  fill: var(--text-2);
+}

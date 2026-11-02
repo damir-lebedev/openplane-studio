@@ -1,6 +1,6 @@
 // «Приёмник»: каналы пульта живьём (как вкладка Receiver в BF), порядок
 // каналов (map), концы стиков (rxrange) — по движению стиков, настройки
-// приёмника.
+// приёмника, настройка с пульта (Lua-скрипты BF по CRSF).
 
 import { Move } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -11,6 +11,7 @@ import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Seg } from "../ui";
 import { NeedBoard, ParamList, ParamRow, useCopterBoard, useCopterLink, useCopterLive } from "./common";
+import { RadioSetupCard } from "./RadioSetup";
 
 const STICKS: Record<string, string> = { A: "Крен (A)", E: "Тангаж (E)", R: "Рысканье (R)", T: "Газ (T)" };
 const MAPS = ["AETR1234", "TAER1234"];
@@ -82,6 +83,8 @@ function ReceiverBody() {
       <LinkCard />
 
       <RcSmoothingCard />
+
+      <RadioSetupCard />
 
       <div className="wide">
         <ParamList title={t("Приёмник")} params={tabParams(board, "receiver", SMOOTHING)} />

@@ -264,6 +264,10 @@ export const inTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS
 export const api = {
   appInfo: () => invoke<AppInfo>("app_info"),
   updateCheck: () => invoke<UpdateInfo>("update_check"),
+  /** Диски, похожие на SD-карту пульта EdgeTX (пульт — USB-накопителем). */
+  radioFindSd: () => invoke<string[]>("radio_find_sd"),
+  /** Lua-скрипты Betaflight (последний выпуск с GitHub) — в SCRIPTS на карте. */
+  radioInstallLua: (sd: string) => invoke<{ version: string; files: number }>("radio_install_lua", { sd }),
   /** путь к скачанному и проверенному установщику (ход — onUpdateProgress) */
   updateDownload: (asset: UpdateAsset) => invoke<string>("update_download", { asset }),
   /** true — установщик запущен и приложение закрывается (Windows) */

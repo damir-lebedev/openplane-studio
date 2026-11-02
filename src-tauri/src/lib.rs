@@ -8,6 +8,7 @@ mod devices;
 mod firmware;
 mod hangar;
 mod link;
+mod radio;
 mod setup;
 mod source;
 mod system;
@@ -88,6 +89,16 @@ fn update_install(app: AppHandle, path: String) -> Res<bool> {
 #[tauri::command]
 fn update_cleanup(app: AppHandle) -> Res<()> {
     update::cleanup(&app, None)
+}
+
+#[tauri::command]
+fn radio_find_sd() -> Vec<String> {
+    radio::find_radio_sd()
+}
+
+#[tauri::command]
+async fn radio_install_lua(app: AppHandle, sd: String) -> Res<radio::LuaInstalled> {
+    blocking(move || radio::install_lua(&app, &sd)).await
 }
 
 #[tauri::command]
@@ -322,6 +333,8 @@ pub fn run() {
             update_download,
             update_install,
             update_cleanup,
+            radio_find_sd,
+            radio_install_lua,
             settings_load,
             settings_save,
             hangar_list,
