@@ -2,7 +2,7 @@
 // прошивка — в проект, одной кнопкой «Прошить»), перенос настроек из BF,
 // видеопередатчик, тумблеры, первая настройка, комплектующие, прошивки.
 
-import { ArrowRightLeft, CircleAlert, CircleCheck, Copy, Cpu, History, TriangleAlert, Upload, Usb, Zap } from "lucide-react";
+import { ArrowRightLeft, CircleAlert, CircleCheck, Copy, Cpu, History, ScanSearch, TriangleAlert, Upload, Usb, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api, errorText } from "../../api";
@@ -28,8 +28,10 @@ import {
   vtxFrequency,
 } from "../../core/copter";
 import { IMPORT_SKIP_GROUPS, ImportLine, parseBfDiff } from "../../core/copterParams";
+import { notMoved, OnBoard, parseBoardDump } from "../../core/detect";
 import { Choice } from "../ui";
-import { betaflightPort, restoreOriginal, runCopterFlash } from "../../flash";
+import { OnBoardList } from "../FcCards";
+import { betaflightPort, nativeName, readBoardDump, restoreOriginal, runCopterFlash } from "../../flash";
 import { locale, t } from "../../i18n";
 import { useApp } from "../../store";
 import { Advanced, Modal } from "../ui";
@@ -165,6 +167,26 @@ function BetaflightCard({ copter }: { copter: CopterProject }) {
   const dump = copter.boardDump;
   const { copter: ours } = useCopterLink();
   const [importing, setImporting] = useState(false);
+  const [reading, setReading] = useState(false);
+  const [onBoard, setOnBoard] = useState<OnBoard | null>(null);
+  const toast = useApp((s) => s.toast);
+  const fw = dump?.firmware ?? nativeName(bfPort);
+  useEffect(() => {
+    if (!dump?.dump) return setOnBoard(null);
+    api.textRead(dump.dump).then((text) => setOnBoard(parseBoardDump(text)), () => setOnBoard(null));
+  }, [dump?.dump, dump?.at]);
+
+  const readNow = async () => {
+    if (!bfPort) return;
+    setReading(true);
+    try {
+      await readBoardDump(copter.id, bfPort);
+    } catch (e) {
+      toast("err", e instanceof Error ? e.message : errorText(e));
+    } finally {
+      setReading(false);
+    }
+  };
 
   if (!env?.needsBoardDump && !dump && !bf) return null;
   return (
@@ -172,11 +194,11 @@ function BetaflightCard({ copter }: { copter: CopterProject }) {
       <div className="row" style={{ gap: 8 }}>
         {dump ? <CircleCheck size={18} color="var(--ok)" /> : <CircleAlert size={18} color="var(--warn)" />}
         <h3 style={{ margin: 0 }} className="grow">
-          {dump ? t("Плата снята с Betaflight") : t("Переход с Betaflight")}
+          {dump ? t("Плата снята с {fw}", { fw }) : t("Переход с {fw}", { fw })}
         </h3>
         {bf && (
           <span className="pill">
-            {bf.board ?? bf.target ?? "?"} · Betaflight {bf.version ?? "?"} · {bfPort}
+            {bf.board ?? bf.target ?? "?"} · {fw} {bf.version ?? "?"} · {bfPort}
           </span>
         )}
       </div>
@@ -186,10 +208,16 @@ function BetaflightCard({ copter }: { copter: CopterProject }) {
             {t("Какой выход на какой ножке процессора, знает только родная прошивка платы. «Прошить» сделает всё само: прочитает распиновку из Betaflight, сохранит родную прошивку в проект (вернуть — одной кнопкой здесь же), соберёт нашу прошивку под эту плату и зальёт её — кнопку BOOT зажимать не нужно.")}
           </p>
           {bf ? (
-            <button className="btn primary" disabled={!!flash?.running} onClick={() => void runCopterFlash(copter.id)}>
-              <Zap size={15} />
-              {t("Перейти на OpenPlane")}
-            </button>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn primary" disabled={!!flash?.running || reading} onClick={() => void runCopterFlash(copter.id)}>
+                <Zap size={15} />
+                {t("Перейти на OpenPlane")}
+              </button>
+              <button className="btn" disabled={!!flash?.running || reading} onClick={() => void readNow()}>
+                <ScanSearch size={15} />
+                {reading ? t("Читаю дамп…") : t("Сначала посмотреть, что на борту")}
+              </button>
+            </div>
           ) : (
             <p className="hint warn-text">{t("Подключите плату с родным Betaflight по USB. Betaflight Configurator должен быть закрыт — порт может держать только одна программа.")}</p>
           )}
@@ -210,12 +238,30 @@ function BetaflightCard({ copter }: { copter: CopterProject }) {
             <span className="mono">{dump.dump}</span>
             <span>{t("Родная прошивка")}</span>
             <span className="mono">{dump.backup ?? t("ещё не сохранена — сохранится при прошивке")}</span>
-            <span>Betaflight</span>
+            <span>{fw}</span>
             <span className="mono">
               {dump.bfBoard ?? dump.target} {dump.bf ?? ""} · {new Date(dump.at).toLocaleString(locale())}
             </span>
           </div>
+          {onBoard && (
+            <>
+              <h4 style={{ margin: "14px 0 6px" }}>{t("Что нашлось на борту")}</h4>
+              <OnBoardList board={onBoard} />
+            </>
+          )}
           <div className="row" style={{ gap: 8, marginTop: 12 }}>
+            {bf && !ours && (
+              <button className="btn primary" disabled={!!flash?.running || reading} onClick={() => void runCopterFlash(copter.id)}>
+                <Zap size={15} />
+                {t("Перейти на OpenPlane")}
+              </button>
+            )}
+            {bf && !ours && (
+              <button className="btn ghost" disabled={!!flash?.running || reading} onClick={() => void readNow()}>
+                <ScanSearch size={15} />
+                {reading ? t("Читаю дамп…") : t("Снять дамп заново")}
+              </button>
+            )}
             <button className="btn" disabled={!ours} title={ours ? undefined : t("Подключите коптер с прошивкой OpenPlane")} onClick={() => setImporting(true)}>
               <ArrowRightLeft size={15} />
               {copter.bfImportedAt ? t("Перенести настройки из Betaflight ещё раз") : t("Перенести настройки из Betaflight")}
@@ -287,9 +333,22 @@ function ImportDialog({ copter, dumpPath, onClose }: { copter: CopterProject; du
             ))}
           </div>
           {unknown.length > 0 && (
-            <Advanced title={t("не переносится: {n}", { n: unknown.length })}>
-              <div className="cli mono">{unknown.slice(0, 200).join("\n")}</div>
-            </Advanced>
+            <>
+              <h4 style={{ margin: "14px 0 6px" }}>{t("Что настроим заново ({n})", { n: unknown.length })}</h4>
+              <ul className="not-moved">
+                {notMoved(unknown).map((g) => (
+                  <li key={g.key}>
+                    <span className="grow">{t(g.title)}</span>
+                    <span className="hint" title={g.lines.slice(0, 40).join("\n")}>
+                      {g.key === "set" ? g.lines.slice(0, 6).join(", ") + (g.lines.length > 6 ? "…" : "") : g.lines.length}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <Advanced title={t("строками, как в diff")}>
+                <div className="cli mono">{unknown.slice(0, 200).join("\n")}</div>
+              </Advanced>
+            </>
           )}
           <div className="modal-actions">
             <button className="btn ghost" onClick={onClose}>

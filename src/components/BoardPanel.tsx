@@ -56,7 +56,7 @@ function LinkBlock() {
       }
       const n = await api.portHoldersKill(holders.map((h) => h.pid));
       toast("ok", t("Закрыто программ: {n}", { n }));
-      if (link.port) await connect(link.port, devices.find((d) => d.port === link.port)?.kind === "stm32-cdc");
+      if (link.port) await connect(link.port, ["stm32-cdc", "fc-usb"].includes(devices.find((d) => d.port === link.port)?.kind ?? ""));
     } catch (e) {
       toast("err", errorText(e));
     } finally {
@@ -129,7 +129,7 @@ function LinkBlock() {
               <b>{d.port}</b> <span className="muted">{d.title}</span>
             </span>
             <div className="grow" />
-            <button className="btn small" onClick={() => void connect(d.port!, d.kind === "stm32-cdc")}>
+            <button className="btn small" onClick={() => void connect(d.port!, d.kind === "stm32-cdc" || d.kind === "fc-usb")}>
               {t("Подключить")}
             </button>
           </div>

@@ -204,6 +204,66 @@ fn msp_fields(fc: &mut serde_json::Map<String, Value>, cmd: u8, p: &[u8]) {
     }
 }
 
+// ---- MAVLink: ArduPilot и PX4 сами шлют HEARTBEAT раз в секунду ----
+
+/// Контрольная сумма MAVLink (CRC-16/MCRF4XX) с «лишним байтом» сообщения.
+fn mav_crc(bytes: &[u8], extra: u8) -> u16 {
+    let mut crc: u16 = 0xFFFF;
+    for &b in bytes.iter().chain(std::iter::once(&extra)) {
+        let mut tmp = b ^ (crc as u8);
+        tmp ^= tmp << 4;
+        crc = (crc >> 8) ^ ((tmp as u16) << 8) ^ ((tmp as u16) << 3) ^ ((tmp as u16) >> 4);
+    }
+    crc
+}
+
+/// HEARTBEAT (сообщение 0) в потоке: (тип аппарата MAV_TYPE, автопилот MAV_AUTOPILOT).
+/// Кадры MAVLink 1 (0xFE) и 2 (0xFD); сумма проверяется — текст и MSP не спутаются.
+fn find_heartbeat(data: &[u8]) -> Option<(u8, u8)> {
+    const HEARTBEAT_EXTRA: u8 = 50;
+    for i in 0..data.len() {
+        let (head, v2) = match data[i] {
+            0xFD => (10, true),
+            0xFE => (6, false),
+            _ => continue,
+        };
+        let Some(&len) = data.get(i + 1) else { break };
+        let len = len as usize;
+        let end = i + head + len + 2;
+        if end > data.len() || len > 9 {
+            continue;
+        }
+        let msgid = if v2 {
+            data[i + 7] as u32 | (data[i + 8] as u32) << 8 | (data[i + 9] as u32) << 16
+        } else {
+            data[i + 5] as u32
+        };
+        if msgid != 0 {
+            continue;
+        }
+        let crc = mav_crc(&data[i + 1..i + head + len], HEARTBEAT_EXTRA);
+        if crc.to_le_bytes() != [data[end - 2], data[end - 1]] {
+            continue;
+        }
+        // MAVLink 2 обрезает нули в конце данных — дополняем.
+        let mut payload = [0u8; 9];
+        payload[..len].copy_from_slice(&data[i + head..i + head + len]);
+        return Some((payload[4], payload[5]));
+    }
+    None
+}
+
+/// Поля "board-fc" по HEARTBEAT: variant ARDU (ArduPilot), PX4 или MAVL (прочий MAVLink).
+fn mav_fields(fc: &mut serde_json::Map<String, Value>, kind: u8, autopilot: u8) {
+    let variant = match autopilot {
+        3 => "ARDU",
+        12 => "PX4",
+        _ => "MAVL",
+    };
+    fc.insert("variant".into(), Value::String(variant.into()));
+    fc.insert("vehicle".into(), Value::from(kind));
+}
+
 fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>, stop: Arc<AtomicBool>, rx: Receiver<Msg>) {
     let _ = app.emit("board-link", LinkStatus { port: &port, state: "open", error: None });
     let mut buf = [0u8; 2048];
@@ -214,6 +274,7 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
     let mut live_seen = false;
     let mut refused = 0u32;
     let mut polling = true;
+    let mut mavlink = false;
     // Сразу — паспорт и живые данные; и MSP: если на плате Betaflight, он
     // ответит, кто он (наша прошивка тоже ответит — её узнают по "@id").
     let _ = serial.write_all(b"\x02id\n");
@@ -264,6 +325,19 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
                     if info {
                         let _ = app.emit("board-fc", BoardJson { port: &port, data: Value::Object(fc.clone()) });
                     }
+                }
+                // ArduPilot/PX4: поток MAVLink — не строки консоли; живые данные не спрашиваем.
+                if mavlink {
+                    pending.clear();
+                    continue;
+                }
+                if let Some((kind, autopilot)) = find_heartbeat(&pending) {
+                    mav_fields(&mut fc, kind, autopilot);
+                    let _ = app.emit("board-fc", BoardJson { port: &port, data: Value::Object(fc.clone()) });
+                    mavlink = true;
+                    polling = false;
+                    pending.clear();
+                    continue;
                 }
                 while let Some(pos) = pending.iter().position(|&b| b == b'\n') {
                     let line: Vec<u8> = pending.drain(..=pos).collect();
@@ -403,6 +477,41 @@ mod tests {
         let mut bad = answer(3, &[4, 5, 1]);
         *bad.last_mut().unwrap() ^= 0xFF;
         assert!(take_msp(&mut bad).is_empty());
+    }
+
+    /// Кадр HEARTBEAT, как его шлёт ArduPilot: MAVLink 2, нули в конце обрезаны.
+    fn heartbeat_v2(kind: u8, autopilot: u8) -> Vec<u8> {
+        let mut payload = vec![0, 0, 0, 0, kind, autopilot, 0x51, 3, 3];
+        while payload.last() == Some(&0) {
+            payload.pop();
+        }
+        let mut f = vec![0xFD, payload.len() as u8, 0, 0, 7, 1, 1, 0, 0, 0];
+        f.extend(&payload);
+        let crc = mav_crc(&f[1..], 50);
+        f.extend(crc.to_le_bytes());
+        f
+    }
+
+    #[test]
+    fn mavlink_heartbeat_tells_ardupilot() {
+        let mut stream = b"garbage \xFD\x01 text\n".to_vec();
+        stream.extend(heartbeat_v2(2, 3));
+        assert_eq!(find_heartbeat(&stream), Some((2, 3)));
+        let mut fc = serde_json::Map::new();
+        mav_fields(&mut fc, 2, 3);
+        assert_eq!(fc["variant"], "ARDU");
+        assert_eq!(fc["vehicle"], 2);
+        // MAVLink 1, самолёт PX4
+        let mut v1 = vec![0xFE, 9, 3, 1, 1, 0, 0, 0, 0, 0, 1, 12, 0, 3, 3];
+        let crc = mav_crc(&v1[1..], 50);
+        v1.extend(crc.to_le_bytes());
+        assert_eq!(find_heartbeat(&v1), Some((1, 12)));
+        // испорченная сумма и неполный кадр — не HEARTBEAT
+        let mut bad = heartbeat_v2(2, 3);
+        *bad.last_mut().unwrap() ^= 1;
+        assert_eq!(find_heartbeat(&bad), None);
+        let full = heartbeat_v2(2, 3);
+        assert_eq!(find_heartbeat(&full[..full.len() - 1]), None);
     }
 
     #[test]

@@ -55,7 +55,7 @@ export interface Settings {
 }
 
 export interface Device {
-  kind: "stm32-cdc" | "stm32-dfu" | "esp32-usb" | "usb-serial" | "serial";
+  kind: "stm32-cdc" | "stm32-dfu" | "fc-usb" | "esp32-usb" | "usb-serial" | "serial";
   port: string | null;
   vid: number | null;
   pid: number | null;
@@ -192,7 +192,7 @@ export interface CopterLive {
   unsaved: boolean;
 }
 
-/** Что за прошивка на плате по MSP (если не наша — Betaflight и т. п.). */
+/** Что за прошивка на плате: MSP (Betaflight, INAV) или MAVLink HEARTBEAT (ArduPilot, PX4). */
 export interface FcInfo {
   variant?: string;
   version?: string;
@@ -200,6 +200,8 @@ export interface FcInfo {
   target?: string;
   board?: string;
   manufacturer?: string;
+  /** MAV_TYPE из HEARTBEAT (ArduPilot/PX4): 1 — самолёт, 2 — квадрокоптер… */
+  vehicle?: number;
 }
 
 /** Снимок самолёта на прошивку (Hangar/<id>/history). Старые — без plane. */

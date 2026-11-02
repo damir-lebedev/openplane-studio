@@ -2,7 +2,8 @@
 // Каждая ошибка — одна фраза «что случилось» и действие «что сделать».
 
 import { api, CalibFlags, Device, errorText, Identity, onTaskLog } from "./api";
-import { copterConfig, copterHash, findCopterEnv } from "./core/copter";
+import { BoardDump, copterConfig, copterHash, findCopterEnv } from "./core/copter";
+import { CLI_FIRMWARES, FIRMWARE_NAMES, firmwareOf } from "./core/detect";
 import { isFresh } from "./core/live";
 import { fingerprint } from "./core/migrate";
 import { findBoard, Manifest } from "./core/manifest";
@@ -353,14 +354,21 @@ export async function runFlash(planeId: string) {
   }
 }
 
-/** Порт с Betaflight (MSP ответил не нашей прошивкой) — для переноса платы. */
+/** Порт с Betaflight или INAV (MSP ответил не нашей прошивкой) — для переноса платы. */
 export function betaflightPort(): string | null {
   const app = useApp.getState();
   for (const [port, fc] of Object.entries(app.fc)) {
     const ours = app.ports[port]?.identity;
-    if (fc.variant === "BTFL" && !ours && app.devices.some((d) => d.port === port)) return port;
+    const fw = firmwareOf(fc);
+    if (fw && CLI_FIRMWARES.includes(fw) && !ours && app.devices.some((d) => d.port === port)) return port;
   }
   return null;
+}
+
+/** Как называть родную прошивку на порту: Betaflight или INAV. */
+export function nativeName(port: string | null): string {
+  const fw = port ? firmwareOf(useApp.getState().fc[port]) : undefined;
+  return fw ? FIRMWARE_NAMES[fw] : "Betaflight";
 }
 
 /** Папка файлов платы в проекте: дамп BF, родная прошивка. */
@@ -386,6 +394,33 @@ async function releasePort(port: string) {
 }
 
 /**
+ * Дамп CLI родной прошивки (version, status, resource, dump hardware, diff all)
+ * — в папку проекта: из него распиновка, «что на борту» и перенос настроек.
+ * Без прошивки — кнопкой на вкладке «Коптер»; при прошивке — первым шагом.
+ */
+export async function readBoardDump(copterId: string, port: string): Promise<BoardDump> {
+  const app = useApp.getState();
+  const copter = app.copters.find((c) => c.id === copterId);
+  const source = app.settings.firmwareSource;
+  const filesDir = boardFilesDir(copterId);
+  if (!copter || !source || !filesDir) throw new FlashError(t("Нет исходников прошивки"), t("Укажите папку исходников прошивки в настройках."));
+  const env = findCopterEnv(app.manifest, copter.board);
+  const fc = app.fc[port];
+  const target = env?.boardFile?.split("/").pop()?.replace(/\.h$/, "") ?? (fc?.board || "BOARD");
+  const name = nativeName(port);
+  await releasePort(port);
+  const dump = `${filesDir}/${target}_bf.txt`;
+  try {
+    await bfTool(source, ["read", "--port", port, "--out", dump], t("{fw} не отдал дамп", { fw: name }));
+  } finally {
+    if (!useApp.getState().flash?.running) useApp.setState({ linkHold: null });   // связь снова подключается сама
+  }
+  const info: BoardDump = { ...copter.boardDump, dump, target, bf: fc?.version, bfBoard: fc?.board, firmware: name, at: new Date().toISOString() };
+  useApp.getState().updateCopter(copterId, (c) => (c.boardDump = info));
+  return info;
+}
+
+/**
  * Прошивка коптера: та же дорога, но конфигурации в исходниках нет —
  * настройки коптера живут на плате (CLI). Приложение вшивает только паспорт
  * (название, хэш, коммит) и после заливки сверяет его.
@@ -406,9 +441,11 @@ export async function runCopterFlash(copterId: string) {
   const bfPort = betaflightPort();
   const filesDir = boardFilesDir(copterId);
   const target = env?.boardFile?.split("/").pop()?.replace(/\.h$/, "") ?? "BOARD";
-  const needDump = !!env?.needsBoardDump && !copter.boardDump;
+  // Дамп снимается всегда, когда на плате родная прошивка: без него нечего переносить.
+  const needDump = !copter.boardDump && (!!env?.needsBoardDump || !!bfPort);
+  const fwName = nativeName(bfPort);
   const steps = initialSteps(dfu);
-  if (needDump) steps.unshift({ id: "dump", title: t("Распиновка с Betaflight"), status: "wait" });
+  if (needDump) steps.unshift({ id: "dump", title: t("Дамп и распиновка из {fw}", { fw: fwName }), status: "wait" });
   if (bfPort && dfu) steps.splice(steps.findIndex((s) => s.id === "upload"), 0, { id: "backup", title: t("Родная прошивка — в запас"), status: "wait" });
 
   app.startFlash({ planeId: copterId, vehicle: "copter", running: true, steps, progress: null, activity: t("Готовлю исходники…"), log: [] });
@@ -419,7 +456,7 @@ export async function runCopterFlash(copterId: string) {
   try {
     if (!env) throw new FlashError(t("Нет такой сборки"), t("В исходниках прошивки нет сборки коптера {env}. Выберите плату на странице коптера.", { env: copter.board || "—" }));
 
-    // 0. распиновка с платы под Betaflight
+    // 0. дамп с платы под Betaflight/INAV: распиновка, что на борту, настройки
     if (needDump) {
       setStep("dump", "run");
       if (!bfPort || !filesDir) {
@@ -429,15 +466,10 @@ export async function runCopterFlash(copterId: string) {
           "retry",
         );
       }
-      activity(t("Читаю распиновку из Betaflight ({port})…", { port: bfPort }));
-      await releasePort(bfPort);
-      const dump = `${filesDir}/${target}_bf.txt`;
-      await bfTool(source, ["read", "--port", bfPort, "--out", dump], t("Betaflight не отдал распиновку"));
+      activity(t("Читаю дамп из {fw} ({port})…", { fw: fwName, port: bfPort }));
+      copter.boardDump = await readBoardDump(copterId, bfPort);
       const fc = useApp.getState().fc[bfPort];
-      const info = { dump, target, bf: fc?.version, bfBoard: fc?.board, at: new Date().toISOString() };
-      useApp.getState().updateCopter(copterId, (c) => (c.boardDump = { ...c.boardDump, ...info }));
-      copter.boardDump = { ...copter.boardDump, ...info };
-      setStep("dump", "ok", fc?.board ? `${fc.board} · BF ${fc.version ?? "?"}` : undefined);
+      setStep("dump", "ok", fc?.board ? `${fc.board} · ${fwName} ${fc.version ?? "?"}` : undefined);
       current = "build";
     }
 
@@ -477,9 +509,9 @@ export async function runCopterFlash(copterId: string) {
     setStep("board", "run");
     let port: string | null = null;
     if (bfPort && dfu) {
-      activity(t("Betaflight уходит в загрузчик (команда bl)…"));
+      activity(t("{fw} уходит в загрузчик…", { fw: fwName }));
       await releasePort(bfPort);
-      await bfTool(source, ["dfu", "--port", bfPort], t("Betaflight не ушёл в загрузчик"));
+      await bfTool(source, ["dfu", "--port", bfPort], t("{fw} не ушёл в загрузчик", { fw: fwName }));
       if (!(await waitDevice((d) => d.kind === "stm32-dfu", 12000))) {
         throw new FlashError(t("Плата не перешла в режим прошивки"), t("Команда bl отправлена, но загрузчик не появился. Зажмите BOOT и вставьте USB."), "bootloader");
       }

@@ -80,6 +80,8 @@ export interface BoardDump {
   /** версия Betaflight и таргет по MSP */
   bf?: string;
   bfBoard?: string;
+  /** чей дамп: Betaflight или INAV (старые проекты — без поля, это BF) */
+  firmware?: string;
   at: string;
 }
 

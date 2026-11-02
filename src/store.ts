@@ -556,8 +556,8 @@ export const useApp = create<AppState>((set, get) => ({
       const present = new Set(devices.map((d) => d.port).filter(Boolean) as string[]);
       for (const port of Object.keys(ports)) if (!present.has(port)) delete ports[port];
       set({ devices, ports });
-      // Наша прошивка на STM32 — подключаемся сами и держим связь.
-      const cdc = devices.find((d) => d.kind === "stm32-cdc" && d.port);
+      // Полётник на STM32 (наша прошивка, Betaflight, INAV) или ArduPilot/PX4 — подключаемся сами и держим связь.
+      const cdc = devices.find((d) => (d.kind === "stm32-cdc" || d.kind === "fc-usb") && d.port);
       const link = get().link;
       if (get().linkHold && !present.has(get().linkHold!)) set({ linkHold: null });
       if (cdc?.port) {

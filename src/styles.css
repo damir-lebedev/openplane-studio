@@ -1754,6 +1754,48 @@ textarea {
   gap: 6px;
   margin: 10px 0;
 }
+.not-moved {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.not-moved li {
+  display: flex;
+  gap: 10px;
+  font-size: 13px;
+}
+
+/* что за полётник на USB, что нашлось на борту */
+.fc-found {
+  margin-bottom: 18px;
+}
+.fc-found h3 {
+  margin: 0 0 8px;
+}
+.fc-row .badge {
+  font-size: 11px;
+}
+.onboard {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 6px 14px;
+}
+.onboard-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.onboard-item .what {
+  color: var(--text-2);
+  min-width: 110px;
+}
+.onboard-item.none {
+  color: var(--text-3);
+}
 .prow-scope {
   margin-left: 8px;
   font-family: inherit;

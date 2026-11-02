@@ -19,6 +19,7 @@ pub const STM32_DFU_PID: u16 = 0xDF11;
 pub struct Device {
     /// stm32-cdc — STM32 с виртуальным COM (наша прошивка на DevEBox);
     /// stm32-dfu — STM32 в загрузчике, можно шить;
+    /// fc-usb — полётник ArduPilot/PX4 (свои USB VID: ArduPilot, 3DR, CubePilot, Holybro);
     /// esp32-usb — родной USB ESP32-S3/C3; usb-serial — мост CH340/CH343/CP210x/FTDI;
     /// serial — прочий COM-порт.
     pub kind: String,
@@ -43,10 +44,17 @@ fn bridge_name(vid: u16, pid: u16) -> Option<&'static str> {
     }
 }
 
+/// Полётники ArduPilot и PX4 со своими USB VID (у Betaflight и INAV — STM32 0483:5740).
+fn autopilot_usb(vid: u16, pid: u16) -> bool {
+    matches!((vid, pid), (0x1209, 0x5740) | (0x1209, 0x5741)) || matches!(vid, 0x26AC | 0x2DAE | 0x3162)
+}
+
 fn classify(port: &str, usb: &UsbPortInfo) -> Device {
     let (vid, pid) = (usb.vid, usb.pid);
     let (kind, title) = if vid == STM32_VID && pid == STM32_CDC_PID {
         ("stm32-cdc", "STM32, USB-порт".to_string())
+    } else if autopilot_usb(vid, pid) {
+        ("fc-usb", usb.product.clone().unwrap_or_else(|| "полётник ArduPilot/PX4".into()))
     } else if vid == 0x303A {
         ("esp32-usb", "ESP32, родной USB".to_string())
     } else if let Some(name) = bridge_name(vid, pid) {
@@ -157,4 +165,17 @@ pub fn reboot_to_bootloader(port: &str) -> Res<()> {
     let _ = p.flush();
     std::thread::sleep(Duration::from_millis(150));
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn autopilot_boards_are_flight_controllers() {
+        assert!(autopilot_usb(0x1209, 0x5741));
+        assert!(autopilot_usb(0x2DAE, 0x1016));
+        assert!(!autopilot_usb(0x1209, 0x0001));
+        assert!(!autopilot_usb(STM32_VID, STM32_CDC_PID));
+    }
 }
