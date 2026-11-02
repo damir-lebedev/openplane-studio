@@ -8,6 +8,7 @@ import { TEMPLATES } from "../core/templates";
 import { locale, t } from "../i18n";
 import { useApp } from "../store";
 import { capLabel } from "./copter/OverviewTab";
+import { DronePicker } from "./DronePicker";
 import { ConnectedFcs } from "./FcCards";
 import { PlanePreview } from "./PlanePreview";
 import { Choice, Modal } from "./ui";
@@ -345,6 +346,7 @@ export function Hangar() {
         </div>
       )}
       <ConnectedFcs onNewPlane={() => setCreating(true)} />
+      <DronePicker />
       <div className="planes">
         {planes.map((p) => (
           <PlaneCard key={p.id} plane={p} onDelete={() => setDeleting(p)} />

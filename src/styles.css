@@ -2669,3 +2669,42 @@ textarea {
   gap: 6px;
   margin: 8px 0;
 }
+
+/* Подбор дрона (P07) */
+.pick {
+  margin-bottom: 18px;
+}
+.pick h3 svg,
+.pick h4 svg {
+  vertical-align: -3px;
+}
+.pick h4 {
+  margin: 16px 0 6px;
+}
+.pick-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 8px 0 12px;
+}
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.pick-row.total {
+  border-bottom: 0;
+  font-size: 16px;
+}
+.pick-usd {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pick-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

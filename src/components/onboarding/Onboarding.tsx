@@ -206,7 +206,7 @@ export function Onboarding() {
         <h1>{t("Дрон уже есть?")}</h1>
         <div className="onb-cards three">
           <Card title={t("Есть")} desc={t("Подключишь полётник — приложение узнает плату и прошивку")} on={a.hasDrone === true} onClick={() => set({ hasDrone: true })} />
-          <Card title={t("Пока нет")} desc={t("Начни с симулятора; подбор дрона по ответам — скоро")} on={a.hasDrone === false} onClick={() => set({ hasDrone: false })} />
+          <Card title={t("Пока нет")} desc={t("Начни с симулятора; подберём дрон по ответам — в ангаре")} on={a.hasDrone === false} onClick={() => set({ hasDrone: false })} />
         </div>
         {a.hasDrone === true && <p className="onb-sub">{t("Дальше — ангар: подключи полётник по USB, и он появится сам.")}</p>}
       </>
