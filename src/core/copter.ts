@@ -109,6 +109,9 @@ export interface CopterProject {
   boardDump?: BoardDump;
   /** когда настройки из Betaflight перенесены на нашу прошивку */
   bfImportedAt?: string;
+  /** тренировка failsafe на земле пройдена (P12) и с какой failsafe_procedure */
+  failsafeCheckedAt?: string;
+  failsafeCheckedProcedure?: string;
   lastFlash?: FlashRecord;
   history: FlashRecord[];
 }

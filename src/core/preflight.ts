@@ -8,7 +8,7 @@ import { N_ } from "../i18n";
 import { armWhyList } from "./armWhy";
 import type { AuxRow } from "./copterParams";
 
-export type PreflightId = "battery" | "radio" | "gps" | "arm" | "armSwitch" | "angle" | "rescue" | "props";
+export type PreflightId = "battery" | "radio" | "gps" | "arm" | "armSwitch" | "angle" | "rescue" | "failsafe" | "props";
 
 export interface PreflightItem {
   id: PreflightId;
@@ -25,7 +25,7 @@ const BOX_GPS_RESCUE = 46;
 
 const onSwitch = (rows: AuxRow[], box: number) => rows.some((r) => r[1] === box && r[4] > r[3]);
 
-export function preflight(live: CopterLive | null, aux: AuxRow[], propsChecked: boolean): PreflightItem[] {
+export function preflight(live: CopterLive | null, aux: AuxRow[], propsChecked: boolean, failsafeChecked = false): PreflightItem[] {
   const items: PreflightItem[] = [];
   if (!live) return items;
   const cell = live.cell ?? 0;
@@ -62,6 +62,11 @@ export function preflight(live: CopterLive | null, aux: AuxRow[], propsChecked: 
       : { id: "arm", ok: true, text: N_("Прошивке ничего не мешает армить") },
   );
 
+  items.push(
+    failsafeChecked
+      ? { id: "failsafe", ok: true, text: N_("Failsafe проверен на земле") }
+      : { id: "failsafe", ok: null, text: N_("Failsafe не проверен: «Безопасность» → «Тренировка: выключи пульт»") },
+  );
   items.push({ id: "props", ok: propsChecked ? true : null, text: N_("Винты надеты по схеме: номер и направление") });
   return items;
 }

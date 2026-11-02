@@ -400,9 +400,29 @@ describe("вкладки коптера", () => {
     expect(screen.getByText("Перед полётом")).toBeTruthy();
     expect(screen.getByText(/Батарея не полная: 4.13 В/)).toBeTruthy();
     expect(document.querySelector(".preflight-osd .mono")?.textContent).toBe("NOT FULL  RX OK");
-    expect(document.querySelector(".preflight-item.ask")?.textContent).toMatch(/Винты надеты/);
+    const ask = () => [...document.querySelectorAll(".preflight-item.ask")].map((e) => e.textContent);
+    expect(ask()).toEqual([expect.stringMatching(/Failsafe не проверен/), expect.stringMatching(/Винты надеты/)]);
     fireEvent.click(screen.getByRole("checkbox"));
-    expect(document.querySelector(".preflight-item.ask")).toBeNull();
+    expect(ask()).toHaveLength(1);
+  });
+
+  it("тренировка failsafe: шаги по живым кадрам, отметка в проекте (P12)", () => {
+    useApp.setState({ clive: live({ arm: false }) });
+    render(<CopterView />);
+    tab("Безопасность");
+    fireEvent.click(screen.getByRole("button", { name: "Начать тренировку" }));
+    expect(screen.getByText(/Снимите винты/)).toBeTruthy();
+    const frames: Partial<CopterLive>[] = [
+      { t: 1000, arm: true },
+      { t: 1100, arm: true, rx: "lost" },
+      { t: 1400, arm: false, rx: "lost" },
+      { t: 2000, rx: "ok" },
+      { t: 3600, rx: "ok" },
+    ];
+    for (const f of frames) act(() => useApp.setState({ clive: live(f) }));
+    expect(screen.getByText(/Готово: прошивка выключила моторы/)).toBeTruthy();
+    expect(screen.getByText("Моторы встали через 300 мс после потери связи.")).toBeTruthy();
+    expect(useApp.getState().currentCopter()?.failsafeCheckedAt).toBeTruthy();
   });
 
   it("почему не армится: слово как в очках и кнопки «исправить» (P10)", () => {

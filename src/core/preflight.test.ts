@@ -37,9 +37,10 @@ const state = (items: ReturnType<typeof preflight>) => Object.fromEntries(items.
 describe("перед полётом (P08)", () => {
   it("всё готово, кроме винтов — их подтверждает человек", () => {
     const items = preflight(live(), aux, false);
-    expect(state(items)).toEqual({ battery: true, radio: true, armSwitch: true, angle: true, arm: true, props: null });
+    expect(state(items)).toEqual({ battery: true, radio: true, armSwitch: true, angle: true, arm: true, failsafe: null, props: null });
     expect(preflightReady(items)).toBe(false);
-    expect(preflightReady(preflight(live(), aux, true))).toBe(true);
+    expect(preflightReady(preflight(live(), aux, true))).toBe(false);   // failsafe не проверен
+    expect(preflightReady(preflight(live(), aux, true, true))).toBe(true);
   });
 
   it("не полная батарея, нет пульта, GPS ищет, ANGLE не на тумблере, CLI открыт", () => {

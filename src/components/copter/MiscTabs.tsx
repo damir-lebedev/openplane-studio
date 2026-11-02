@@ -13,6 +13,7 @@ import { isTrainingParam } from "../../core/training";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamList, shown, useCopterBoard, useCopterLink, useCopterLive } from "./common";
+import { FailsafeDrillCard } from "./FailsafeDrill";
 import { TrainingCard } from "./TrainingCard";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -90,8 +91,8 @@ function FailsafeBody() {
           </div>
         </div>
         {procedure !== "GPS-RESCUE" && <p className="hint">{t("Летаете далеко (7\")? Выберите failsafe_procedure = GPS-RESCUE — по потере связи коптер вернётся домой сам.")}</p>}
-        <p className="hint">{t("Проверьте без пропеллеров: выключите пульт — на OSD FAILSAFE, моторы встают.")}</p>
       </div>
+      <FailsafeDrillCard />
       <TrainingCard />
       <ParamList title={t("Failsafe")} params={fs} />
       <ParamList title={t("ARM и защита")} params={arm} />

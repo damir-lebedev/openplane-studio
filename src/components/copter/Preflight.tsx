@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { preflight, preflightOsd, preflightReady } from "../../core/preflight";
 import { t } from "../../i18n";
+import { useApp } from "../../store";
 import { useCopterBoard, useCopterLive } from "./common";
 import { FrameDiagram } from "./MotorsTab";
 
@@ -13,9 +14,10 @@ export function PreflightCard() {
   const board = useCopterBoard();
   const live = useCopterLive();
   const [props, setProps] = useState(false);
+  const failsafeChecked = useApp((s) => !!s.currentCopter()?.failsafeCheckedAt);
   if (!live || live.arm) return null;
   const rc = board.rc;
-  const items = preflight(live, rc ? (rc.usingFallback ? rc.fallback : rc.aux) : [], props);
+  const items = preflight(live, rc ? (rc.usingFallback ? rc.fallback : rc.aux) : [], props, failsafeChecked);
   const ready = preflightReady(items);
   const motors = board.header?.frame?.motors ?? [];
   return (

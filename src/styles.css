@@ -2831,3 +2831,27 @@ textarea {
 .link-none .ch-fill {
   background: var(--err);
 }
+.ok-text {
+  color: var(--ok);
+}
+.fs-drill h3 svg,
+.fs-drill .hint svg {
+  vertical-align: -3px;
+}
+.fs-drill-steps {
+  display: flex;
+  gap: 18px;
+  margin: 10px 0;
+  padding-left: 18px;
+  color: var(--text-2);
+}
+.fs-drill-steps li.now {
+  color: var(--text);
+  font-weight: 600;
+}
+.fs-drill-steps li.done {
+  color: var(--ok);
+}
+.fs-drill .btn + .btn {
+  margin-left: 8px;
+}
