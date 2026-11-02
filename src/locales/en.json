@@ -2188,5 +2188,14 @@
   "Две ступени ФНЧ (тип и срез, первая — может расти с газом) и два режектора под резонанс рамы. Имена — как в Betaflight.": "Two lowpass stages (type and cutoff; the first can rise with throttle) and two notches for frame resonance. Names are as in Betaflight.",
   "Сверху — проходит как есть, ниже — гасится. Вибрации моторов — справа (сотни герц), полёт — слева. Каждая ступень добавляет задержку: коптер отвечает позже.": "Top passes as is, lower is damped. Motor vibration is on the right (hundreds of hertz), flying is on the left. Every stage adds delay: the quad responds later.",
   "Что пропускают фильтры": "What the filters let through",
-  "динамический срез растёт с газом": "the dynamic cutoff rises with throttle"
+  "динамический срез растёт с газом": "the dynamic cutoff rises with throttle",
+  "Динамические: {list} Гц": "Dynamic: {list} Hz",
+  "Динамические: ищут пик": "Dynamic: looking for a peak",
+  "Динамический режектор едет за пиками спектра; RPM-фильтр — за оборотами моторов: с двунаправленным DShot (dshot_bidir) — точные обороты каждого мотора, без него — по модели. Имена — как в Betaflight.": "The dynamic notch follows spectrum peaks; the RPM filter follows motor speed: with bidirectional DShot (dshot_bidir) it uses each motor's exact RPM, without it the model's estimate. Names as in Betaflight.",
+  "Нет живых данных. Подключите коптер и раскрутите моторы на вкладке «Моторы» (без пропеллеров) — здесь появится вибрация.": "No live data. Connect the copter and spin the motors on the Motors tab (props off) — the vibration will show up here.",
+  "Обороты по DShot, моторы: {list} Гц": "RPM from DShot, motors: {list} Hz",
+  "Обороты по модели: {hz} Гц": "RPM from the model: {hz} Hz",
+  "Режекторы за вибрацией": "Notches that follow vibration",
+  "Спектр гироскопа": "Gyro spectrum",
+  "Что трясёт плату прямо сейчас: высокие столбики — вибрация. Пунктир — режекторы: голубые едут за пиками спектра (динамические), зелёные — за оборотами моторов (RPM-фильтр).": "What is shaking the board right now: tall bars are vibration. Dashed lines are notches: blue ones follow spectrum peaks (dynamic), green ones follow motor speed (RPM filter)."
 }

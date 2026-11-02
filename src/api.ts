@@ -159,6 +159,14 @@ export interface LiveFrame {
 }
 
 /** Живое состояние коптера — "@live {...}" (CopterLink.h прошивки). */
+export interface CopterSpectrum {
+  bw: number;
+  db: number[];
+  dn: number[][];
+  rpm: number[];
+  src: "dshot" | "model";
+}
+
 export interface CopterLive {
   t: number;
   arm: boolean;
@@ -199,6 +207,9 @@ export interface CopterLive {
   rescueFail?: string;
   /** учебные ограничения держат: ALT LIMIT, FENCE, FENCE RETURN, SPEED LIMIT */
   train?: string;
+  /** спектр гироскопа (060–063): ширина полосы, Гц; полосы 0, bw, 2bw… в дБ над 0.01 °/с (сумма осей);
+   *  центры динамических режекторов по осям; обороты моторов, Гц (DShot — каждый, модель — один) */
+  spec?: CopterSpectrum;
   gps?: { fix: boolean; sats: number; lat: number; lon: number; spd: number; home?: number; dir?: number };
   /** команда моторов 0…1 (−1 — стоит, turtle mode) */
   motors: number[];

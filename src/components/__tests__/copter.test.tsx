@@ -3,7 +3,7 @@
 // состояние, как их прислала бы прошивка; вызовы Rust подменены — видно,
 // какие команды ушли на плату.
 
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CopterLive } from "../../api";
@@ -524,6 +524,21 @@ describe("вкладки коптера", () => {
     fireEvent.change(chart.querySelector("input[type=range]")!, { target: { value: "0" } });
     expect(screen.getByText(/Гироскоп: срез 250 Гц/)).toBeTruthy();
     expect(screen.getByText(/D: срез 75 Гц/)).toBeTruthy();
+  });
+
+  it("фильтры: живой спектр гироскопа и метки режекторов (060–063)", () => {
+    render(<CopterView />);
+    tab("Фильтры");
+    expect(within(screen.getByTestId("spectrum-chart")).getByText(/Нет живых данных/)).toBeTruthy();
+    const db = Array.from({ length: 32 }, (_, k) => (k === 12 ? 50 : 10));
+    act(() => useApp.setState({ clive: live({ spec: { bw: 15.625, db, dn: [[188], [188], []], rpm: [150, 152, 149, 151], src: "dshot" } }) }));
+    const chart = screen.getByTestId("spectrum-chart");
+    expect(chart.querySelectorAll(".spectrum-bar")).toHaveLength(31);
+    expect(chart.querySelectorAll(".spectrum-bar.peak")).toHaveLength(1);
+    expect(chart.querySelectorAll(".spectrum-notch.dyn")).toHaveLength(1);
+    expect(chart.querySelectorAll(".spectrum-notch.rpm").length).toBeGreaterThan(4);
+    expect(within(chart).getByText(/Динамические: 188 Гц/)).toBeTruthy();
+    expect(within(chart).getByText(/Обороты по DShot, моторы: 150, 152, 149, 151 Гц/)).toBeTruthy();
   });
 
   it("расходы: кривая и максимум по оси", () => {

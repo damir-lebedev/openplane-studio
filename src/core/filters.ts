@@ -2,6 +2,7 @@
 // настроек платы и её АЧХ — та же непрерывная модель, что у прошивки
 // (copter/FilterChain.h, Presets.h: lowpassAt, notchAt).
 
+import type { CopterSpectrum } from "../api";
 import { CopterBoard } from "./copterParams";
 
 export type LpfType = "PT1" | "BIQUAD" | "PT2" | "PT3";
@@ -28,6 +29,8 @@ export interface Chain {
 /** Настройки цепочек — нет на плате (старая прошивка) — null. */
 export const FILTER_PARAMS = {
   gyro: ["gyro_lpf1_type", "gyro_lpf1_static_hz", "gyro_lpf1_dyn_min_hz", "gyro_lpf1_dyn_max_hz", "gyro_lpf1_dyn_expo", "gyro_lpf2_type", "gyro_lpf2_static_hz", "gyro_notch1_hz", "gyro_notch1_cutoff", "gyro_notch2_hz", "gyro_notch2_cutoff"],
+  /** динамический режектор и RPM-фильтр (060–063) */
+  notch: ["dyn_notch_count", "dyn_notch_q", "dyn_notch_min_hz", "dyn_notch_max_hz", "rpm_filter_harmonics", "rpm_filter_weights", "rpm_filter_q", "rpm_filter_min_hz", "rpm_filter_fade_range_hz", "rpm_filter_lpf_hz"],
   dterm: ["dterm_lpf1_type", "dterm_lpf1_static_hz", "dterm_lpf1_dyn_min_hz", "dterm_lpf1_dyn_max_hz", "dterm_lpf1_dyn_expo", "dterm_lpf2_type", "dterm_lpf2_static_hz", "dterm_notch_hz", "dterm_notch_cutoff"],
 };
 
@@ -125,6 +128,28 @@ export function delayMs(c: Chain, f: number, throttle = 0): number {
     prev = a;
   }
   return (-total / (2 * Math.PI * f)) * 1000;
+}
+
+/** Верх шкалы спектра, дБ над 0.01 °/с (100 °/с). */
+export const SPECTRUM_DB_MAX = 80;
+
+/** Полосы спектра без постоянной (вращение коптера); peak — выше соседей и среднего вдвое (по мощности). */
+export function spectrumBars(s: CopterSpectrum): { hz: number; db: number; peak: boolean }[] {
+  const db = s.db;
+  const mean = db.length > 1 ? db.slice(1).reduce((a, v) => a + v, 0) / (db.length - 1) : 0;
+  return db
+    .map((v, k) => ({ hz: k * s.bw, db: v, peak: k > 1 && k < db.length - 1 && v > db[k - 1] && v >= db[k + 1] && v > mean + 3 }))
+    .filter((b) => b.hz > 0);
+}
+
+/** Где стоят режекторы RPM-фильтра: гармоники 1×, 2×, 3× каждого мотора, Гц (без повторов). */
+export function rpmMarks(rpm: number[], harmonics: number): number[] {
+  const out = new Set<number>();
+  for (const hz of rpm) {
+    if (hz <= 0) continue;
+    for (let h = 1; h <= Math.min(3, harmonics); h++) out.add(Math.round(hz * h));
+  }
+  return [...out].sort((a, b) => a - b);
 }
 
 /** Точки АЧХ от fMin до fMax (лог-шкала). */

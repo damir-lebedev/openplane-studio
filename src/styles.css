@@ -1850,7 +1850,7 @@ textarea {
   fill: var(--warn);
 }
 .rescue-home {
-  fill: var(--ok, #3fb950);
+  fill: var(--ok);
 }
 .rescue-label {
   font-size: 12px;
@@ -2990,6 +2990,30 @@ textarea {
   display: flex;
   gap: 6px;
   margin-top: 8px;
+}
+
+/* спектр гироскопа */
+.spectrum-bar {
+  fill: var(--accent-line);
+}
+.spectrum-bar.peak {
+  fill: var(--warn);
+}
+.spectrum-notch {
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+.spectrum-notch.dyn {
+  stroke: var(--accent);
+}
+.spectrum-notch.rpm {
+  stroke: var(--ok);
+}
+.filter-key.spectrum-dyn::before {
+  background: var(--accent);
+}
+.filter-key.spectrum-rpm::before {
+  background: var(--ok);
 }
 
 /* АЧХ фильтров */

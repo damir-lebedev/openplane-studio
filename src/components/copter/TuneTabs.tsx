@@ -6,6 +6,7 @@ import { N_, t } from "../../i18n";
 import { FILTER_PARAMS } from "../../core/filters";
 import { MarginBar, NeedBoard, ParamInput, ParamList, ParamRow, ParamSlider, ProfilePicker, useCopterBoard } from "./common";
 import { FilterChart } from "./FilterChart";
+import { SpectrumChart } from "./SpectrumChart";
 
 /** Темы настроек PID-профиля по началу имени. */
 const PID_TOPICS: { title: string; sub?: string; match: (n: string) => boolean }[] = [
@@ -174,8 +175,18 @@ function FiltersBody() {
         sub={t("D усиливает шум сильнее всего — его фильтры ниже. Свои в каждом PID-профиле.")}
         params={FILTER_PARAMS.dterm.filter((n) => board.params[n]).map((n) => board.params[n])}
       />
+      <SpectrumChart />
+      {FILTER_PARAMS.notch.some((n) => board.params[n]) && (
+        <div className="wide">
+          <ParamList
+            title={t("Режекторы за вибрацией")}
+            sub={t("Динамический режектор едет за пиками спектра; RPM-фильтр — за оборотами моторов: с двунаправленным DShot (dshot_bidir) — точные обороты каждого мотора, без него — по модели. Имена — как в Betaflight.")}
+            params={FILTER_PARAMS.notch.filter((n) => board.params[n]).map((n) => board.params[n])}
+          />
+        </div>
+      )}
       <div className="wide">
-        <ParamList title={t("Ещё")} params={tabParams(board, "filters", [...names, ...FILTER_PARAMS.gyro, ...FILTER_PARAMS.dterm])} />
+        <ParamList title={t("Ещё")} params={tabParams(board, "filters", [...names, ...FILTER_PARAMS.gyro, ...FILTER_PARAMS.dterm, ...FILTER_PARAMS.notch])} />
       </div>
     </div>
   );

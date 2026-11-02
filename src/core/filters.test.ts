@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { dumpedBoard, param } from "./__fixtures__/copterBoard";
-import { Chain, chainOf, delayMs, dynHz, FILTER_PARAMS, gainDb, lpf1Hz, notchQ } from "./filters";
+import { Chain, chainOf, delayMs, dynHz, FILTER_PARAMS, gainDb, lpf1Hz, notchQ, rpmMarks, spectrumBars } from "./filters";
 
 const TYPES = ["PT1", "BIQUAD", "PT2", "PT3"];
 const f = (name: string, value: number | string) =>
@@ -63,5 +63,20 @@ describe("фильтры как в BF", () => {
     const g = chainOf(board({ gyro_notch1_hz: 200, gyro_notch1_cutoff: 160 }), "gyro")!;
     expect(gainDb(g, 200)).toBeLessThan(-30);
     expect(gainDb(g, 60)).toBeGreaterThan(-1);
+  });
+});
+
+describe("спектр гироскопа и режекторы (060–063)", () => {
+  it("полосы без постоянной, пик — выше соседей и среднего", () => {
+    const bars = spectrumBars({ bw: 15.6, db: [60, 10, 12, 11, 40, 12, 10, 9], dn: [[], [], []], rpm: [], src: "model" });
+    expect(bars).toHaveLength(7);
+    expect(bars[0].hz).toBeCloseTo(15.6);
+    expect(bars.filter((b) => b.peak).map((b) => Math.round(b.hz))).toEqual([62]);
+  });
+
+  it("RPM-фильтр: гармоники каждого мотора, без повторов, стоящие моторы — без режекторов", () => {
+    expect(rpmMarks([150, 150, 160, 0], 3)).toEqual([150, 160, 300, 320, 450, 480]);
+    expect(rpmMarks([150], 1)).toEqual([150]);
+    expect(rpmMarks([150], 0)).toEqual([]);
   });
 });
