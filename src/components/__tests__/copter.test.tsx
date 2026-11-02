@@ -219,6 +219,63 @@ describe("профиль пилота: новичок, наборы, «Пока�
   });
 });
 
+/** Учебные ограничения прошивки (training_*), как на плате из коробки. */
+function withTraining(on = "OFF") {
+  const safety = (name: string, v: number) => param(name, { group: "safety", scope: "master", default: v, value: v, min: 0, max: 5000, from: "table" });
+  act(() =>
+    useApp.setState((st) => ({
+      copterBoard: dumpedBoard([
+        ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+        param("training_limits", { type: "enum", group: "safety", scope: "master", options: ["OFF", "ON"], default: "OFF", value: on, from: "table" }),
+        safety("training_max_alt", 50),
+        safety("training_max_dist", 150),
+        safety("training_max_angle", 30),
+        safety("training_max_speed", 40),
+      ]),
+    })),
+  );
+}
+
+describe("учебные ограничения (P09)", () => {
+  beforeEach(() => {
+    sent.length = 0;
+    connect();
+  });
+  afterEach(cleanup);
+
+  it("новичку — в «Настройке полёта» с советом включить; кнопка шлёт training_limits ON", () => {
+    useApp.setState({ settings: { pilot: makeProfile({ experience: "new", craft: "quad", classes: ["quad5"], goals: ["freestyle"], hasDrone: true }) } });
+    withTraining();
+    render(<CopterView />);
+    tab("Настройка полёта");
+    expect(screen.getByText(/рекомендуем включить/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Включить" }));
+    expect(sent).toEqual(["set training_limits ON"]);
+  });
+
+  it("включены: набор «Первые полёты» — четыре предела; пилоту без совета, галочка выключает", () => {
+    withTraining("ON");
+    render(<CopterView />);
+    tab("Безопасность");
+    expect(screen.getByTestId("training-card")).toBeTruthy();
+    expect(screen.queryByText(/рекомендуем включить/)).toBeNull();
+    expect(screen.getByRole("button", { name: "Площадка" }).className).toContain("on");
+    fireEvent.click(screen.getByRole("button", { name: "Первые полёты" }));
+    expect(sent).toEqual(["set training_max_alt 30", "set training_max_dist 80", "set training_max_angle 25", "set training_max_speed 30"]);
+    sent.length = 0;
+    fireEvent.click(screen.getByRole("checkbox", { name: /включены/ }));
+    expect(sent).toEqual(["set training_limits OFF"]);
+  });
+
+  it("в полёте за краем — надпись прошивки на картинке", () => {
+    withTraining("ON");
+    act(() => useApp.setState({ clive: live({ arm: true, alt: 12, train: "FENCE RETURN", gps: { fix: true, sats: 12, lat: 0, lon: 0, spd: 6, home: 160, dir: 90 } }) }));
+    render(<CopterView />);
+    tab("Безопасность");
+    expect(screen.getByText("FENCE RETURN")).toBeTruthy();
+  });
+});
+
 describe("вкладки коптера", () => {
   beforeEach(() => {
     sent.length = 0;

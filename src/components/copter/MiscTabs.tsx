@@ -9,9 +9,11 @@ import { api, errorText } from "../../api";
 import { VTX_BANDS, vtxFrequency } from "../../core/copter";
 import { CopterParam, CopterTab, num, tabParams } from "../../core/copterParams";
 import { OVERLOAD_TEXT } from "../../core/parts";
+import { isTrainingParam } from "../../core/training";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamList, shown, useCopterBoard, useCopterLink, useCopterLive } from "./common";
+import { TrainingCard } from "./TrainingCard";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -56,7 +58,7 @@ function FailsafeBody() {
   const all = tabParams(board, "failsafe");
   const fs = all.filter((p) => p.name.startsWith("failsafe"));
   const crash = all.filter((p) => p.name.startsWith("crash_"));
-  const arm = all.filter((p) => !p.name.startsWith("failsafe") && !p.name.startsWith("crash_"));
+  const arm = all.filter((p) => !p.name.startsWith("failsafe") && !p.name.startsWith("crash_") && !isTrainingParam(p.name));
   const crashMode = String(board.params.crash_recovery?.value ?? "OFF");
   const delay = num(board, "failsafe_delay", 15) / 10;
   const landing = num(board, "failsafe_landing_time", 60);
@@ -90,6 +92,7 @@ function FailsafeBody() {
         {procedure !== "GPS-RESCUE" && <p className="hint">{t("Летаете далеко (7\")? Выберите failsafe_procedure = GPS-RESCUE — по потере связи коптер вернётся домой сам.")}</p>}
         <p className="hint">{t("Проверьте без пропеллеров: выключите пульт — на OSD FAILSAFE, моторы встают.")}</p>
       </div>
+      <TrainingCard />
       <ParamList title={t("Failsafe")} params={fs} />
       <ParamList title={t("ARM и защита")} params={arm} />
       {crash.length > 0 && (

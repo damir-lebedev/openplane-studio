@@ -1857,6 +1857,68 @@ textarea {
   fill: var(--text-2);
 }
 
+/* Учебные ограничения (TrainingCard) */
+.training-offer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  margin: 8px 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.training-presets {
+  margin: 8px 0;
+}
+.training-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 1fr);
+  gap: 16px;
+  align-items: center;
+}
+.training-svg {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+}
+.training-svg .rescue-label {
+  font-size: 9px;
+}
+.training-param {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.training-fence {
+  fill: color-mix(in srgb, var(--accent) 8%, transparent);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+.training-warn {
+  fill: none;
+  stroke: var(--warn);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+}
+.training-release {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+.training-ceiling {
+  stroke: var(--warn);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+.training-flag {
+  font-size: 10px;
+  font-weight: 700;
+  fill: var(--warn);
+}
+
 /* OSD: экран очков, элементы перетаскиваются */
 .osd-layout {
   display: grid;

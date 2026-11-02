@@ -192,6 +192,8 @@ export interface CopterLive {
   /** GPS Rescue: этап (CLIMB, FLY_HOME, DESCEND, LAND, ABORT) и почему прервался */
   rescue?: string;
   rescueFail?: string;
+  /** учебные ограничения держат: ALT LIMIT, FENCE, FENCE RETURN, SPEED LIMIT */
+  train?: string;
   gps?: { fix: boolean; sats: number; lat: number; lon: number; spd: number; home?: number; dir?: number };
   /** команда моторов 0…1 (−1 — стоит, turtle mode) */
   motors: number[];

@@ -10,6 +10,7 @@ import { CopterBoard, flightSliders, FlightSlider, ParamValue, SLIDER_PARAMS, sl
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { CommitRange, MarginBar, NeedBoard, useCopterBoard, useCopterLink } from "./common";
+import { TrainingCard } from "./TrainingCard";
 import { RateChart } from "./TuneTabs";
 
 export function FlightTab() {
@@ -55,6 +56,7 @@ function FlightBody() {
           ))}
         </div>
       </div>
+      <TrainingCard />
       <div className="card">
         <h3>{t("Устойчивость")}</h3>
         <MarginBar margin={board.header?.margin} />
