@@ -28,14 +28,39 @@ export function ReceiverTab() {
   );
 }
 
-function ReceiverBody() {
+/** Каналы пульта живьём — полосами, как вкладка Receiver в BF. */
+export function ChannelBars() {
   const board = useCopterBoard();
   const live = useCopterLive();
-  const cmd = useApp((s) => s.copterCommand);
-  const { armed } = useCopterLink();
   const rc = board.rc;
   const map = rc?.map ?? "AETR1234";
   const channels = live?.ch.slice(0, Math.max(8, rc?.channels ?? 8)) ?? [];
+  return (
+    <>
+      {!live && <p className="muted">{t("Жду живые кадры с платы…")}</p>}
+      {live && live.rx !== "ok" && <p className="hint warn-text">{live.rx === "fs" ? t("Приёмник сообщает FAILSAFE: пульт выключен или не привязан.") : t("Кадров от приёмника нет: проверьте провода и serialrx_provider.")}</p>}
+      <div className="ch-bars">
+        {channels.map((us, i) => (
+          <div key={i} className="ch-bar">
+            <span className="ch-name">{channelName(map, i)}</span>
+            <div className="ch-track">
+              <div className="ch-mid" />
+              <div className="ch-fill" style={{ width: `${Math.max(0, Math.min(100, (us - 1000) / 10))}%` }} />
+            </div>
+            <span className="mono ch-val">{us}</span>
+          </div>
+        ))}
+      </div>
+      <p className="hint">{t("Крен вправо, тангаж от себя (нос вниз), рысканье вправо, газ вверх — полоса вправо, к 2000. Иначе — поменяйте порядок каналов или реверс в пульте.")}</p>
+    </>
+  );
+}
+
+function ReceiverBody() {
+  const board = useCopterBoard();
+  const cmd = useApp((s) => s.copterCommand);
+  const { armed } = useCopterLink();
+  const map = board.rc?.map ?? "AETR1234";
   const mapOptions = MAPS.map((m) => ({ value: m, label: m.slice(0, 4) }));
   if (!MAPS.includes(map)) mapOptions.push({ value: "custom", label: map });
 
@@ -43,21 +68,7 @@ function ReceiverBody() {
     <div className="copter-grid">
       <div className="card">
         <h3>{t("Каналы пульта")}</h3>
-        {!live && <p className="muted">{t("Жду живые кадры с платы…")}</p>}
-        {live && live.rx !== "ok" && <p className="hint warn-text">{live.rx === "fs" ? t("Приёмник сообщает FAILSAFE: пульт выключен или не привязан.") : t("Кадров от приёмника нет: проверьте провода и serialrx_provider.")}</p>}
-        <div className="ch-bars">
-          {channels.map((us, i) => (
-            <div key={i} className="ch-bar">
-              <span className="ch-name">{channelName(map, i)}</span>
-              <div className="ch-track">
-                <div className="ch-mid" />
-                <div className="ch-fill" style={{ width: `${Math.max(0, Math.min(100, (us - 1000) / 10))}%` }} />
-              </div>
-              <span className="mono ch-val">{us}</span>
-            </div>
-          ))}
-        </div>
-        <p className="hint">{t("Крен вправо, тангаж от себя (нос вниз), рысканье вправо, газ вверх — полоса вправо, к 2000. Иначе — поменяйте порядок каналов или реверс в пульте.")}</p>
+        <ChannelBars />
       </div>
 
       <div className="card">

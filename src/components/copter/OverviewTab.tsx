@@ -70,7 +70,7 @@ function AuxSelect({ value, onChange }: { value: number; onChange: (v: number) =
 }
 
 /** Первая настройка (приёмник, видео, тумблеры) строками CLI — в плату по связи. */
-function WriteSetup({ copter }: { copter: CopterProject }) {
+export function WriteSetup({ copter }: { copter: CopterProject }) {
   const updateCopter = useApp((s) => s.updateCopter);
   const toast = useApp((s) => s.toast);
   const { copter: ready, armed, identity } = useCopterLink();
@@ -321,9 +321,6 @@ export function OverviewTab({ copter }: { copter: CopterProject }) {
   const envs = copterEnvs(manifest);
   const env = findCopterEnv(manifest, copter.board);
   const build = findCopterBuild(manifest, env?.build);
-  const mhz = vtxFrequency(copter.vtxBand, copter.vtxChannel);
-  const band = VTX_BANDS.find((b) => b.id === copter.vtxBand);
-  const swIssues = switchIssues(copter.switches);
 
   return (
     <div className="copter-grid">
@@ -377,75 +374,9 @@ export function OverviewTab({ copter }: { copter: CopterProject }) {
 
       <WriteSetup copter={copter} />
 
-      <div className="card">
-        <h3>{t("Тумблеры")}</h3>
-        <p className="sub">{t("Каналы пульта: AUX1 — это CH5. На TX12 назначьте тумблеры в «Модель → Миксы», например SA → CH5, SB → CH6, SC → CH7, SD → CH8.")}</p>
-        {SWITCHES.map((sw) => (
-          <div key={sw.key} className="switch-row">
-            <div className="grow">
-              <div>{t(sw.title)}</div>
-              <div className="hint">{t(sw.hint)}</div>
-            </div>
-            <AuxSelect value={copter.switches[sw.key]} onChange={(v) => edit((c) => (c.switches[sw.key] = v))} />
-          </div>
-        ))}
-        {swIssues.map((i) => (
-          <p key={i} className="hint warn-text">
-            {i}
-          </p>
-        ))}
-      </div>
+      <SwitchesCard copter={copter} />
 
-      <div className="card">
-        <h3>{t("Видеопередатчик")}</h3>
-        <div className="field">
-          <label>{t("Потолок мощности")}</label>
-          <select className="select" value={copter.vtxMaxPowerMw} onChange={(e) => edit((c) => (c.vtxMaxPowerMw = Number(e.target.value)))}>
-            {VTX_CAPS_MW.map((mw) => (
-              <option key={mw} value={mw}>
-                {capLabel(mw)}
-                {mw === FREE_POWER_MW ? t(" — без разрешения") : ""}
-              </option>
-            ))}
-          </select>
-        </div>
-        <p className="hint">
-          {t("Выше потолка передатчик не поднимется ни тумблером, ни кнопкой на нём самом. Без разрешения — до {mw} мВт в полосе {lo}–{hi} МГц.", {
-            mw: FREE_POWER_MW,
-            lo: FREE_BAND_MHZ[0],
-            hi: FREE_BAND_MHZ[1],
-          })}
-        </p>
-        <div className="row" style={{ gap: 10, marginTop: 10 }}>
-          <div className="field grow">
-            <label>{t("Полоса")}</label>
-            <select className="select" value={copter.vtxBand} onChange={(e) => edit((c) => (c.vtxBand = Number(e.target.value)))}>
-              {VTX_BANDS.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.letter}
-                  {GOGGLE_BANDS.includes(b.letter) ? "" : t(" (не для шлема)")}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="field grow">
-            <label>{t("Канал")}</label>
-            <select className="select" value={copter.vtxChannel} onChange={(e) => edit((c) => (c.vtxChannel = Number(e.target.value)))}>
-              {(band?.mhz ?? []).map((f, i) => (
-                <option key={i} value={i + 1}>
-                  {i + 1} · {f}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <p className="mono" style={{ margin: "10px 0 0" }}>
-          {band?.letter}
-          {copter.vtxChannel} · {mhz} {t("МГц")}
-        </p>
-        {band && !GOGGLE_BANDS.includes(band.letter) && <p className="hint warn-text">{t("Аналоговый шлем (Skyzone Cobra X) принимает полосы A, B, E, F, R, L — эту не увидит.")}</p>}
-        {mhz > 0 && !inFreeBand(mhz) && <p className="hint warn-text">{t("{mhz} МГц — вне полосы {lo}–{hi} МГц, разрешённой без лицензии.", { mhz, lo: FREE_BAND_MHZ[0], hi: FREE_BAND_MHZ[1] })}</p>}
-      </div>
+      <VtxCard copter={copter} />
 
       <div className="card wide">
         <h3>{t("Комплектующие")}</h3>
@@ -474,6 +405,93 @@ export function OverviewTab({ copter }: { copter: CopterProject }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Тумблеры пульта (в проекте; в плату — «Первая настройка»). */
+export function SwitchesCard({ copter }: { copter: CopterProject }) {
+  const updateCopter = useApp((s) => s.updateCopter);
+  const edit = (fn: (c: CopterProject) => void) => updateCopter(copter.id, fn);
+  const swIssues = switchIssues(copter.switches);
+  return (
+    <div className="card">
+      <h3>{t("Тумблеры")}</h3>
+      <p className="sub">{t("Каналы пульта: AUX1 — это CH5. На TX12 назначьте тумблеры в «Модель → Миксы», например SA → CH5, SB → CH6, SC → CH7, SD → CH8.")}</p>
+      {SWITCHES.map((sw) => (
+        <div key={sw.key} className="switch-row">
+          <div className="grow">
+            <div>{t(sw.title)}</div>
+            <div className="hint">{t(sw.hint)}</div>
+          </div>
+          <AuxSelect value={copter.switches[sw.key]} onChange={(v) => edit((c) => (c.switches[sw.key] = v))} />
+        </div>
+      ))}
+      {swIssues.map((i) => (
+        <p key={i} className="hint warn-text">
+          {i}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+/** Видеопередатчик: потолок мощности, полоса и канал (в проекте; в плату — «Первая настройка»). */
+export function VtxCard({ copter }: { copter: CopterProject }) {
+  const updateCopter = useApp((s) => s.updateCopter);
+  const edit = (fn: (c: CopterProject) => void) => updateCopter(copter.id, fn);
+  const mhz = vtxFrequency(copter.vtxBand, copter.vtxChannel);
+  const band = VTX_BANDS.find((b) => b.id === copter.vtxBand);
+  return (
+    <div className="card">
+      <h3>{t("Видеопередатчик")}</h3>
+      <div className="field">
+        <label>{t("Потолок мощности")}</label>
+        <select className="select" value={copter.vtxMaxPowerMw} onChange={(e) => edit((c) => (c.vtxMaxPowerMw = Number(e.target.value)))}>
+          {VTX_CAPS_MW.map((mw) => (
+            <option key={mw} value={mw}>
+              {capLabel(mw)}
+              {mw === FREE_POWER_MW ? t(" — без разрешения") : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="hint">
+        {t("Выше потолка передатчик не поднимется ни тумблером, ни кнопкой на нём самом. Без разрешения — до {mw} мВт в полосе {lo}–{hi} МГц.", {
+          mw: FREE_POWER_MW,
+          lo: FREE_BAND_MHZ[0],
+          hi: FREE_BAND_MHZ[1],
+        })}
+      </p>
+      <div className="row" style={{ gap: 10, marginTop: 10 }}>
+        <div className="field grow">
+          <label>{t("Полоса")}</label>
+          <select className="select" value={copter.vtxBand} onChange={(e) => edit((c) => (c.vtxBand = Number(e.target.value)))}>
+            {VTX_BANDS.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.letter}
+                {GOGGLE_BANDS.includes(b.letter) ? "" : t(" (не для шлема)")}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field grow">
+          <label>{t("Канал")}</label>
+          <select className="select" value={copter.vtxChannel} onChange={(e) => edit((c) => (c.vtxChannel = Number(e.target.value)))}>
+            {(band?.mhz ?? []).map((f, i) => (
+              <option key={i} value={i + 1}>
+                {i + 1} · {f}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <p className="mono" style={{ margin: "10px 0 0" }}>
+        {band?.letter}
+        {copter.vtxChannel} · {mhz} {t("МГц")}
+      </p>
+      {band && !GOGGLE_BANDS.includes(band.letter) && <p className="hint warn-text">{t("Аналоговый шлем (Skyzone Cobra X) принимает полосы A, B, E, F, R, L — эту не увидит.")}</p>}
+      {mhz > 0 && !inFreeBand(mhz) && <p className="hint warn-text">{t("{mhz} МГц — вне полосы {lo}–{hi} МГц, разрешённой без лицензии.", { mhz, lo: FREE_BAND_MHZ[0], hi: FREE_BAND_MHZ[1] })}</p>}
     </div>
   );
 }

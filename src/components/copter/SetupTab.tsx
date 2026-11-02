@@ -31,19 +31,8 @@ export function SetupTab() {
 
 function SetupBody() {
   const live = useCopterLive();
-  const lines = useApp((s) => s.consoleLines);
-  const toast = useApp((s) => s.toast);
-  const { armed } = useCopterLink();
   const blocks = live?.block ?? [];
   const serious = blocks.filter((b) => !ARM_BENCH_OK.includes(b));
-
-  const calibrate = async (key: string) => {
-    try {
-      await api.linkSend(key);
-    } catch (e) {
-      toast("err", errorText(e));
-    }
-  };
 
   return (
     <div className="copter-grid">
@@ -112,31 +101,48 @@ function SetupBody() {
         )}
       </div>
 
-      <div className="card wide">
-        <h3>{t("Калибровки")}</h3>
-        <p className="sub">{t("Калибровки хранятся на плате отдельно от настроек и прошивки — перепрошивка их не стирает.")}</p>
-        <div className="calib-grid">
-          {CALIBRATIONS.map((c) => (
-            <div key={c.key} className="calib">
-              <c.icon size={20} color="var(--accent)" />
-              <div className="grow">
-                <div>{t(c.title)}</div>
-                <div className="hint">{t(c.hint)}</div>
-              </div>
-              <button className="btn" disabled={armed} onClick={() => void calibrate(c.key)}>
-                {t("Начать")}
-              </button>
+      <Calibrations />
+    </div>
+  );
+}
+
+/** Калибровки клавишами консоли платы и её ответ. */
+export function Calibrations() {
+  const lines = useApp((s) => s.consoleLines);
+  const toast = useApp((s) => s.toast);
+  const { armed } = useCopterLink();
+  const calibrate = async (key: string) => {
+    try {
+      await api.linkSend(key);
+    } catch (e) {
+      toast("err", errorText(e));
+    }
+  };
+  return (
+    <div className="card wide">
+      <h3>{t("Калибровки")}</h3>
+      <p className="sub">{t("Калибровки хранятся на плате отдельно от настроек и прошивки — перепрошивка их не стирает.")}</p>
+      <div className="calib-grid">
+        {CALIBRATIONS.map((c) => (
+          <div key={c.key} className="calib">
+            <c.icon size={20} color="var(--accent)" />
+            <div className="grow">
+              <div>{t(c.title)}</div>
+              <div className="hint">{t(c.hint)}</div>
             </div>
-          ))}
-        </div>
-        <div className="cli console-tail">
-          {lines.slice(-10).map((l, i) => (
-            <div key={i} className="mono">
-              {l}
-            </div>
-          ))}
-          {!lines.length && <div className="hint">{t("Ответы платы появятся здесь.")}</div>}
-        </div>
+            <button className="btn" disabled={armed} onClick={() => void calibrate(c.key)}>
+              {t("Начать")}
+            </button>
+          </div>
+        ))}
+      </div>
+      <div className="cli console-tail">
+        {lines.slice(-10).map((l, i) => (
+          <div key={i} className="mono">
+            {l}
+          </div>
+        ))}
+        {!lines.length && <div className="hint">{t("Ответы платы появятся здесь.")}</div>}
       </div>
     </div>
   );

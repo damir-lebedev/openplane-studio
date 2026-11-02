@@ -1,4 +1,6 @@
-// Страница коптера: вкладки как в конфигураторе Betaflight — «Коптер»
+// Страница коптера. «Новичок» — мастер «По шагам» и «Настройка полёта»
+// (ползунки без имён настроек); «Профи» — вкладки как в конфигураторе
+// Betaflight — «Коптер»
 // (сборка, переход с BF, первая настройка), «Подготовка», «Приёмник»,
 // «Режимы», «Моторы», «PID», «Расходы», «Фильтры», «Безопасность»,
 // «Питание», «Видео», «OSD», «GPS», «Чёрный ящик», «Прочее», «CLI». Настройки живут
@@ -8,12 +10,14 @@ import { CircleDot, Zap } from "lucide-react";
 import { useState } from "react";
 
 import { findCopterEnv } from "../core/copter";
-import { CopterTab, TABS } from "../core/copterParams";
+import { CopterMode, CopterTab, tabsFor } from "../core/copterParams";
 import { betaflightPort, runCopterFlash } from "../flash";
 import { t } from "../i18n";
 import { useApp } from "../store";
 import { FlashDialog } from "./board/FlashDialog";
+import { Seg } from "./ui";
 import { UnsavedBar, useCopterLink, useCopterLive } from "./copter/common";
+import { FlightTab } from "./copter/FlightTab";
 import { GpsTab } from "./copter/GpsTab";
 import { CliTab, FailsafeTab, ListTab, OtherTab, PowerTab, VtxTab } from "./copter/MiscTabs";
 import { ModesTab } from "./copter/ModesTab";
@@ -22,14 +26,20 @@ import { OsdTab } from "./copter/OsdTab";
 import { OverviewTab } from "./copter/OverviewTab";
 import { ReceiverTab } from "./copter/ReceiverTab";
 import { SetupTab } from "./copter/SetupTab";
-import { PidTab, RatesTab } from "./copter/TuneTabs";
+import { FiltersTab, PidTab, RatesTab } from "./copter/TuneTabs";
+import { Wizard } from "./copter/Wizard";
 
 export function CopterView() {
   const copter = useApp((s) => s.currentCopter());
   const manifest = useApp((s) => s.manifest);
   const flash = useApp((s) => s.flash);
   const setSection = useApp((s) => s.setSection);
-  const [tab, setTab] = useState<CopterTab>("overview");
+  const mode: CopterMode = useApp((s) => s.settings.copterMode ?? "beginner");
+  const saveSettings = useApp((s) => s.saveSettings);
+  const tabs = tabsFor(mode);
+  const [picked, setTab] = useState<CopterTab>(tabs[0].id);
+  // сменили режим — вкладки другого режима нет: первая своя
+  const tab = tabs.some((x) => x.id === picked) ? picked : tabs[0].id;
   const link = useCopterLink();
   const live = useCopterLive();
   const fc = useApp((s) => s.fc);
@@ -76,21 +86,33 @@ export function CopterView() {
             </span>
           </p>
         </div>
-        <button className="btn primary" disabled={!!blocker || !!flash?.running || link.armed} title={blocker ?? undefined} onClick={() => void runCopterFlash(copter.id)}>
-          <Zap size={16} />
-          {t("Прошить")}
-        </button>
+        <div className="row" style={{ gap: 10 }}>
+          <Seg
+            value={mode}
+            onChange={(m) => void saveSettings({ copterMode: m })}
+            options={[
+              { value: "beginner", label: t("Новичок"), title: t("Мастер по шагам и несколько ползунков — без имён настроек") },
+              { value: "pro", label: t("Профи"), title: t("Все вкладки и все настройки, имена как в Betaflight") },
+            ]}
+          />
+          <button className="btn primary" disabled={!!blocker || !!flash?.running || link.armed} title={blocker ?? undefined} onClick={() => void runCopterFlash(copter.id)}>
+            <Zap size={16} />
+            {t("Прошить")}
+          </button>
+        </div>
       </div>
       <UnsavedBar />
       <div className="copter-layout">
         <nav className="copter-tabs">
-          {TABS.map((x) => (
+          {tabs.map((x) => (
             <button key={x.id} className={`copter-tab${tab === x.id ? " on" : ""}${x.board && !link.copter ? " dim" : ""}`} onClick={() => setTab(x.id)}>
               {t(x.title)}
             </button>
           ))}
         </nav>
         <div className="copter-content">
+          {tab === "wizard" && <Wizard copter={copter} />}
+          {tab === "flight" && <FlightTab />}
           {tab === "overview" && <OverviewTab copter={copter} />}
           {tab === "setup" && <SetupTab />}
           {tab === "receiver" && <ReceiverTab />}
@@ -98,7 +120,7 @@ export function CopterView() {
           {tab === "motors" && <MotorsTab />}
           {tab === "pid" && <PidTab />}
           {tab === "rates" && <RatesTab />}
-          {tab === "filters" && <ListTab tab="filters" />}
+          {tab === "filters" && <FiltersTab />}
           {tab === "failsafe" && <FailsafeTab />}
           {tab === "power" && <PowerTab />}
           {tab === "vtx" && <VtxTab />}

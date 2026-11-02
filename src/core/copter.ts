@@ -99,6 +99,8 @@ export interface CopterProject {
   vtxBand: number;
   vtxChannel: number;
   switches: CopterSwitches;
+  /** шаги мастера «Новичка», которые пилот отметил пройденными */
+  wizardDone?: string[];
   /** когда первую настройку записали в плату */
   setupWrittenAt?: string;
   /** плата из-под Betaflight: дамп CLI и родная прошивка в папке проекта (board/) */

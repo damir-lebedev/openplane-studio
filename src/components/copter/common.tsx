@@ -5,9 +5,9 @@ import { CircleAlert, LoaderCircle, RotateCcw, Save, Undo2 } from "lucide-react"
 import { ReactNode, useEffect, useState } from "react";
 
 import { CopterLive } from "../../api";
-import { CopterParam, isDefault, ParamValue, checkValue } from "../../core/copterParams";
+import { CopterParam, isDefault, LoopMargin, marginLevel, ParamValue, checkValue } from "../../core/copterParams";
 import { isFresh } from "../../core/live";
-import { t } from "../../i18n";
+import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
 
 /** Коптер с нашей прошивкой на связи и не заармлен — можно менять. */
@@ -219,6 +219,103 @@ export function ParamList({ title, sub, params }: { title?: string; sub?: string
       {params.map((p) => (
         <ParamRow key={p.name} p={p} />
       ))}
+    </div>
+  );
+}
+
+/**
+ * Ползунок, который отправляет значение, когда его отпустили (мышь, палец,
+ * клавиши), а не на каждый шаг: плате — одна команда, а не сотня.
+ */
+export function CommitRange({
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  onCommit,
+  onDrag,
+  label,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  disabled?: boolean;
+  onCommit: (v: number) => void;
+  onDrag?: (v: number) => void;
+  label?: string;
+}) {
+  const [v, setV] = useState(value);
+  useEffect(() => setV(value), [value]);
+  const commit = () => v !== value && onCommit(v);
+  return (
+    <input
+      type="range"
+      className="grow"
+      aria-label={label}
+      min={min}
+      max={max}
+      step={step}
+      value={v}
+      disabled={disabled}
+      onChange={(e) => {
+        setV(Number(e.target.value));
+        onDrag?.(Number(e.target.value));
+      }}
+      onPointerUp={commit}
+      onKeyUp={commit}
+      onBlur={commit}
+    />
+  );
+}
+
+/** Ползунок одной настройки (профи): имя BF, поле и полоса. */
+export function ParamSlider({ p, title, min, max, step = 5 }: { p: CopterParam; title: string; min?: number; max?: number; step?: number }) {
+  const set = useApp((s) => s.copterSet);
+  const pending = useApp((s) => s.copterBoard.pending[p.name]);
+  const { armed } = useCopterLink();
+  const value = Number(pending ?? p.value);
+  return (
+    <div className={`pslider${isDefault(p) ? "" : " changed"}`}>
+      <div className="prow-text">
+        <div className="prow-title">{title}</div>
+        <div className="prow-name mono">{p.name}</div>
+      </div>
+      <CommitRange label={title} value={value} min={min ?? p.min ?? 0} max={max ?? p.max ?? 200} step={step} disabled={armed} onCommit={(v) => void set(p.name, v)} />
+      <ParamInput p={p} width={64} compact />
+    </div>
+  );
+}
+
+const MARGIN_TEXT = {
+  ok: N_("с запасом: выдержит коптер, который вдвое «не такой», как в описании"),
+  warn: N_("на грани: на другом винте или батарее может задрожать"),
+  bad: N_("мало: коптер может раскачиваться — сдвиньте ползунки назад"),
+};
+
+/**
+ * Полоса «запас устойчивости»: запас по усилению контура для PID, что
+ * работают (прошивка пересчитывает на каждую правку PID и фильтров).
+ */
+export function MarginBar({ margin }: { margin?: LoopMargin }) {
+  if (!margin) return null;
+  const level = marginLevel(margin);
+  const top = 20;   // дБ — правый край полосы
+  const at = (db: number) => `${Math.max(0, Math.min(100, (db / top) * 100))}%`;
+  return (
+    <div className={`margin-bar ${level}`} title={t("по фазе {pm}°, срез {hz} Гц", { pm: Math.round(margin.pm), hz: margin.hz.toFixed(1) })}>
+      <div className="row" style={{ gap: 8 }}>
+        <span className="grow">{t("Запас устойчивости")}</span>
+        <span className="mono">{t("{db} дБ", { db: margin.gm.toFixed(1) })}</span>
+      </div>
+      <div className="margin-track">
+        <div className="margin-zone bad" style={{ width: at(margin.min) }} />
+        <div className="margin-zone warn" style={{ left: at(margin.min), width: at(4) }} />
+        <div className="margin-zone ok" style={{ left: at(margin.min + 4), right: 0 }} />
+        <div className="margin-mark" style={{ left: at(margin.gm) }} />
+      </div>
+      <div className="hint">{t(MARGIN_TEXT[level])}</div>
     </div>
   );
 }

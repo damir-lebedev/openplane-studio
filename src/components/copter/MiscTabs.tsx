@@ -1,4 +1,4 @@
-// Вкладки-списки: фильтры, безопасность и failsafe, питание (с калибровкой
+// Вкладки-списки: безопасность и failsafe, питание (с калибровкой
 // по мультиметру), видео (частота по полосе и каналу), GPS, чёрный ящик,
 // прочее (описание коптера — из него считается настройка) и CLI.
 
@@ -15,7 +15,6 @@ import { NeedBoard, ParamList, useCopterBoard, useCopterLink, useCopterLive } fr
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const TITLES: Partial<Record<CopterTab, { title: string; sub: string }>> = {
-  filters: { title: "Фильтры", sub: "Фильтры гироскопа и D посчитаны из модели коптера (обороты, рама); здесь — то, что можно поменять руками." },
   gps: { title: "GPS", sub: "Дом ставится при ARM, если спутников достаточно; стрелка домой и расстояние — на OSD." },
   blackbox: { title: "Чёрный ящик", sub: "Журнал полёта на флеш платы; выгрузить — раздел «Ящик» слева, открыть можно и в Blackbox Explorer (.bfl)." },
 };

@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import { dumpedBoard, param } from "./__fixtures__/copterBoard";
-import { applyMessage, checkValue, CopterParam, emptyBoard, parseBfDiff, rateAt, rcAutoCutoff, rcStepResponse, rescuePath, tabParams } from "./copterParams";
+import {
+  applyMessage,
+  checkValue,
+  CopterParam,
+  emptyBoard,
+  FLIGHT_SLIDERS,
+  flightSliders,
+  marginLevel,
+  parseBfDiff,
+  rateAt,
+  rcAutoCutoff,
+  rcStepResponse,
+  rescuePath,
+  sliderCommands,
+  sliderText,
+  sliderValue,
+  tabParams,
+} from "./copterParams";
 
 describe("настройки коптера с платы", () => {
   it("дамп: заголовок, настройки по порядку, @rc, конец — по @modes", () => {
@@ -130,5 +147,56 @@ describe("сглаживание стиков", () => {
     const at10 = sm.find((p) => p.t >= 10)!;
     expect(at10.smooth).toBeLessThan(at10.raw);
     expect(sm[sm.length - 1].smooth).toBeGreaterThan(0.98);
+  });
+});
+
+describe("ползунки «Настройки полёта» и запас устойчивости", () => {
+  const board = () =>
+    dumpedBoard([
+      param("simplified_pids_mode", { type: "enum", options: ["OFF", "RP", "RPY"], default: "RPY", value: "OFF" }),
+      param("simplified_master_multiplier", { default: 100, value: 100, max: 200 }),
+      param("simplified_feedforward_gain", { default: 100, value: 100, max: 200 }),
+      param("simplified_gyro_filter", { type: "enum", options: ["OFF", "ON"], default: "ON", value: "OFF" }),
+      param("simplified_gyro_filter_multiplier", { default: 100, value: 100, min: 10, max: 200 }),
+      param("simplified_dterm_filter", { type: "enum", options: ["OFF", "ON"], default: "ON", value: "ON" }),
+      param("simplified_dterm_filter_multiplier", { default: 100, value: 100, min: 10, max: 200 }),
+      ...["roll", "pitch", "yaw"].flatMap((a) => [param(`${a}_rc_rate`, { value: 30 }), param(`${a}_srate`, { value: a === "yaw" ? 50 : 60 }), param(`${a}_expo`, { value: 40 })]),
+    ]);
+
+  it("выключенные ползунки прошивки включаются; плавность — обратный FF", () => {
+    const b = board();
+    expect(sliderCommands(b, "response", 120)).toEqual([["simplified_pids_mode", "RPY"], ["simplified_master_multiplier", 120]]);
+    expect(sliderValue(b, "smooth")).toBe(50);
+    expect(sliderCommands(b, "smooth", 80)).toEqual([["simplified_pids_mode", "RPY"], ["simplified_feedforward_gain", 70]]);
+    expect(sliderCommands(b, "filters", 80)).toEqual([
+      ["simplified_gyro_filter", "ON"],
+      ["simplified_gyro_filter_multiplier", 80],
+      ["simplified_dterm_filter_multiplier", 80],
+    ]);
+  });
+
+  it("скорость: центр не выше максимума, рысканье в той же доле", () => {
+    const b = board();
+    expect(sliderValue(b, "speed")).toBe(600);
+    expect(sliderCommands(b, "speed", 250)).toEqual([
+      ["roll_srate", 25],
+      ["roll_rc_rate", 25],
+      ["pitch_srate", 25],
+      ["pitch_rc_rate", 25],
+      ["yaw_srate", 21],
+      ["yaw_rc_rate", 21],
+    ]);
+    expect(flightSliders(b).map((s) => s.id)).toEqual(["response", "smooth", "filters", "speed", "center"]);   // angle_limit нет — и ползунка нет
+    expect(sliderText(FLIGHT_SLIDERS[0], 120)).toBe("×1.20");
+  });
+
+  it("запас из @set и @save — в заголовок; уровни", () => {
+    let b = board();
+    b = applyMessage(b, "set", { name: "simplified_master_multiplier", ok: true, value: 150, margin: { gm: 8.1, pm: 44, hz: 25, min: 6 } });
+    expect(b.header?.margin?.gm).toBe(8.1);
+    expect(marginLevel(b.header!.margin!)).toBe("warn");
+    b = applyMessage(b, "save", { ok: true, stored: true, margin: { gm: 12, pm: 50, hz: 20, min: 6 } });
+    expect(marginLevel(b.header!.margin!)).toBe("ok");
+    expect(marginLevel({ gm: 5.9, pm: 30, hz: 30, min: 6 })).toBe("bad");
   });
 });

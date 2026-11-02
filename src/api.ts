@@ -44,6 +44,8 @@ export interface Settings {
   /** какую версию брать с GitHub: тег выпуска, "main" или пусто — последний выпуск */
   firmwareVersion?: string;
   mode?: "simple" | "full";
+  /** страница коптера: beginner — мастер и ползунки, pro — все вкладки */
+  copterMode?: "beginner" | "pro";
   currentPlane?: string;
   /** язык интерфейса: "ru", "en"; пусто — по языку системы */
   language?: string;

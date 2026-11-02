@@ -23,7 +23,8 @@ export function MotorsTab() {
   );
 }
 
-function MotorsBody() {
+/** simple — без списка настроек регуляторов (мастер «Новичка»). */
+export function MotorsBody({ simple = false }: { simple?: boolean }) {
   const board = useCopterBoard();
   const live = useCopterLive();
   const cmd = useApp((s) => s.copterCommand);
@@ -103,9 +104,11 @@ function MotorsBody() {
 
       {dshot && <DirectionCard motors={motors} picked={picked} busy={armed || spinning} />}
 
-      <div className="wide">
-        <ParamList title={t("Моторы и регуляторы")} params={tabParams(board, "motors")} />
-      </div>
+      {!simple && (
+        <div className="wide">
+          <ParamList title={t("Моторы и регуляторы")} params={tabParams(board, "motors")} />
+        </div>
+      )}
     </div>
   );
 }

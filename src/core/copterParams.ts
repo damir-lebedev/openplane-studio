@@ -45,6 +45,20 @@ export interface ParamsHeader {
   motorTestMax?: number;
   /** регуляторы DShot: команды «пискнуть», направление, turtle mode */
   dshotCommands?: boolean;
+  /** запас контура для PID, что работают (прошивка пересчитывает на каждую правку PID и фильтров) */
+  margin?: LoopMargin;
+}
+
+/** Запасы устойчивости контура угловой скорости (copter/Presets.h checkLoop). */
+export interface LoopMargin {
+  /** по усилению, дБ */
+  gm: number;
+  /** по фазе, ° */
+  pm: number;
+  /** частота среза крена/тангажа, Гц */
+  hz: number;
+  /** ниже этого прошивка предупреждает, дБ */
+  min: number;
 }
 
 /** Строка aux: [№, режим, канал AUX (0 = AUX1), от, до, логика, связь] — как в CLI BF. */
@@ -119,12 +133,15 @@ export function applyMessage(b: CopterBoard, kind: string, data: unknown, now = 
       if (!p) return { ...b, pending, errors };
       const value = (d.value ?? p.value) as ParamValue;
       const params = { ...b.params, [name]: { ...p, value, set: d.ok ? true : p.set, profiles: withProfile(p, b.header, value) } };
-      return { ...b, params, pending, errors, unsaved: b.unsaved || !!d.ok };
+      const header = d.margin && b.header ? { ...b.header, margin: d.margin as LoopMargin } : b.header;
+      return { ...b, header, params, pending, errors, unsaved: b.unsaved || !!d.ok };
     }
     case "profile":
       return b.header ? { ...b, header: { ...b.header, profile: Number(d.profile), rateprofile: Number(d.rateprofile) }, unsaved: true } : b;
-    case "save":
-      return d.ok ? { ...b, unsaved: false, errors: {} } : { ...b, errors: { ...b.errors, save: String(d.error ?? "не сохранилось") } };
+    case "save": {
+      const header = d.margin && b.header ? { ...b.header, margin: d.margin as LoopMargin } : b.header;
+      return d.ok ? { ...b, header, unsaved: false, errors: {} } : { ...b, header, errors: { ...b.errors, save: String(d.error ?? "не сохранилось") } };
+    }
     case "revert":
       return { ...b, unsaved: false, pending: {} };
     case "error":
@@ -170,6 +187,8 @@ export function checkValue(p: CopterParam, value: ParamValue): string | null {
 // ---------------- вкладки ----------------
 
 export type CopterTab =
+  | "wizard"
+  | "flight"
   | "overview"
   | "setup"
   | "receiver"
@@ -205,6 +224,18 @@ export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "other", title: N_("Прочее"), board: true },
   { id: "cli", title: N_("CLI"), board: true },
 ];
+
+/** «Новичок»: мастер по шагам и одна страница ползунков; «Профи» — все вкладки. */
+export type CopterMode = "beginner" | "pro";
+
+export const BEGINNER_TABS: { id: CopterTab; title: string; board: boolean }[] = [
+  { id: "wizard", title: N_("По шагам"), board: false },
+  { id: "flight", title: N_("Настройка полёта"), board: true },
+];
+
+export function tabsFor(mode: CopterMode) {
+  return mode === "beginner" ? BEGINNER_TABS : TABS;
+}
 
 /** Группа настройки (Params.h) → вкладка. */
 export const GROUP_TAB: Record<string, CopterTab> = {
@@ -263,6 +294,183 @@ export function rateAt(centerX10: number, maxX10: number, expoPct: number, stick
 export function num(b: CopterBoard, name: string, fallback = 0): number {
   const v = Number(b.params[name]?.value);
   return Number.isFinite(v) ? v : fallback;
+}
+
+// ---------------- ползунки: запас и «Настройка полёта» ----------------
+
+/** Запас по усилению: ok — с запасом, warn — на грани, bad — раскачается. */
+export function marginLevel(m: LoopMargin): "ok" | "warn" | "bad" {
+  return m.gm < m.min ? "bad" : m.gm < m.min + 4 ? "warn" : "ok";
+}
+
+/** Ползунок страницы «Настройка полёта»: одно понятное движение — одна или несколько настроек. */
+export interface FlightSlider {
+  id: "response" | "smooth" | "filters" | "speed" | "center" | "tilt";
+  title: string;
+  hint: string;
+  /** подписи краёв */
+  left: string;
+  right: string;
+  min: number;
+  max: number;
+  step: number;
+  /** единицы у значения: × — множитель (100 = ×1.00) */
+  unit: "×" | "%" | "°/с" | "°";
+}
+
+export const FLIGHT_SLIDERS: FlightSlider[] = [
+  {
+    id: "response",
+    title: N_("Отзывчивость"),
+    hint: N_("Насколько резко коптер слушается и держится. Больше — точнее, но ближе к дрожи; трясётся или звенит на газу — меньше."),
+    left: N_("мягко"),
+    right: N_("жёстко"),
+    min: 50,
+    max: 150,
+    step: 5,
+    unit: "×",
+  },
+  {
+    id: "smooth",
+    title: N_("Плавность стиков"),
+    hint: N_("Как быстро коптер подхватывает движение стика. Для съёмки — плавнее, для трюков — резче."),
+    left: N_("резко"),
+    right: N_("плавно"),
+    min: 0,
+    max: 100,
+    step: 5,
+    unit: "%",
+  },
+  {
+    id: "filters",
+    title: N_("Фильтры вибраций"),
+    hint: N_("Сильнее — моторы тише и холоднее, но отклик запаздывает. Моторы горячие после полёта — сдвиньте влево."),
+    left: N_("сильнее"),
+    right: N_("быстрее"),
+    min: 50,
+    max: 150,
+    step: 5,
+    unit: "×",
+  },
+  {
+    id: "speed",
+    title: N_("Скорость вращения"),
+    hint: N_("Сколько коптер крутится при стике до упора (крен и тангаж; рысканье — в той же доле)."),
+    left: N_("спокойно"),
+    right: N_("фристайл"),
+    min: 200,
+    max: 1200,
+    step: 10,
+    unit: "°/с",
+  },
+  {
+    id: "center",
+    title: N_("Мягкость у центра"),
+    hint: N_("Насколько стик мягче около центра: больше — легче держать ровно, но край стика резче."),
+    left: N_("ровно"),
+    right: N_("мягко"),
+    min: 0,
+    max: 80,
+    step: 5,
+    unit: "%",
+  },
+  {
+    id: "tilt",
+    title: N_("Предел наклона"),
+    hint: N_("Насколько коптер наклоняется в режиме ANGLE при стике до упора — это и наибольшая скорость полёта."),
+    left: N_("осторожно"),
+    right: N_("быстро"),
+    min: 15,
+    max: 80,
+    step: 1,
+    unit: "°",
+  },
+];
+
+const SLIDER_AXES = ["roll", "pitch", "yaw"] as const;
+
+/** Настройки, из которых складывается ползунок; нет хоть одной — ползунка нет (старая прошивка). */
+export const SLIDER_PARAMS: Record<FlightSlider["id"], string[]> = {
+  response: ["simplified_pids_mode", "simplified_master_multiplier"],
+  smooth: ["simplified_pids_mode", "simplified_feedforward_gain"],
+  filters: ["simplified_gyro_filter", "simplified_gyro_filter_multiplier", "simplified_dterm_filter", "simplified_dterm_filter_multiplier"],
+  speed: SLIDER_AXES.flatMap((a) => [`${a}_rc_rate`, `${a}_srate`]),
+  center: SLIDER_AXES.map((a) => `${a}_expo`),
+  tilt: ["angle_limit"],
+};
+
+function pv(b: CopterBoard, name: string, pick: "value" | "default"): number {
+  const p = b.params[name];
+  const v = Number(pick === "default" ? p?.default : name in b.pending ? b.pending[name] : p?.value);
+  return Number.isFinite(v) ? v : 0;
+}
+
+/** Положение ползунка из настроек платы (pick = default — «как из коробки»). */
+export function sliderValue(b: CopterBoard, id: FlightSlider["id"], pick: "value" | "default" = "value"): number {
+  switch (id) {
+    case "response":
+      return pv(b, "simplified_master_multiplier", pick);
+    case "smooth":
+      // FF 150 % — резко (0), 50 % — плавно (100)
+      return Math.max(0, Math.min(100, 150 - pv(b, "simplified_feedforward_gain", pick)));
+    case "filters":
+      return pv(b, "simplified_gyro_filter_multiplier", pick);
+    case "speed":
+      return Math.max(pv(b, "roll_rc_rate", pick), pv(b, "roll_srate", pick)) * 10;
+    case "center":
+      return pv(b, "roll_expo", pick);
+    case "tilt":
+      return pv(b, "angle_limit", pick);
+  }
+}
+
+/** Значение ползунка словами: ×1.20, 40 %, 720 °/с. */
+export function sliderText(s: FlightSlider, v: number): string {
+  return s.unit === "×" ? `×${(v / 100).toFixed(2)}` : `${Math.round(v)} ${s.unit}`;
+}
+
+/**
+ * Команды для положения ползунка: [имя, значение]. Выключенные ползунки
+ * прошивки (simplified_* = OFF) включаются; скорость ставит максимум крена и
+ * тангажа, рысканье — в той же доле; центр не выше максимума.
+ */
+export function sliderCommands(b: CopterBoard, id: FlightSlider["id"], v: number): [string, ParamValue][] {
+  const on = (mode: string, value: string): [string, ParamValue][] => (String(b.params[mode]?.value) === "OFF" ? [[mode, value]] : []);
+  switch (id) {
+    case "response":
+      return [...on("simplified_pids_mode", "RPY"), ["simplified_master_multiplier", Math.round(v)]];
+    case "smooth":
+      return [...on("simplified_pids_mode", "RPY"), ["simplified_feedforward_gain", Math.round(150 - v)]];
+    case "filters":
+      return [
+        ...on("simplified_gyro_filter", "ON"),
+        ...on("simplified_dterm_filter", "ON"),
+        ["simplified_gyro_filter_multiplier", Math.round(v)],
+        ["simplified_dterm_filter_multiplier", Math.round(v)],
+      ];
+    case "speed": {
+      const k = v / Math.max(10, sliderValue(b, "speed"));
+      const out: [string, ParamValue][] = [];
+      for (const a of SLIDER_AXES) {
+        const p = b.params[`${a}_srate`];
+        const center = pv(b, `${a}_rc_rate`, "value");
+        const max = Math.max(center, pv(b, `${a}_srate`, "value"));
+        const srate = Math.round(Math.min(p?.max ?? 255, Math.max(p?.min ?? 0, a === "yaw" ? max * k : v / 10)));
+        out.push([`${a}_srate`, srate]);
+        if (center > srate) out.push([`${a}_rc_rate`, srate]);
+      }
+      return out;
+    }
+    case "center":
+      return SLIDER_AXES.map((a) => [`${a}_expo`, Math.round(v)]);
+    case "tilt":
+      return [["angle_limit", Math.round(v)]];
+  }
+}
+
+/** Ползунки, которые есть на этой плате. */
+export function flightSliders(b: CopterBoard): FlightSlider[] {
+  return FLIGHT_SLIDERS.filter((s) => SLIDER_PARAMS[s.id].every((n) => n in b.params));
 }
 
 // ---------------- GPS Rescue ----------------

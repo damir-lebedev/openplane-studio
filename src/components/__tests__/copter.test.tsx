@@ -76,10 +76,114 @@ function connect() {
     copterBoard: board,
     clive: live(),
     cliveAt: Date.now(),
+    settings: { copterMode: "pro" },
   });
 }
 
+/** Ползунки прошивки (simplified_*) и то, что двигают ползунки «Настройки полёта». */
+function sliderParams() {
+  const pct = (name: string, group = "pid", scope: "pid" | "master" = "pid") => param(name, { group, scope, min: 0, max: 200, default: 100, value: 100, from: "table" });
+  const onOff = (name: string, scope: "pid" | "master") => param(name, { type: "enum", group: "filters", scope, options: ["OFF", "ON"], default: "ON", value: "ON", from: "table" });
+  const rate = (name: string, v: number) => param(name, { group: "rates", scope: "rate", default: v, value: v });
+  return [
+    param("simplified_pids_mode", { type: "enum", options: ["OFF", "RP", "RPY"], default: "RPY", value: "RPY", from: "table" }),
+    ...["master_multiplier", "pi_gain", "i_gain", "d_gain", "dmax_gain", "feedforward_gain", "pitch_pi_gain", "pitch_d_gain"].map((n) => pct(`simplified_${n}`)),
+    onOff("simplified_gyro_filter", "master"),
+    pct("simplified_gyro_filter_multiplier", "filters", "master"),
+    onOff("simplified_dterm_filter", "pid"),
+    pct("simplified_dterm_filter_multiplier", "filters"),
+    ...["roll", "pitch", "yaw"].flatMap((a) => [rate(`${a}_rc_rate`, 18), rate(`${a}_srate`, a === "yaw" ? 60 : 72), rate(`${a}_expo`, 50)]),
+    param("angle_limit", { default: 55, value: 55, min: 10, max: 90 }),
+  ];
+}
+
+function withSliders(margin = { gm: 11.6, pm: 49, hz: 21.3, min: 6 }) {
+  act(() =>
+    useApp.setState((st) => {
+      const b = dumpedBoard([...st.copterBoard.order.map((n) => st.copterBoard.params[n]).filter((p) => !p.name.includes("rate") && !p.name.includes("expo")), ...sliderParams()]);
+      return { copterBoard: { ...b, header: { ...b.header!, margin } } };
+    }),
+  );
+}
+
 const tab = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
+
+describe("режимы «Новичок» и «Профи»", () => {
+  beforeEach(() => {
+    sent.length = 0;
+    connect();
+    useApp.setState({ settings: {} });   // по умолчанию — «Новичок»
+  });
+  afterEach(cleanup);
+
+  it("новичок не видит профи-вкладок; «Профи» открывает все", () => {
+    render(<CopterView />);
+    expect(screen.getByRole("button", { name: "По шагам" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Настройка полёта" })).toBeTruthy();
+    for (const pro of ["PID", "Расходы", "Фильтры", "CLI", "Приёмник"]) expect(screen.queryByRole("button", { name: pro })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Профи" }));
+    expect(useApp.getState().settings.copterMode).toBe("pro");
+    expect(screen.getByRole("button", { name: "PID" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Настройка полёта" })).toBeNull();
+  });
+
+  it("«Настройка полёта»: ползунок словами — команды настроек, ни одного имени настройки", () => {
+    withSliders();
+    const { container } = render(<CopterView />);
+    tab("Настройка полёта");
+    expect(container.textContent).not.toMatch(/simplified_|_srate|angle_limit|p_roll/);
+    expect(screen.getByText("11.6 дБ")).toBeTruthy();
+    expect(screen.getByText(/с запасом/)).toBeTruthy();
+    const response = screen.getByRole("slider", { name: "Отзывчивость" });
+    fireEvent.change(response, { target: { value: "120" } });
+    expect(sent).toEqual([]);   // пока тянут — ничего не уходит
+    fireEvent.pointerUp(response);
+    expect(sent).toEqual(["set simplified_master_multiplier 120"]);
+    const speed = screen.getByRole("slider", { name: "Скорость вращения" });
+    fireEvent.change(speed, { target: { value: "900" } });
+    fireEvent.pointerUp(speed);
+    expect(sent.slice(1)).toEqual(["set roll_srate 90", "set pitch_srate 90", "set yaw_srate 75"]);   // рысканье — в той же доле
+  });
+
+  it("запас мал — красная полоса и совет сдвинуть назад", () => {
+    withSliders({ gm: 4.2, pm: 31, hz: 30, min: 6 });
+    const { container } = render(<CopterView />);
+    tab("Настройка полёта");
+    expect(container.querySelector(".margin-bar.bad")).toBeTruthy();
+    expect(screen.getByText(/сдвиньте ползунки назад/)).toBeTruthy();
+  });
+
+  it("мастер доходит до «можно лететь» на фейковой плате", () => {
+    useApp.setState({ clive: live({ block: [] }) });
+    render(<CopterView />);
+    expect(screen.getByRole("heading", { name: "Рама и винты" })).toBeTruthy();
+    const next = () => fireEvent.click(screen.getByRole("button", { name: "Дальше" }));
+    const confirm = (text: RegExp) => fireEvent.click(screen.getByLabelText(text));
+    next();
+    confirm(/Стики двигают нужные полосы/);
+    next();
+    confirm(/Каждый мотор на своём месте/);
+    next();
+    confirm(/выключил пульт — моторы встали/);
+    next();
+    confirm(/как у моей батареи/);
+    next();
+    confirm(/Картинка в очках есть/);
+    next();
+    expect(screen.getByText("Всё готово — можно лететь!")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Дальше" })).toBeNull();
+    expect(useApp.getState().copters[0].wizardDone).toHaveLength(5);
+  });
+
+  it("мастер: пока не всё — «осталось» и переход к шагу", () => {
+    render(<CopterView />);   // плата не откалибрована, шаги не отмечены
+    fireEvent.click(screen.getByRole("button", { name: /Можно лететь/ }));
+    expect(screen.getByRole("heading", { name: /Осталось \d+/ })).toBeTruthy();
+    expect(screen.getByText("Установка платы откалибрована")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "К шагу" })[0]);
+    expect(screen.getByRole("heading", { name: "Рама и винты" })).toBeTruthy();
+  });
+});
 
 describe("вкладки коптера", () => {
   beforeEach(() => {
@@ -193,6 +297,21 @@ describe("вкладки коптера", () => {
     render(<CopterView />);
     tab("Расходы");
     expect(screen.getByText("Коптер не подключён")).toBeTruthy();
+  });
+
+  it("PID и фильтры: ползунки Betaflight с запасом устойчивости", () => {
+    withSliders();
+    render(<CopterView />);
+    tab("PID");
+    expect(screen.getByText("Ползунки PID")).toBeTruthy();
+    expect(screen.getByText("simplified_d_gain")).toBeTruthy();   // имя BF — мелко
+    const d = screen.getByRole("slider", { name: "Демпфирование: D" });
+    fireEvent.change(d, { target: { value: "130" } });
+    fireEvent.keyUp(d);
+    expect(sent).toContain("set simplified_d_gain 130");
+    tab("Фильтры");
+    expect(screen.getByRole("slider", { name: "Фильтр гироскопа" })).toBeTruthy();
+    expect(screen.getByText("11.6 дБ")).toBeTruthy();
   });
 
   it("расходы: кривая и максимум по оси", () => {
