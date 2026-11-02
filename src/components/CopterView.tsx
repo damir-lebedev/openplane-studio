@@ -1,6 +1,7 @@
-// Страница коптера. «Новичок» — мастер «По шагам» и «Настройка полёта»
-// (ползунки без имён настроек); «Профи» — вкладки как в конфигураторе
-// Betaflight — «Коптер»
+// Страница коптера. Какие вкладки видны — по профилю пилота (наборы, P05):
+// новичку — мастер «По шагам» и «Настройка полёта» (ползунки без имён
+// настроек), остальным — «Основа» и вкладки их наборов, «Показать всё» —
+// все вкладки как в конфигураторе Betaflight — «Коптер»
 // (сборка, переход с BF, первая настройка), «Я с Betaflight» (где у нас что),
 // «Подготовка», «Приёмник»,
 // «Режимы», «Моторы», «PID», «Расходы», «Фильтры», «Безопасность»,
@@ -8,16 +9,16 @@
 // на плате: правка уходит на плату сразу, «Сохранить» — во флеш. Поиск в
 // шапке находит настройку по имени BF или словами и подсвечивает её.
 
-import { CircleDot, Zap } from "lucide-react";
+import { CircleDot, Eye, EyeOff, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { findCopterEnv } from "../core/copter";
-import { BEGINNER_TABS, CopterMode, CopterTab, tabsFor } from "../core/copterParams";
+import { CopterTab } from "../core/copterParams";
+import { copterTabs, PACKS, profileOf, tabPack } from "../core/pilot";
 import { betaflightPort, runCopterFlash } from "../flash";
 import { t } from "../i18n";
 import { useApp } from "../store";
 import { FlashDialog } from "./board/FlashDialog";
-import { Seg } from "./ui";
 import { UnsavedBar, useCopterLink, useCopterLive } from "./copter/common";
 import { BeeperTab } from "./copter/BeeperTab";
 import { FlightTab } from "./copter/FlightTab";
@@ -38,11 +39,13 @@ export function CopterView() {
   const manifest = useApp((s) => s.manifest);
   const flash = useApp((s) => s.flash);
   const setSection = useApp((s) => s.setSection);
-  const mode: CopterMode = useApp((s) => s.settings.copterMode ?? "beginner");
+  const settings = useApp((s) => s.settings);
   const saveSettings = useApp((s) => s.saveSettings);
-  const tabs = tabsFor(mode);
+  const toast = useApp((s) => s.toast);
+  const profile = profileOf(settings);
+  const tabs = copterTabs(profile);
   const [picked, setTab] = useState<CopterTab>(tabs[0].id);
-  // сменили режим — вкладки другого режима нет: первая своя
+  // выключили набор или «Показать всё» — вкладки больше нет: первая видимая
   const tab = tabs.some((x) => x.id === picked) ? picked : tabs[0].id;
   const [focus, setFocus] = useState<{ param: string; at: number } | null>(null);
   const link = useCopterLink();
@@ -66,10 +69,16 @@ export function CopterView() {
     };
   }, [focus, tab]);
 
-  /** Поиск и «Я с Betaflight»: вкладка другого режима — переключить режим. */
+  /** Поиск и «Я с Betaflight»: вкладка скрыта — включить её набор (новичковая — «Показать всё»). */
   const go: GoTo = (to, param) => {
-    const want: CopterMode = BEGINNER_TABS.some((x) => x.id === to) ? "beginner" : "pro";
-    if (want !== mode) void saveSettings({ copterMode: want });
+    if (!tabs.some((x) => x.id === to)) {
+      const pack = tabPack(to);
+      if (pack && pack !== "base") {
+        void saveSettings({ pilot: { ...profile, packs: [...profile.packs, pack] } });
+        const title = PACKS.find((p) => p.id === pack)!.title;
+        toast("info", t("Это в наборе «{pack}» — набор включён. Выключить можно в «Настройках».", { pack: t(title) }));
+      } else void saveSettings({ pilot: { ...profile, showAll: true } });
+    }
     setTab(to);
     setFocus(param ? { param, at: Date.now() } : null);
   };
@@ -118,14 +127,15 @@ export function CopterView() {
         </div>
         <div className="row" style={{ gap: 10 }}>
           <CopterSearch onGo={go} />
-          <Seg
-            value={mode}
-            onChange={(m) => void saveSettings({ copterMode: m })}
-            options={[
-              { value: "beginner", label: t("Новичок"), title: t("Мастер по шагам и несколько ползунков — без имён настроек") },
-              { value: "pro", label: t("Профи"), title: t("Все вкладки и все настройки, имена как в Betaflight") },
-            ]}
-          />
+          <button
+            className={`btn${profile.showAll ? " primary" : " ghost"}`}
+            aria-pressed={!!profile.showAll}
+            title={profile.showAll ? t("Снова только вкладки моих наборов") : t("Все вкладки и все настройки, имена как в Betaflight")}
+            onClick={() => void saveSettings({ pilot: { ...profile, showAll: !profile.showAll } })}
+          >
+            {profile.showAll ? <EyeOff size={15} /> : <Eye size={15} />}
+            {t("Показать всё")}
+          </button>
           <button className="btn primary" disabled={!!blocker || !!flash?.running || link.armed} title={blocker ?? undefined} onClick={() => void runCopterFlash(copter.id)}>
             <Zap size={16} />
             {t("Прошить")}

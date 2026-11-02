@@ -6,6 +6,7 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { CopterFirmwareConfig, CopterProject } from "./core/copter";
 import { Manifest } from "./core/manifest";
 import { FirmwareFingerprint } from "./core/migrate";
+import type { PilotProfile } from "./core/pilot";
 import { FirmwareConfig, FlashRecord, PlaneProject } from "./core/project";
 
 export interface AppInfo {
@@ -44,8 +45,10 @@ export interface Settings {
   /** какую версию брать с GitHub: тег выпуска, "main" или пусто — последний выпуск */
   firmwareVersion?: string;
   mode?: "simple" | "full";
-  /** страница коптера: beginner — мастер и ползунки, pro — все вкладки */
+  /** прежний переключатель «Новичок/Профи» — читается, пока нет профиля пилота */
   copterMode?: "beginner" | "pro";
+  /** профиль пилота из анкеты первого запуска: что видно (наборы) */
+  pilot?: PilotProfile;
   currentPlane?: string;
   /** язык интерфейса: "ru", "en"; пусто — по языку системы */
   language?: string;

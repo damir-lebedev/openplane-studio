@@ -1,7 +1,8 @@
-import { RefreshCw } from "lucide-react";
+import { Check, Eye, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api, DriverStatus, errorText } from "../api";
+import { CRAFTS, EXPERIENCES, GOALS, PACKS, profileOf, togglePack } from "../core/pilot";
 import { getLanguage, LANGUAGES, t } from "../i18n";
 import { useApp } from "../store";
 import { SetupPanel } from "./Setup";
@@ -53,6 +54,60 @@ function DriverCard() {
         </button>
       )}
       {dfuPresent && status?.ok && <span className="badge ok">{t("установлен")}</span>}
+    </div>
+  );
+}
+
+/** Профиль пилота: ответы анкеты и наборы — что видно в приложении. */
+function PilotCard() {
+  const settings = useApp((s) => s.settings);
+  const saveSettings = useApp((s) => s.saveSettings);
+  const setOnboarding = useApp((s) => s.setOnboarding);
+  const p = profileOf(settings);
+  const who = [
+    t(EXPERIENCES.find((x) => x.id === p.experience)!.title),
+    t(CRAFTS.find((x) => x.id === p.craft)!.title),
+    ...p.goals.map((g) => t(GOALS.find((x) => x.id === g)!.title)),
+  ];
+  return (
+    <div className="card">
+      <div className="row" style={{ marginBottom: 12 }}>
+        <div className="grow">
+          <div style={{ fontWeight: 600 }}>{p.skipped || !settings.pilot ? t("Анкету не проходили — видна «Основа»") : who.join(" · ")}</div>
+          <div className="hint">{t("Наборы решают, какие вкладки и разделы видны. Прошивка от них не зависит — все функции в ней есть.")}</div>
+        </div>
+        <button className="btn" onClick={() => setOnboarding(true)}>
+          <Sparkles size={15} />
+          {t("Пройти анкету заново")}
+        </button>
+      </div>
+      <div className="pack-grid">
+        {PACKS.map((x) => {
+          const on = p.packs.includes(x.id);
+          return (
+            <button
+              key={x.id}
+              className={`pack-toggle${on ? " on" : ""}`}
+              role="checkbox"
+              aria-checked={on}
+              disabled={x.id === "base"}
+              title={x.id === "base" ? t("«Основа» есть всегда") : undefined}
+              onClick={() => void saveSettings({ pilot: togglePack(p, x.id) })}
+            >
+              <span className="pack-toggle-dot">{on && <Check size={12} />}</span>
+              <span>
+                <span className="pack-toggle-title">{t(x.title)}</span>
+                <span className="pack-toggle-desc">{t(x.desc)}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <label className="row" style={{ marginTop: 12, gap: 8, cursor: "pointer" }}>
+        <input type="checkbox" checked={!!p.showAll} onChange={(e) => void saveSettings({ pilot: { ...p, showAll: e.target.checked } })} />
+        <Eye size={15} />
+        <span>{t("Показать всё — все вкладки и разделы, наборы остаются как есть")}</span>
+      </label>
     </div>
   );
 }
@@ -121,6 +176,10 @@ export function Settings() {
             </button>
           ))}
         </div>
+      </Section>
+
+      <Section title={t("Профиль пилота")} sub={t("что видно в приложении")}>
+        <PilotCard />
       </Section>
 
       <Section title={t("Исходники прошивки")} sub={t("папка репозитория plane (OpenPlaneProject)")}>

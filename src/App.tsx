@@ -7,10 +7,12 @@ import { ComingSoon } from "./components/ComingSoon";
 import { CopterView } from "./components/CopterView";
 import { Hangar } from "./components/Hangar";
 import { Header } from "./components/Header";
+import { Onboarding } from "./components/onboarding/Onboarding";
 import { Rail } from "./components/Rail";
 import { Settings } from "./components/Settings";
 import { SetupDialog } from "./components/Setup";
 import { Toasts } from "./components/Toasts";
+import { needsOnboarding } from "./core/pilot";
 import { getLanguage } from "./i18n";
 import { useApp } from "./store";
 
@@ -20,6 +22,8 @@ export default function App() {
   const section = useApp((s) => s.section);
   // смена языка — перерисовать всё: t() читается при рендере
   const language = useApp((s) => s.settings.language) ?? getLanguage();
+  // анкета пилота: при первом запуске сама, потом — из «Настроек»
+  const onboarding = useApp((s) => s.ready && (s.onboarding || needsOnboarding(s.settings)));
 
   useEffect(() => {
     void init();
@@ -66,6 +70,7 @@ export default function App() {
       </main>
       <BoardPanel />
       <SetupDialog />
+      {onboarding && <Onboarding />}
       <Toasts />
     </div>
   );

@@ -1,6 +1,7 @@
 import { Cpu, HardDrive, Package, RadioTower, Route, Settings, Warehouse } from "lucide-react";
 import { ReactNode } from "react";
 
+import { profileOf, sectionVisible } from "../core/pilot";
 import { N_, t } from "../i18n";
 import { Section, useApp } from "../store";
 
@@ -38,10 +39,14 @@ export function Logo({ size = 40 }: { size?: number }) {
 export function Rail() {
   const section = useApp((s) => s.section);
   const setSection = useApp((s) => s.setSection);
+  const settings = useApp((s) => s.settings);
+  // разделы чужих наборов не видны (самолётная «Плата» — у крыльев, «Грузы» — у флота)
+  const profile = profileOf(settings);
+  const items = ITEMS.filter((item) => sectionVisible(profile, item.id) || section === item.id);
   return (
     <nav className="rail">
       <Logo />
-      {ITEMS.map((item) => (
+      {items.map((item) => (
         <button
           key={item.id}
           className={`rail-item${section === item.id || (item.id === "hangar" && section === "copter") ? " active" : ""}`}

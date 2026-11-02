@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CopterLive } from "../../api";
 import { blankCopter } from "../../core/copter";
+import { makeProfile } from "../../core/pilot";
 import { dumpedBoard, param } from "../../core/__fixtures__/copterBoard";
 
 const sent: string[] = [];
@@ -108,23 +109,37 @@ function withSliders(margin = { gm: 11.6, pm: 49, hz: 21.3, min: 6 }) {
 
 const tab = (name: string) => fireEvent.click(screen.getByRole("button", { name }));
 
-describe("режимы «Новичок» и «Профи»", () => {
+describe("профиль пилота: новичок, наборы, «Показать всё»", () => {
   beforeEach(() => {
     sent.length = 0;
     connect();
-    useApp.setState({ settings: {} });   // по умолчанию — «Новичок»
+    useApp.setState({ settings: {} });   // анкеты не было — «Основа» с мастером
   });
   afterEach(cleanup);
 
-  it("новичок не видит профи-вкладок; «Профи» открывает все", () => {
+  it("новичок не видит профи-вкладок; «Показать всё» открывает все", () => {
     render(<CopterView />);
     expect(screen.getByRole("button", { name: "По шагам" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Настройка полёта" })).toBeTruthy();
     for (const pro of ["PID", "Расходы", "Фильтры", "CLI", "Приёмник"]) expect(screen.queryByRole("button", { name: pro })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Профи" }));
-    expect(useApp.getState().settings.copterMode).toBe("pro");
+    fireEvent.click(screen.getByRole("button", { name: "Показать всё" }));
+    expect(useApp.getState().settings.pilot?.showAll).toBe(true);
     expect(screen.getByRole("button", { name: "PID" })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Настройка полёта" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Настройка полёта" })).toBeTruthy();
+  });
+
+  it("прежний «Профи» без анкеты — видно всё", () => {
+    useApp.setState({ settings: { copterMode: "pro" } });
+    render(<CopterView />);
+    for (const tab of ["PID", "CLI", "Прочее", "По шагам"]) expect(screen.getByRole("button", { name: tab })).toBeTruthy();
+  });
+
+  it("летающий фристайлер: «Основа» и фристайл, без мастера, CLI и GPS", () => {
+    const pilot = makeProfile({ experience: "flying", craft: "quad", classes: ["quad5"], goals: ["freestyle"], hasDrone: true });
+    useApp.setState({ settings: { pilot } });
+    render(<CopterView />);
+    for (const tab of ["Приёмник", "Моторы", "PID", "Фильтры", "OSD"]) expect(screen.getByRole("button", { name: tab })).toBeTruthy();
+    for (const tab of ["По шагам", "CLI", "GPS"]) expect(screen.queryByRole("button", { name: tab })).toBeNull();
   });
 
   it("«Настройка полёта»: ползунок словами — команды настроек, ни одного имени настройки", () => {
@@ -218,7 +233,7 @@ describe("вкладки коптера", () => {
     await waitFor(() => expect(document.querySelector(".found")?.getAttribute("data-param")).toBe("motor_poles"));
   });
 
-  it("новичок ищет p_roll — переходит в «Профи» на PID", async () => {
+  it("новичок ищет p_roll — включается набор «Фристайл», открывается PID", async () => {
     useApp.setState({ settings: {} });
     render(<CopterView />);
     const box = screen.getByRole("textbox", { name: "Поиск настроек" });
@@ -226,6 +241,8 @@ describe("вкладки коптера", () => {
     fireEvent.change(box, { target: { value: "p_roll" } });
     fireEvent.click(screen.getAllByRole("option")[0]);
     await waitFor(() => expect(screen.getByRole("button", { name: "PID" }).className).toContain(" on"));
+    expect(useApp.getState().settings.pilot?.packs).toContain("freestyle");
+    expect(screen.getByRole("button", { name: "По шагам" })).toBeTruthy();   // мастер новичка остаётся
   });
 
   it("«Я с Betaflight»: вкладка BF ведёт на нашу", () => {

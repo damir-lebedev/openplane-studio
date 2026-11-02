@@ -232,17 +232,11 @@ export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "cli", title: N_("CLI"), board: true },
 ];
 
-/** «Новичок»: мастер по шагам и одна страница ползунков; «Профи» — все вкладки. */
-export type CopterMode = "beginner" | "pro";
-
+/** Вкладки новичка: мастер по шагам и одна страница ползунков (что видно — core/pilot.ts). */
 export const BEGINNER_TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "wizard", title: N_("По шагам"), board: false },
   { id: "flight", title: N_("Настройка полёта"), board: true },
 ];
-
-export function tabsFor(mode: CopterMode) {
-  return mode === "beginner" ? BEGINNER_TABS : TABS;
-}
 
 /** Группа настройки (Params.h) → вкладка. */
 export const GROUP_TAB: Record<string, CopterTab> = {

@@ -110,8 +110,11 @@ interface AppState {
   /** калибровка, запущенная из приложения или с пульта, — по тексту консоли */
   proc: Proc | null;
   boardPanel: boolean;
+  /** анкета пилота открыта заново из «Настроек» (первый раз — сама, пока нет профиля) */
+  onboarding: boolean;
 
   init(): Promise<void>;
+  setOnboarding(open: boolean): void;
   setSection(section: Section): void;
   saveSettings(patch: Partial<Settings>): Promise<void>;
   refreshInfo(): Promise<void>;
@@ -219,6 +222,7 @@ export const useApp = create<AppState>((set, get) => ({
   scanAt: 0,
   proc: null,
   boardPanel: false,
+  onboarding: false,
 
   async init() {
     if (!inTauri()) {
@@ -306,6 +310,10 @@ export const useApp = create<AppState>((set, get) => ({
 
   setSection(section) {
     set({ section });
+  },
+
+  setOnboarding(open) {
+    set({ onboarding: open });
   },
 
   async saveSettings(patch) {
