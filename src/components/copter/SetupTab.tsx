@@ -10,6 +10,7 @@ import { useApp } from "../../store";
 import { Horizon } from "../live/LiveWidgets";
 import { ArmWhyList } from "./ArmWhy";
 import { NeedBoard, useCopterLink, useCopterLive } from "./common";
+import { PreflightCard } from "./Preflight";
 import { GoTo } from "./Search";
 
 const CALIBRATIONS: { key: string; title: string; hint: string; icon: typeof Gauge }[] = [
@@ -38,6 +39,7 @@ function SetupBody({ onGo }: { onGo?: GoTo }) {
 
   return (
     <div className="copter-grid">
+      <PreflightCard />
       <div className="card">
         <h3>{t("Как стоит коптер")}</h3>
         <div className="row" style={{ gap: 18, alignItems: "center" }}>

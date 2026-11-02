@@ -8,6 +8,7 @@ import { PointerEvent as ReactPointerEvent, useRef, useState } from "react";
 
 import { CopterLive } from "../../api";
 import { OSD_COLS, osdElements, OsdElementParam, osdMove, osdToggle, osdVisible, osdX, osdY, tabParams } from "../../core/copterParams";
+import { preflightOsd } from "../../core/preflight";
 import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamList, useCopterBoard, useCopterLink, useCopterLive } from "./common";
@@ -42,6 +43,7 @@ const TITLES: Record<string, string> = {
   power: N_("Мощность, Вт"),
   gps_lat: N_("Широта"),
   gps_lon: N_("Долгота"),
+  preflight: N_("Перед полётом (до ARM)"),
 };
 
 // Значки шрифта BF — похожими знаками (клетка — один символ, как в чипе);  в начале — значок, рисуется цветом.
@@ -98,6 +100,8 @@ function cells(key: string, live: CopterLive | null, craft: string): string[] {
       return [SYM.lat, ...ch((g?.lat ?? 55.7512345).toFixed(7))];
     case "gps_lon":
       return [SYM.lon, ...ch((g?.lon ?? 37.6184321).toFixed(7))];
+    case "preflight":
+      return live?.arm ? [] : ch(preflightOsd(live));
     default:
       return ch(key.toUpperCase().slice(0, 6));
   }

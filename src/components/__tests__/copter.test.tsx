@@ -336,6 +336,18 @@ describe("вкладки коптера", () => {
     expect(sent).toContain("i");
   });
 
+  it("перед полётом: список и строка из очков, винты — галочкой (P08)", () => {
+    useApp.setState({ clive: live({ full: false, block: ["THROTTLE"] }) });
+    render(<CopterView />);
+    tab("Подготовка");
+    expect(screen.getByText("Перед полётом")).toBeTruthy();
+    expect(screen.getByText(/Батарея не полная: 4.13 В/)).toBeTruthy();
+    expect(document.querySelector(".preflight-osd .mono")?.textContent).toBe("NOT FULL  RX OK");
+    expect(document.querySelector(".preflight-item.ask")?.textContent).toMatch(/Винты надеты/);
+    fireEvent.click(screen.getByRole("checkbox"));
+    expect(document.querySelector(".preflight-item.ask")).toBeNull();
+  });
+
   it("почему не армится: слово как в очках и кнопки «исправить» (P10)", () => {
     useApp.setState({ clive: live({ block: ["THROTTLE", "CLI", "NO_ACC_CAL", "RXLOSS"] }) });
     render(<CopterView />);

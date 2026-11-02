@@ -2726,3 +2726,40 @@ textarea {
   background: var(--panel-2);
   color: var(--text-2);
 }
+
+/* Перед полётом (P08) */
+.preflight-body {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.preflight-list {
+  flex: 1 1 320px;
+  display: grid;
+  gap: 4px;
+}
+.preflight-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.preflight-item.ok svg {
+  color: var(--ok);
+}
+.preflight-item.bad svg {
+  color: var(--warn);
+}
+.preflight-item.ask svg {
+  color: var(--info);
+}
+.preflight-osd {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+}
