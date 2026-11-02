@@ -26,6 +26,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, BoardFlights, errorText, inTauri, LogFile, onBlackboxProgress } from "../../api";
 import { decodeFlight, extractFlight, Flight, looksLikeRing, RingFlight, ringFlights, valueAt } from "../../core/blackbox";
 import { FLAG, names } from "../../core/bbanalysis";
+import { addNote, EMPTY_LEARN, noteFromFlight } from "../../core/tips";
 import type { WorkerReply } from "../../core/bbworker";
 import { locale, t } from "../../i18n";
 import { useApp } from "../../store";
@@ -561,6 +562,14 @@ export function BlackBoxView() {
         const f = await decode(buffer);
         if (!Object.keys(f.series).length) throw new Error(t("В журнале нет записей полёта"));
         useBb.getState().open(f, { label, path });
+        // заметка для подсказок (P06): налёт, режимы, failsafe, просадка
+        const summary = useBb.getState().summary;
+        if (f.vehicle === "copter" && summary) {
+          const { settings, saveSettings } = useApp.getState();
+          const learn = settings.learn ?? EMPTY_LEARN;
+          const next = addNote(learn, noteFromFlight(f, summary));
+          if (next !== learn) void saveSettings({ learn: next }).catch(() => undefined);
+        }
       } catch (e) {
         toast("err", t("Журнал не читается: {e}", { e: errorText(e) }));
       } finally {

@@ -6,7 +6,8 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { CopterFirmwareConfig, CopterProject } from "./core/copter";
 import { Manifest } from "./core/manifest";
 import { FirmwareFingerprint } from "./core/migrate";
-import type { PilotProfile } from "./core/pilot";
+import type { PilotProfile } from "./core/pilot";
+import type { PilotLearn } from "./core/tips";
 import type { UpdateAsset, UpdateInfo } from "./core/update";
 import { FirmwareConfig, FlashRecord, PlaneProject } from "./core/project";
 
@@ -57,6 +58,8 @@ export interface Settings {
   updateCheck?: boolean;
   /** версия, которую попросили пропустить: при запуске не предлагается */
   updateSkip?: string;
+  /** заметки об открытых журналах и убранные подсказки (P06, core/tips.ts) */
+  learn?: PilotLearn;
 }
 
 export interface Device {

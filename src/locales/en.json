@@ -1935,5 +1935,18 @@
   "Ограничение тока: {a} А — выше потолок моторов плавно опускается, в очках CURRENT LIMIT.": "Current limit: {a} A — above it the motor ceiling smoothly drops, goggles show CURRENT LIMIT.",
   "Ограничить до {a} А": "Limit to {a} A",
   "Без ARM передатчик не обдувается и греется: через минуту на мощности очки покажут VTX HOT. Лучше без ARM — самый слабый уровень (или режим VTX PIT MODE).": "Disarmed, the VTX gets no airflow and heats up: after a minute at power the goggles show VTX HOT. Better use the lowest level while disarmed (or VTX PIT MODE).",
-  "Слабее без ARM": "Low power when disarmed"
+  "Слабее без ARM": "Low power when disarmed",
+  "GPS Rescue ещё не проверен": "GPS Rescue not tested yet",
+  "GPS на борту есть, а возврат домой ни разу не включался. Проверьте его в поле на высоте и с запасом батареи, пока он не понадобился по-настоящему.": "There is a GPS on board, but return-to-home has never been engaged. Test it in the field, with altitude and battery to spare, before you really need it.",
+  "Батарея проседает": "Battery sags",
+  "В последнем полёте был FAILSAFE": "FAILSAFE in the last flight",
+  "В последних полётах моторы больше {v} % времени работали на краю — коптеру не хватает запаса: фильтры пропускают шум или PID велики. Посмотрите спектр в журнале.": "In recent flights the motors spent over {v} % of the time at their limit — the quad has no headroom: filters let noise through or PIDs are too high. Check the spectrum in the log.",
+  "Включить «Фристайл»": "Enable “Freestyle”",
+  "Можно открыть больше: набор «Фристайл» — PID, расходы, фильтры, видео и OSD, чёрный ящик.": "You can unlock more: the “Freestyle” pack — PID, rates, filters, video and OSD, blackbox.",
+  "Моторы часто упираются в предел": "Motors often hit their limit",
+  "Под газом было {v} В на банку — ниже 3.3 В батарея быстро стареет. Садитесь раньше, проверьте C батареи или замените старую.": "Under throttle it dropped to {v} V per cell — below 3.3 V a battery ages fast. Land earlier, check the battery's C rating or replace an old one.",
+  "Режим ACRO TRAINER не даёт наклониться сильнее заданного угла — коптер не перевернётся от лишнего движения стика. Поставьте его на тумблер.": "ACRO TRAINER mode won't let the quad tilt past a set angle, so a stray stick move won't flip it. Put it on a switch.",
+  "Связь с пультом пропадала. Проверьте антенны приёмника и что делает коптер без связи.": "The radio link dropped. Check the receiver antennas and what the quad does without a link.",
+  "Учитесь ACRO? Есть тренер": "Learning ACRO? There's a trainer",
+  "Час в воздухе!": "An hour in the air!"
 }

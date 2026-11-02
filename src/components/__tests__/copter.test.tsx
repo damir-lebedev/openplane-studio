@@ -142,6 +142,22 @@ describe("профиль пилота: новичок, наборы, «Пока�
     for (const tab of ["По шагам", "CLI", "GPS"]) expect(screen.queryByRole("button", { name: tab })).toBeNull();
   });
 
+  it("подсказка над первой вкладкой (P06): FAILSAFE в журнале → «Безопасность»; «Понятно» убирает", async () => {
+    const pilot = makeProfile({ experience: "flying", craft: "quad", classes: ["quad5"], goals: ["freestyle"], hasDrone: true });
+    const note = { key: "f1", armedS: 200, modes: ["ANGLE"], failsafe: true, rescue: false, trainer: false, gps: false, minCellV: 3.6, saturated: 0 };
+    useApp.setState({ settings: { pilot, learn: { notes: [note], dismissed: [] } } });
+    render(<CopterView />);
+    expect(screen.getByText("В последнем полёте был FAILSAFE")).toBeTruthy();
+    const card = document.querySelector(".tip-card")!;
+    fireEvent.click(card.querySelector(".btn.primary")!);
+    expect(screen.getByRole("button", { name: "Безопасность" }).className).toContain(" on");
+    expect(document.querySelector(".tip-card")).toBeNull();   // только над первой вкладкой
+    fireEvent.click(screen.getByRole("button", { name: "Коптер" }));
+    await act(async () => fireEvent.click(screen.getByText("Понятно")));
+    expect(useApp.getState().settings.learn!.dismissed).toEqual(["failsafe:f1"]);
+    expect(screen.queryByText("В последнем полёте был FAILSAFE")).toBeNull();
+  });
+
   it("«Настройка полёта»: ползунок словами — команды настроек, ни одного имени настройки", () => {
     withSliders();
     const { container } = render(<CopterView />);

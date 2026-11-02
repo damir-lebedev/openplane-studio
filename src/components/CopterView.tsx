@@ -33,6 +33,7 @@ import { PartsTab } from "./copter/PartsTab";
 import { ReceiverTab } from "./copter/ReceiverTab";
 import { CopterSearch, FromBfTab, GoTo } from "./copter/Search";
 import { SetupTab } from "./copter/SetupTab";
+import { TipCard } from "./copter/TipCard";
 import { FiltersTab, PidTab, RatesTab } from "./copter/TuneTabs";
 import { Wizard } from "./copter/Wizard";
 
@@ -154,6 +155,7 @@ export function CopterView() {
           ))}
         </nav>
         <div className="copter-content">
+          {tab === tabs[0].id && <TipCard onGo={go} />}
           {tab === "wizard" && <Wizard copter={copter} />}
           {tab === "flight" && <FlightTab />}
           {tab === "overview" && <OverviewTab copter={copter} />}
