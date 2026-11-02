@@ -336,6 +336,20 @@ describe("вкладки коптера", () => {
     expect(sent).toContain("i");
   });
 
+  it("почему не армится: слово как в очках и кнопки «исправить» (P10)", () => {
+    useApp.setState({ clive: live({ block: ["THROTTLE", "CLI", "NO_ACC_CAL", "RXLOSS"] }) });
+    render(<CopterView />);
+    tab("Подготовка");
+    // чинить — сверху, обычное на столе (газ) — внизу
+    const words = [...document.querySelectorAll(".arm-why-word")].map((e) => e.textContent);
+    expect(words).toEqual(["CLI OPEN", "CALIBRATE", "NO RADIO", "THR DOWN"]);
+    fireEvent.click(screen.getByRole("button", { name: "Закрыть CLI" }));
+    fireEvent.click(screen.getByRole("button", { name: "Откалибровать установку" }));
+    expect(sent).toEqual(expect.arrayContaining(["exit", "o"]));
+    fireEvent.click(screen.getAllByRole("button", { name: "Открыть «Приёмник»" })[0]);
+    expect(document.querySelector(".copter-tab.on")?.textContent).toMatch(/Приёмник/);
+  });
+
   it("режимы: первая правка переносит тумблеры прошивки в таблицу", async () => {
     render(<CopterView />);
     tab("Режимы");

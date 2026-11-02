@@ -160,7 +160,7 @@ export function CopterView() {
           {tab === "flight" && <FlightTab />}
           {tab === "overview" && <OverviewTab copter={copter} />}
           {tab === "frombf" && <FromBfTab onGo={go} />}
-          {tab === "setup" && <SetupTab />}
+          {tab === "setup" && <SetupTab onGo={go} />}
           {tab === "receiver" && <ReceiverTab />}
           {tab === "modes" && <ModesTab />}
           {tab === "motors" && <MotorsTab />}

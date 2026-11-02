@@ -2708,3 +2708,21 @@ textarea {
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* Почему не армится (P10) */
+.arm-why {
+  display: grid;
+  gap: 6px;
+}
+.arm-why .issue {
+  margin: 0;
+  align-items: center;
+}
+.arm-why-word {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--panel-2);
+  color: var(--text-2);
+}

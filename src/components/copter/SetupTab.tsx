@@ -1,14 +1,16 @@
 // «Подготовка»: как стоит коптер (горизонт), можно ли армить и почему нет,
 // калибровки (клавиши консоли платы: i, o, c) и ответ платы на них.
 
-import { CircleCheck, Compass, Crosshair, Gauge, TriangleAlert } from "lucide-react";
+import { CircleCheck, Compass, Crosshair, Gauge } from "lucide-react";
 
 import { api, errorText } from "../../api";
-import { ARM_BENCH_OK, ARM_TEXT } from "../../core/copterParams";
+import { ARM_BENCH_OK } from "../../core/copterParams";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Horizon } from "../live/LiveWidgets";
+import { ArmWhyList } from "./ArmWhy";
 import { NeedBoard, useCopterLink, useCopterLive } from "./common";
+import { GoTo } from "./Search";
 
 const CALIBRATIONS: { key: string; title: string; hint: string; icon: typeof Gauge }[] = [
   { key: "i", title: "Гироскоп", hint: "коптер неподвижен ~2 с; делается и сама при каждом включении", icon: Gauge },
@@ -21,15 +23,15 @@ const CALIBRATIONS: { key: string; title: string; hint: string; icon: typeof Gau
   { key: "c", title: "Компас", hint: "15 с вращать коптер по всем осям; нужен модуль GPS с компасом", icon: Compass },
 ];
 
-export function SetupTab() {
+export function SetupTab({ onGo }: { onGo?: GoTo }) {
   return (
     <NeedBoard>
-      <SetupBody />
+      <SetupBody onGo={onGo} />
     </NeedBoard>
   );
 }
 
-function SetupBody() {
+function SetupBody({ onGo }: { onGo?: GoTo }) {
   const live = useCopterLive();
   const blocks = live?.block ?? [];
   const serious = blocks.filter((b) => !ARM_BENCH_OK.includes(b));
@@ -63,14 +65,7 @@ function SetupBody() {
             <div>{live.arm ? t("Заармлен — моторы крутятся!") : t("Ничего не мешает: ARM — тумблером.")}</div>
           </div>
         )}
-        {blocks.map((b) => (
-          <div key={b} className={`issue ${ARM_BENCH_OK.includes(b) ? "info" : "warning"}`}>
-            <TriangleAlert size={17} color={ARM_BENCH_OK.includes(b) ? "var(--info)" : "var(--warn)"} />
-            <div className="grow">
-              <span className="mono">{b}</span> — {ARM_TEXT[b] ? t(ARM_TEXT[b]) : t("причина без описания")}
-            </div>
-          </div>
-        ))}
+        <ArmWhyList codes={blocks} armed={!!live?.arm} onGo={onGo} />
         {live && serious.length === 0 && blocks.length > 0 && <p className="hint">{t("Оставшееся — обычное дело на столе: газ, тумблер ARM, первые секунды после включения.")}</p>}
         {live && (
           <div className="kv" style={{ marginTop: 10 }}>
