@@ -2,7 +2,7 @@ import { CircleAlert, CircleCheck, Info, TriangleAlert, Zap } from "lucide-react
 
 import { bindingText, receiverTitle } from "../../../core/labels";
 import { findBoard, SENSOR_CATEGORIES } from "../../../core/manifest";
-import { receiverProtocol, sensorLabel } from "../../../core/project";
+import { receiverProtocol, sensorsLabel } from "../../../core/project";
 import { Issue, validate } from "../../../core/rules";
 import { runFlash } from "../../../flash";
 import { N_, plural, t } from "../../../i18n";
@@ -103,7 +103,7 @@ export function ReviewStep() {
           <span>{plane.airframe.gear === "tail" ? t("хвостовое колесо") : plane.airframe.gear === "nose" ? t("носовое колесо") : t("нет, запуск с руки")}</span>
           <span>{t("Датчики")}</span>
           <span>
-            {SENSOR_CATEGORIES.map((c) => `${c === "airspeed" ? t("Пито") : c.toUpperCase()}: ${sensorLabel(manifest, c, plane.sensors[c])}`).join(" · ")}
+            {SENSOR_CATEGORIES.map((c) => `${c === "airspeed" ? t("Пито") : c.toUpperCase()}: ${sensorsLabel(manifest, plane, c)}`).join(" · ")}
           </span>
         </div>
       </Section>

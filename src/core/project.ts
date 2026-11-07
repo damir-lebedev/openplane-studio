@@ -34,6 +34,11 @@ export interface Airframe {
 /** Выбор датчиков: id варианта из SensorSelection.h; у барометра ещё "none". */
 export type SensorChoice = Record<SensorCategory, string>;
 
+/** Типы, у которых можно выбрать несколько чипов: основной + запасные (SensorChain прошивки). */
+export const MULTI_SENSOR_CATEGORIES: readonly SensorCategory[] = ["imu", "baro", "mag"];
+/** Сколько чипов одного типа понимает прошивка (SENSOR_IMU, _2, _3). */
+export const MAX_SENSOR_CHIPS = 3;
+
 export interface FlashRecord {
   at: string;
   board: string;
@@ -62,6 +67,11 @@ export interface PlaneProject {
   board: string;
   airframe: Airframe;
   sensors: SensorChoice;
+  /**
+   * Запасные чипы к sensors[cat] (только imu/baro/mag), по порядку: прошивка
+   * опрашивает основной, потом запасные и берёт первый ответивший.
+   */
+  spares?: Partial<Record<SensorCategory, string[]>>;
   bindings: Binding[];
   /** Правки общих параметров Config.h поверх значений прошивки. */
   params: Record<string, unknown>;
@@ -125,6 +135,39 @@ export function switchBoard(manifest: Manifest, project: PlaneProject, env: stri
     for (const cat of Object.keys(before) as SensorCategory[]) project.sensors[cat] = base[cat];
   }
   if (after) Object.assign(project.sensors, after);
+}
+
+/** Все выбранные чипы типа по порядку: основной, затем запасные; [] — нет ни одного. */
+export function chosenSensors(project: PlaneProject, cat: SensorCategory): string[] {
+  const main = project.sensors[cat];
+  if (isNone(main)) return [];
+  return [main, ...(project.spares?.[cat] ?? []).filter((id) => !isNone(id) && id !== main)];
+}
+
+/** Записать выбор: первый — основной, остальные — запасные; пусто — «нет». */
+export function setChosenSensors(manifest: Manifest, project: PlaneProject, cat: SensorCategory, ids: string[]): void {
+  const limit = MULTI_SENSOR_CATEGORIES.includes(cat) ? MAX_SENSOR_CHIPS : 1;
+  const list = ids.filter((id, i) => !isNone(id) && ids.indexOf(id) === i).slice(0, limit);
+  project.sensors[cat] = list[0] ?? noneSensor(manifest, cat);
+  const spares = { ...(project.spares ?? {}) };
+  if (list.length > 1) spares[cat] = list.slice(1);
+  else delete spares[cat];
+  if (Object.keys(spares).length) project.spares = spares;
+  else delete project.spares;
+}
+
+/** Нажатие на датчик: не выбран — добавить (у типов с одним чипом — заменить), выбран — убрать. */
+export function toggleSensor(manifest: Manifest, project: PlaneProject, cat: SensorCategory, id: string): void {
+  const list = chosenSensors(project, cat);
+  if (list.includes(id)) setChosenSensors(manifest, project, cat, list.filter((x) => x !== id));
+  else if (MULTI_SENSOR_CATEGORIES.includes(cat) && list.length < MAX_SENSOR_CHIPS) setChosenSensors(manifest, project, cat, [...list, id]);
+  else if (MULTI_SENSOR_CATEGORIES.includes(cat)) setChosenSensors(manifest, project, cat, [...list.slice(0, MAX_SENSOR_CHIPS - 1), id]);
+  else setChosenSensors(manifest, project, cat, [id]);
+}
+
+/** «Нет» этого типа: вариант SENSOR_<ТИП>_NONE прошивки, у старых прошивок без него — "none". */
+export function noneSensor(manifest: Manifest, cat: SensorCategory): string {
+  return manifest.sensors.options[cat].find((o) => o.id.endsWith("_NONE"))?.id ?? "none";
 }
 
 /** Самолёт из прошивки как она есть: значения Config.h, датчики, тумблеры. */
@@ -234,7 +277,8 @@ export interface FirmwareConfig {
   board: string;
   params: Record<string, unknown>;
   channels: Record<string, number>;
-  sensors: Record<SensorCategory, string>;
+  /** Один чип — строка (как всегда было), несколько — список: основной, запасные. */
+  sensors: Record<SensorCategory, string | string[]>;
   bindings: Binding[];
   project?: { plane: string; configHash: string; commit: string | null; boardEnv: string };
 }
@@ -259,15 +303,20 @@ export function toFirmwareConfig(manifest: Manifest, project: PlaneProject): Fir
   if (board?.macro && project.boardParams[board.macro]) {
     Object.assign(params, project.boardParams[board.macro]);
   }
-  const sensors = {} as Record<SensorCategory, string>;
+  const sensors = {} as Record<SensorCategory, string | string[]>;
   const base = board?.sensors ?? manifest.current.sensors;
   const onboard = onboardSensors(manifest, board) ?? {};
+  const valid = (cat: SensorCategory, id: string) => manifest.sensors.options[cat].some((o) => o.id === id);
   for (const cat of SENSOR_CATEGORIES) {
-    const chosen = onboard[cat] ?? project.sensors[cat];
-    const valid = manifest.sensors.options[cat].some((o) => o.id === chosen);
-    // Барометра «нет» в прошивке не бывает: остаётся драйвер по умолчанию,
-    // он просто не найдёт датчик — прошивка это переживает (режимы без него).
-    sensors[cat] = valid ? chosen : base[cat] ?? manifest.sensors.options[cat][0].id;
+    let chosen = onboard[cat] ?? project.sensors[cat];
+    // «Нет» — вариант SENSOR_<ТИП>_NONE. У старых прошивок барометра «нет» не
+    // бывает: там остаётся драйвер по умолчанию, он просто не найдёт датчик.
+    if (isNone(chosen)) chosen = noneSensor(manifest, cat);
+    const main = valid(cat, chosen) ? chosen : base[cat] ?? manifest.sensors.options[cat][0].id;
+    // Запасные — только к своему основному (на плате полётника чип один).
+    const spares = onboard[cat] || isNone(main) ? [] : chosenSensors(project, cat).slice(1).filter((id) => valid(cat, id));
+    // Один чип — строкой, как раньше: у старых самолётов не меняется хэш конфигурации.
+    sensors[cat] = spares.length ? [main, ...spares] : main;
   }
   return {
     schema: 1,
@@ -308,4 +357,10 @@ export function sensorLabel(manifest: Manifest, cat: SensorCategory, id: string)
   const opt = manifest.sensors.options[cat].find((o) => o.id === id);
   if (!opt) return id;
   return opt.bus === "spi" ? `${t(opt.title)} (SPI)` : t(opt.title);
+}
+
+/** Все выбранные чипы типа для человека: «LSM6DSV + MPU6050»; ни одного — «нет». */
+export function sensorsLabel(manifest: Manifest, project: PlaneProject, cat: SensorCategory): string {
+  const list = chosenSensors(project, cat);
+  return list.length ? list.map((id) => sensorLabel(manifest, cat, id)).join(" + ") : sensorLabel(manifest, cat, project.sensors[cat]);
 }

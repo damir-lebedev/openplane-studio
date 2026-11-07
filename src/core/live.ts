@@ -5,7 +5,7 @@
 import { LiveFrame, ScanResult } from "../api";
 import { N_, t } from "../i18n";
 import { isNone, Manifest, SensorCategory, SENSOR_CATEGORIES } from "./manifest";
-import { PlaneProject, sensorLabel } from "./project";
+import { chosenSensors, PlaneProject, sensorsLabel } from "./project";
 
 export const LIVE_STALE_MS = 1500;
 
@@ -93,17 +93,20 @@ const I2C_ADDRESSES: Record<string, number[]> = {
   SENSOR_AIRSPEED_PITOT_BMP581: [0x47],
 };
 
-/** Где искать датчик на шине датчиков; null — он не на I2C (SPI, UART) или не выбран. */
+/**
+ * Где искать датчик на шинах I2C — по всем выбранным чипам типа (основной и
+ * запасные); null — ни один не на I2C (SPI, UART) или тип не выбран.
+ */
 export function expectedAddresses(project: PlaneProject, cat: SensorCategory): number[] | null {
-  const id = project.sensors[cat];
-  if (isNone(id)) return null;
-  const list = I2C_ADDRESSES[id];
-  if (!list) return null;
-  // Барометр BMP581 рядом с трубкой Пито на BMP581: трубка — 0x47, барометр — 0x46.
-  if (cat === "baro" && id === "SENSOR_BARO_BMP581" && project.sensors.airspeed === "SENSOR_AIRSPEED_PITOT_BMP581") {
-    return [0x46];
+  const out: number[] = [];
+  for (const id of chosenSensors(project, cat)) {
+    let list = I2C_ADDRESSES[id];
+    if (!list) continue;
+    // Барометр BMP581 рядом с трубкой Пито на BMP581: трубка — 0x47, барометр — 0x46.
+    if (cat === "baro" && id === "SENSOR_BARO_BMP581" && project.sensors.airspeed === "SENSOR_AIRSPEED_PITOT_BMP581") list = [0x46];
+    for (const a of list) if (!out.includes(a)) out.push(a);
   }
-  return list;
+  return out.length ? out : null;
 }
 
 export function hex(a: number): string {
@@ -131,18 +134,23 @@ function liveState(live: LiveFrame | null, cat: SensorCategory): string | null {
   return cat === "airspeed" ? live.pitot : live[cat];
 }
 
-/** Датчики проекта против того, что видит плата: опрос шины и живые данные. */
-/** Всё, что ответило на шинах датчиков: своей и внешнего разъёма (если она отдельная). */
+/**
+ * Всё, что ответило на шинах платы: основной, второй («screen» — с тех пор,
+ * как она была только под экран) и внешнего разъёма. Датчики прошивка ищет
+ * на всех.
+ */
 function scanned(scan: ScanResult | null): { a: number; g: string }[] {
-  return [...(scan?.sensor ?? []), ...(scan?.ext ?? [])];
+  return [...(scan?.sensor ?? []), ...(scan?.screen ?? []), ...(scan?.ext ?? [])];
 }
+
+/** Датчики проекта против того, что видит плата: опрос шины и живые данные. */
 
 export function sensorRows(manifest: Manifest, project: PlaneProject, live: LiveFrame | null, scan: ScanResult | null): SensorRow[] {
   const found = new Set(scanned(scan).map((d) => d.a));
   return SENSOR_CATEGORIES.map((cat): SensorRow => {
     const id = project.sensors[cat];
     const title = t(CAT_TITLES[cat]);
-    const chip = sensorLabel(manifest, cat, id);
+    const chip = sensorsLabel(manifest, project, cat);
     if (isNone(id)) return { cat, title, chip, state: "off", text: t("нет в проекте") };
     const st = liveState(live, cat);
     const addrs = expectedAddresses(project, cat);
@@ -180,10 +188,25 @@ export function sensorRows(manifest: Manifest, project: PlaneProject, live: Live
   });
 }
 
-/** Ответившие на шине, кого проект не ждёт (экран, второй датчик, чужой модуль). */
+/** Ответившие на шинах, кого проект не ждёт (экран, второй датчик, чужой модуль). */
 export function extraDevices(project: PlaneProject, scan: ScanResult | null): { a: number; g: string }[] {
   const expected = new Set(SENSOR_CATEGORIES.flatMap((c) => expectedAddresses(project, c) ?? []));
   return scanned(scan).filter((d) => !expected.has(d.a));
+}
+
+/** Шины платы с тем, что на них ответило, — для подсказки «что где висит». */
+export function scannedBuses(scan: ScanResult | null): { name: string; devices: { a: number; g: string }[] }[] {
+  if (!scan) return [];
+  const names = scan.names ?? {};
+  const out: { name: string; devices: { a: number; g: string }[] }[] = [];
+  const add = (key: "sensor" | "screen" | "ext", fallback: string) => {
+    const devices = scan[key];
+    if (devices) out.push({ name: names[key] ?? fallback, devices });
+  };
+  add("sensor", t("основная"));
+  add("screen", t("вторая"));
+  add("ext", t("внешний разъём"));
+  return out;
 }
 
 // --- процедуры наладки по тексту консоли ---

@@ -258,7 +258,10 @@ export interface ScanResult {
   sensor?: { a: number; g: string }[];
   /** шина внешнего разъёма, если она у платы отдельная (Matek H743) */
   ext?: { a: number; g: string }[];
+  /** вторая шина (имя ключа — с тех пор, как она была только под экран) */
   screen?: { a: number; g: string }[] | null;
+  /** пины шин по тем же ключам: "PB11/PB10" */
+  names?: Partial<Record<"sensor" | "screen" | "ext", string>>;
   error?: string;
 }
 

@@ -5,7 +5,7 @@ import { N_, t } from "../i18n";
 import { bindingText, channelTitle } from "./labels";
 import { findBoard, Manifest, SENSOR_CATEGORIES } from "./manifest";
 import { formatValue, sameValue } from "./params";
-import { effectiveParam, PlaneProject, sensorLabel } from "./project";
+import { effectiveParam, PlaneProject, sensorsLabel } from "./project";
 
 export interface Change {
   group: "Плата" | "Самолёт" | "Датчики" | "Тумблеры" | "Каналы" | "Параметры" | "Пины";
@@ -74,8 +74,8 @@ export function diffProjects(manifest: Manifest, a: PlaneProject, b: PlaneProjec
   }
 
   for (const cat of SENSOR_CATEGORIES) {
-    if (a.sensors[cat] !== b.sensors[cat]) {
-      out.push({ group: N_("Датчики"), what: t(SENSOR_TITLES[cat]), from: sensorLabel(manifest, cat, a.sensors[cat]), to: sensorLabel(manifest, cat, b.sensors[cat]) });
+    if (sensorsLabel(manifest, a, cat) !== sensorsLabel(manifest, b, cat)) {
+      out.push({ group: N_("Датчики"), what: t(SENSOR_TITLES[cat]), from: sensorsLabel(manifest, a, cat), to: sensorsLabel(manifest, b, cat) });
     }
   }
 

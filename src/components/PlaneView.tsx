@@ -7,7 +7,7 @@ import { Component, lazy, ReactNode, Suspense } from "react";
 import { channelIndex } from "../core/channels";
 import { expectedAddresses, hex } from "../core/live";
 import { findBoard, isNone, Manifest } from "../core/manifest";
-import { PlaneProject, sensorLabel } from "../core/project";
+import { PlaneProject, sensorsLabel } from "../core/project";
 import { t } from "../i18n";
 import { useApp } from "../store";
 import { useLive } from "./live/LiveWidgets";
@@ -30,7 +30,7 @@ function lookOf(manifest: Manifest, plane: PlaneProject): PlaneLook {
   const a = plane.airframe;
   const board = findBoard(manifest, plane.board);
   const sensor = (cat: "imu" | "baro" | "mag" | "gps" | "airspeed") =>
-    isNone(plane.sensors[cat]) ? null : sensorLabel(manifest, cat, plane.sensors[cat]);
+    isNone(plane.sensors[cat]) ? null : sensorsLabel(manifest, plane, cat);
   return {
     motor: a.motorPosition,
     gear: a.gear,
@@ -48,7 +48,7 @@ function labelsOf(manifest: Manifest, plane: PlaneProject): Record<string, strin
     const addrs = expectedAddresses(plane, cat);
     return addrs ? ` · I2C ${addrs.map(hex).join("/")}` : "";
   };
-  const name = (cat: "imu" | "baro" | "mag" | "gps" | "airspeed") => sensorLabel(manifest, cat, plane.sensors[cat]);
+  const name = (cat: "imu" | "baro" | "mag" | "gps" | "airspeed") => sensorsLabel(manifest, plane, cat);
   const a = plane.airframe;
   const out: Record<string, string> = {
     board: `${findBoard(manifest, plane.board)?.title.split(" — ")[0] ?? plane.board} · IMU ${name("imu")}${at("imu")}`,

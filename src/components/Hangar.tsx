@@ -3,7 +3,7 @@ import { ReactNode, useEffect, useState } from "react";
 
 import { COPTER_KITS, CopterProject, findCopterBuild, findCopterEnv } from "../core/copter";
 import { findBoard, isNone, SENSOR_CATEGORIES } from "../core/manifest";
-import { configHash, PlaneProject, sensorLabel, toFirmwareConfig } from "../core/project";
+import { configHash, PlaneProject, sensorsLabel, toFirmwareConfig } from "../core/project";
 import { TEMPLATES } from "../core/templates";
 import { locale, t } from "../i18n";
 import { useApp } from "../store";
@@ -38,7 +38,7 @@ function PlaneCard({ plane, onDelete }: { plane: PlaneProject; onDelete: () => v
   const board = manifest ? findBoard(manifest, plane.board) : undefined;
   const sensors = manifest
     ? SENSOR_CATEGORIES.filter((c) => !isNone(plane.sensors[c]))
-        .map((c) => sensorLabel(manifest, c, plane.sensors[c]))
+        .map((c) => sensorsLabel(manifest, plane, c))
         .join(", ")
     : "";
   const open = (review: boolean) => {

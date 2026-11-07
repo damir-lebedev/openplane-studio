@@ -5,6 +5,7 @@ import { Manifest } from "./manifest";
 import { setParamValue } from "./params";
 import {
   blankProject,
+  chosenSensors,
   configHash,
   effectiveParam,
   importFromFirmware,
@@ -14,6 +15,7 @@ import {
   setGear,
   switchBoard,
   toFirmwareConfig,
+  toggleSensor,
 } from "./project";
 import { findBoard } from "./manifest";
 import { availability, haveTokens, itemById, needText, validate } from "./rules";
@@ -221,3 +223,43 @@ describe("конфигурация для прошивки", () => {
     expect(await h(a)).toMatch(/^[0-9a-f]{12}$/);
   });
 });
+
+describe("несколько датчиков одного типа", () => {
+  it("нажатие выбирает, повторное снимает; первый — основной, остальные — запасные", () => {
+    const p = plane((x) => (x.sensors.imu = "SENSOR_IMU_LSM6DSV"));
+    toggleSensor(manifest, p, "imu", "SENSOR_IMU_MPU6050");
+    expect(chosenSensors(p, "imu")).toEqual(["SENSOR_IMU_LSM6DSV", "SENSOR_IMU_MPU6050"]);
+    expect(p.spares).toEqual({ imu: ["SENSOR_IMU_MPU6050"] });
+    toggleSensor(manifest, p, "imu", "SENSOR_IMU_LSM6DSV");   // основной снят — запасной становится основным
+    expect(p.sensors.imu).toBe("SENSOR_IMU_MPU6050");
+    expect(p.spares).toBeUndefined();
+    toggleSensor(manifest, p, "imu", "SENSOR_IMU_MPU6050");   // ни одного — «нет»
+    expect(chosenSensors(p, "imu")).toEqual([]);
+    expect(p.sensors.imu).toBe("SENSOR_IMU_NONE");
+  });
+
+  it("у GPS чип один: другой заменяет, повторное нажатие снимает", () => {
+    const p = plane();
+    toggleSensor(manifest, p, "gps", "SENSOR_GPS_UBLOX_M10");
+    expect(p.sensors.gps).toBe("SENSOR_GPS_UBLOX_M10");
+    toggleSensor(manifest, p, "gps", "SENSOR_GPS_UBLOX_M10");
+    expect(p.sensors.gps).toBe("SENSOR_GPS_NONE");
+  });
+
+  it("в прошивку: один чип — строкой (хэш старых самолётов тот же), несколько — списком; «нет» — вариант _NONE", async () => {
+    const one = plane((x) => (x.sensors.imu = "SENSOR_IMU_LSM6DSV"));
+    const cfg1 = toFirmwareConfig(manifest, one);
+    expect(cfg1.sensors.imu).toBe("SENSOR_IMU_LSM6DSV");
+    expect(JSON.stringify(cfg1)).not.toContain("spares");
+
+    const two = plane((x) => (x.sensors.imu = "SENSOR_IMU_LSM6DSV"));
+    toggleSensor(manifest, two, "imu", "SENSOR_IMU_MPU6050");
+    toggleSensor(manifest, two, "mag", "SENSOR_MAG_QMC6309");
+    expect(toFirmwareConfig(manifest, two).sensors.imu).toEqual(["SENSOR_IMU_LSM6DSV", "SENSOR_IMU_MPU6050"]);
+
+    const noBaro = plane((x) => (x.sensors.baro = "none"));
+    expect(toFirmwareConfig(manifest, noBaro).sensors.baro).toBe("SENSOR_BARO_NONE");
+    expect(await configHash(cfg1, "abc")).not.toBe(await configHash(toFirmwareConfig(manifest, two), "abc"));
+  });
+});
+

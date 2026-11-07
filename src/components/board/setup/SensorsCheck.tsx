@@ -3,7 +3,7 @@
 import { CircleAlert, CircleCheck, CircleDashed, RefreshCw, TriangleAlert } from "lucide-react";
 import { useEffect, useRef } from "react";
 
-import { extraDevices, hex, SensorRow, sensorRows } from "../../../core/live";
+import { extraDevices, hex, scannedBuses, SensorRow, sensorRows } from "../../../core/live";
 import { locale, t } from "../../../i18n";
 import { useApp } from "../../../store";
 import { useLive } from "../../live/LiveWidgets";
@@ -87,11 +87,12 @@ export function SensorsCheck() {
           {t("Ещё отвечают на шине:")} {extra.map((d) => `${hex(d.a)} ${d.g}`).join(", ")}
         </p>
       )}
-      {scan?.screen && scan.screen.length > 0 && (
-        <p className="hint">
-          {t("Шина экрана:")} {scan.screen.map((d) => `${hex(d.a)} ${d.g}`).join(", ")}
+      {scannedBuses(scan).map((b) => (
+        <p key={b.name} className="hint">
+          {t("Шина I2C {name}:", { name: b.name })}{" "}
+          {b.devices.length ? b.devices.map((d) => `${hex(d.a)} ${d.g}`).join(", ") : t("никого")}
         </p>
-      )}
+      ))}
       <div className="row" style={{ marginTop: 10 }}>
         <button className="btn small" disabled={link.state !== "open" || !!live?.arm} onClick={() => void requestScan()}>
           <RefreshCw size={14} />
