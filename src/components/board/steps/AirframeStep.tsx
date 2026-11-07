@@ -108,7 +108,7 @@ export function AirframeStep() {
         ))}
       </Section>
 
-      <Advanced title={t("ходы рулей, закрылки, тормоз, газ назад")} defaultOpen={mode === "full"}>
+      <Advanced title={t("ходы рулей, закрылки, тормоз, газ назад, сброс газа")} defaultOpen={mode === "full"}>
         <ParamField name="AILERON_MAX_US" label={t("Ход элеронов")} />
         <ParamField name="ELEVATOR_MAX_US" label={t("Ход руля высоты")} />
         <ParamField name="RUDDER_MAX_US" label={t("Ход руля направления")} />
@@ -116,6 +116,7 @@ export function AirframeStep() {
         <ParamField name="FLAPS_TRANSITION_MS" label={t("Закрылки: время выпуска")} />
         <ParamField name="AIRBRAKE_US" label={t("Воздушный тормоз")} />
         <ParamField name="REVERSE_THROTTLE_LIMIT_PCT" label={t("Предел газа назад")} />
+        <ParamField name="THROTTLE_DOWN_RAMP_MS" label={t("Плавность сброса газа")} />
       </Advanced>
     </>
   );
