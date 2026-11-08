@@ -1,7 +1,7 @@
 {
   "name": "openplane-studio",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "description": "OpenPlane Studio — настройка и прошивка полётного контроллера OpenPlane",
   "scripts": {

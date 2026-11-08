@@ -42,6 +42,7 @@ export function UpdateCard() {
   const download = useApp((s) => s.downloadUpdate);
   const install = useApp((s) => s.installUpdate);
   const dismiss = useApp((s) => s.dismissUpdate);
+  const saveSettings = useApp((s) => s.saveSettings);
   const [notesOpen, setNotesOpen] = useState(false);
   const shown = !u.hidden && !!u.info?.newer && ["available", "downloading", "ready", "installing", "error"].includes(u.phase);
   if (!shown || !u.info) return null;
@@ -98,6 +99,16 @@ export function UpdateCard() {
             </button>
             <button className="btn small" onClick={() => void dismiss(true)}>
               {t("Пропустить эту версию")}
+            </button>
+            <button
+              className="btn ghost small"
+              title={t("Не проверять обновления при запуске — включается снова в «Настройках»")}
+              onClick={() => {
+                void dismiss(false);
+                void saveSettings({ updateCheck: false });
+              }}
+            >
+              {t("Больше не спрашивать")}
             </button>
           </>
         ) : u.phase === "ready" || u.phase === "installing" ? (

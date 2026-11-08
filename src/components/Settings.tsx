@@ -1,4 +1,4 @@
-import { Check, Eye, RefreshCw, Sparkles } from "lucide-react";
+import { Check, CircleCheck, Eye, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { api, DriverStatus, errorText } from "../api";
@@ -124,6 +124,7 @@ export function Settings() {
   const [source, setSource] = useState(settings.firmwareSource ?? "");
   const [fetching, setFetching] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [fetched, setFetched] = useState<string | null>(null);
   const [versions, setVersions] = useState<string[] | null>(null);
   const [version, setVersion] = useState(settings.firmwareVersion ?? "");
 
@@ -139,6 +140,7 @@ export function Settings() {
   const fetchGithub = async () => {
     setFetching(true);
     setFetchError(null);
+    setFetched(null);
     try {
       // Пусто — последний выпуск; выпусков нет — main.
       let want = version;
@@ -146,9 +148,11 @@ export function Settings() {
         const list = versions ?? (await api.firmwareVersions().catch(() => []));
         want = list[0] ?? "main";
       }
-      const dir = await api.firmwareFetchGithub(want);
-      setSource(dir);
-      await saveSettings({ firmwareSource: dir, firmwareVersion: version || undefined });
+      const got = await api.firmwareFetchGithub(want);
+      setSource(got.dir);
+      await saveSettings({ firmwareSource: got.dir, firmwareVersion: version || undefined });
+      const what = `${got.reference} · ${got.commit.slice(0, 7)}`;
+      setFetched(got.fresh ? t("Скачано: {v}", { v: what }) : t("Уже последняя: {v} — качать нечего", { v: what }));
     } catch (e) {
       setFetchError(errorText(e));
     } finally {
@@ -223,7 +227,16 @@ export function Settings() {
               {t("Взять с GitHub")}
             </button>
             <span className="hint">
-              {versions && !versions.length
+              {fetching
+                ? t("Спрашиваю GitHub…")
+                : fetched
+                  ? (
+                      <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                        <CircleCheck size={14} style={{ color: "var(--ok)" }} />
+                        {fetched}
+                      </span>
+                    )
+                  : versions && !versions.length
                 ? t("выпусков пока нет — возьмётся main")
                 : t("скачает OpenPlaneProject в папку приложения (нужен git) — если своей копии исходников нет")}
             </span>

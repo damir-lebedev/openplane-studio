@@ -2200,5 +2200,9 @@
   "запасной {n}": "spare {n}",
   "никого": "nobody",
   "основная": "main",
-  "основной": "main"
+  "основной": "main",
+  "Больше не спрашивать": "Don't ask again",
+  "Не проверять обновления при запуске — включается снова в «Настройках»": "Stop checking for updates on start — turn it back on in Settings",
+  "Скачано: {v}": "Downloaded: {v}",
+  "Уже последняя: {v} — качать нечего": "Already the latest: {v} — nothing to download"
 }

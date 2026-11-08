@@ -121,9 +121,14 @@ fn resolve_commit(reference: &str) -> Res<String> {
 
 /// Коммит снимка в папке, если она скачана этим модулем.
 pub fn marker_commit(dir: &Path) -> Option<String> {
+    marker(dir).map(|(_, commit)| commit)
+}
+
+/// Метка снимка: (выпуск или ветка, коммит).
+pub fn marker(dir: &Path) -> Option<(String, String)> {
     let text = fs::read_to_string(dir.join(MARKER)).ok()?;
     let v: Value = serde_json::from_str(&text).ok()?;
-    v["commit"].as_str().map(str::to_string)
+    Some((v["ref"].as_str().unwrap_or("").to_string(), v["commit"].as_str()?.to_string()))
 }
 
 fn needed(path: &str) -> bool {

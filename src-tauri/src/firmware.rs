@@ -66,10 +66,24 @@ pub fn versions() -> Res<Vec<String>> {
 
 /// Исходники с GitHub в папку приложения: выпуск (тег) или ветка main —
 /// только файлы, из которых собирается прошивка. Возвращает путь к исходникам.
-pub fn fetch_github(app: &AppHandle, version: Option<&str>) -> Res<String> {
+pub fn fetch_github(app: &AppHandle, version: Option<&str>) -> Res<Fetched> {
     let root = cache_dir(app)?.join("source");
     fs::create_dir_all(&root).map_err(err("папка исходников"))?;
-    crate::source::fetch(&root, version, &|_| {}).map(|p| p.to_string_lossy().into_owned())
+    let before = crate::source::marker_commit(&root.join("OpenPlaneProject"));
+    let dir = crate::source::fetch(&root, version, &|_| {})?;
+    let (reference, commit) = crate::source::marker(&dir).unwrap_or_default();
+    Ok(Fetched { fresh: before.as_deref() != Some(commit.as_str()), dir: dir.to_string_lossy().into_owned(), reference, commit })
+}
+
+/// Что взяли с GitHub — чтобы кнопка показала итог, даже если качать было нечего.
+#[derive(Debug, Serialize)]
+pub struct Fetched {
+    pub dir: String,
+    /// выпуск (тег) или ветка
+    pub reference: String,
+    pub commit: String,
+    /// false — этот коммит уже был скачан, ничего не менялось
+    pub fresh: bool,
 }
 
 /// git-коммит исходников; "-dirty" — есть незакоммиченные правки в том, из

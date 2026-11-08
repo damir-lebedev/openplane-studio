@@ -84,6 +84,20 @@ describe("обновление приложения", () => {
     expect(screen.getByText("Вышла OpenPlane Studio 0.3.0")).toBeTruthy();
   });
 
+  it("«Больше не спрашивать» — карточка уходит, проверка при запуске выключается", async () => {
+    render(
+      <>
+        <UpdateSettings />
+        <UpdateCard />
+      </>,
+    );
+    await act(() => useApp.getState().checkUpdate(false));
+    await act(async () => fireEvent.click(screen.getByText("Больше не спрашивать")));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(useApp.getState().settings.updateCheck).toBe(false);
+    expect((screen.getByRole("checkbox") as HTMLInputElement).checked).toBe(false);
+  });
+
   it("последняя версия — так и пишет, старые установщики убираются", async () => {
     release = { ...release!, version: "0.2.0", newer: false };
     render(

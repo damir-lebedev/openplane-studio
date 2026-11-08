@@ -297,7 +297,8 @@ export const api = {
   firmwareDescribe: (source: string) => invoke<Manifest>("firmware_describe", { source }),
   firmwareCommit: (source: string) => invoke<string | null>("firmware_commit", { source }),
   /** version — тег выпуска (v1.2.0) или "main"; без него — main */
-  firmwareFetchGithub: (version?: string) => invoke<string>("firmware_fetch_github", { version: version ?? null }),
+  firmwareFetchGithub: (version?: string) =>
+    invoke<{ dir: string; reference: string; commit: string; fresh: boolean }>("firmware_fetch_github", { version: version ?? null }),
   firmwareVersions: () => invoke<string[]>("firmware_versions"),
   firmwarePrepare: (source: string, planeId: string) =>
     invoke<{ dir: string; copied: number; removed: number }>("firmware_prepare", { source, planeId }),
