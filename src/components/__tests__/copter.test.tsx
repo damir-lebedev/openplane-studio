@@ -574,6 +574,54 @@ describe("вкладки коптера", () => {
     expect(sent).toContain("set osd_vbat_pos 2090");
   });
 
+  it("OSD: видеосистема шлёт настройки, экран очков 53 × 20 и «Разложить по экрану»", async () => {
+    act(() =>
+      useApp.setState((st) => ({
+        copterBoard: dumpedBoard([
+          ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+          param("osd_vbat_pos", { group: "osd", scope: "master", default: 2433, value: 2433, min: 0, max: 16383 }),
+          param("osd_tim_2_pos", { group: "osd", scope: "master", default: 2454, value: 2454, min: 0, max: 16383 }),
+          param("osd_displayport_device", { type: "enum", group: "osd", scope: "master", options: ["NONE", "AUTO", "MAX7456", "MSP"], default: "AUTO", value: "AUTO" }),
+          param("vcd_video_system", { type: "enum", group: "osd", scope: "master", options: ["AUTO", "PAL", "NTSC", "HD"], default: "AUTO", value: "AUTO" }),
+          param("osd_canvas_width", { group: "osd", scope: "master", min: 30, max: 60, default: 53, value: 53 }),
+          param("osd_canvas_height", { group: "osd", scope: "master", min: 13, max: 22, default: 20, value: 20 }),
+        ]),
+        clive: live({ osd: { chip: false, msp: false, c: 30, r: 16, hd: false, port: true, dev: false, devc: false, vtx: false, req: 0 } }),
+      })),
+    );
+    render(<CopterView />);
+    tab("OSD");
+    const card = screen.getByTestId("osd-output-card");
+    // по умолчанию — «Сам разберётся»: очков на проводе ещё нет
+    expect(within(card).getByText("Сам разберётся").closest("button")?.className).toContain("selected");
+    expect(within(card).getByText(/Ждём очки/)).toBeTruthy();
+    expect(screen.getByText("Вывод: тонкая настройка")).toBeTruthy();
+    // аналоговый экран: переключатель PAL / NTSC на месте
+    expect(screen.queryByTestId("osd-canvas-size")).toBeNull();
+
+    // выбрали HDZero — устройство MSP, HD и её размер; экран в редакторе сразу 50 × 18
+    fireEvent.click(within(card).getByText("HDZero"));
+    await waitFor(() => expect(sent).toEqual(expect.arrayContaining(["set osd_displayport_device MSP", "set vcd_video_system HD", "set osd_canvas_width 50", "set osd_canvas_height 18"])));
+    await waitFor(() => expect(screen.getByTestId("osd-canvas-size").textContent).toContain("Экран 50 × 18"));
+    expect(screen.getByTestId("osd-canvas-size").textContent).toContain("размер из настроек");
+    expect(within(card).getByText("HDZero").closest("button")?.className).toContain("selected");
+    expect(screen.getByTestId("osd-wiring-digital")).toBeTruthy();
+
+    // очки объявились и сообщили свой экран 53 × 20 — он главнее настроек
+    act(() => useApp.setState({ clive: live({ osd: { chip: false, msp: true, c: 53, r: 20, hd: true, port: true, dev: true, devc: true, vtx: true, req: 12 } }) }));
+    expect(screen.getByTestId("osd-canvas-size").textContent).toContain("Экран 53 × 20");
+    expect(screen.getByTestId("osd-canvas-size").textContent).toContain("размер сообщили очки");
+    expect(within(card).getByText("Очки на связи: экран 53 × 20 — размер они сообщили сами.")).toBeTruthy();
+    expect(within(card).getByText(/Видеопередатчик берёт канал и мощность у полётника/)).toBeTruthy();
+    const scr = document.querySelector(".osd-screen") as HTMLElement;
+    expect(scr.style.getPropertyValue("--cols")).toBe("53");
+
+    // раскладка аналоговая (левый верхний угол большого экрана) — разложить: углы остаются углами
+    expect(screen.getByText("Раскладка сделана под экран 30 × 13, а сейчас экран 53 × 20.")).toBeTruthy();
+    fireEvent.click(screen.getByText("Разложить по экрану"));
+    await waitFor(() => expect(sent).toEqual(expect.arrayContaining(["set osd_vbat_pos 2657", "set osd_tim_2_pos 3693"])));   // x1 y19 и x45 y19
+  });
+
   it("OSD: меню в очках — тренажёр стрелками, на плату ничего не уходит", () => {
     render(<CopterView />);
     tab("OSD");

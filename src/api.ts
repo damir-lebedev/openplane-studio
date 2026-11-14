@@ -197,6 +197,13 @@ export interface CopterLive {
   /** наибольший ток на мотор за полёт, А */
   mma?: number;
   vtx?: { on: boolean; mhz: number; mw: number; pit: boolean; cap: number };
+  /**
+   * Куда рисуется OSD: чип на плате и/или очки по MSP DisplayPort; экран c × r
+   * (hd — большой экран очков); port — на плате есть UART для очков, dev — по нему
+   * сейчас спрашивают, devc — размер экрана очки сообщили сами, vtx — на порту
+   * видеопередатчик, который берёт канал у полётника; req — запросов всего.
+   */
+  osd?: { chip: boolean; msp: boolean; c: number; r: number; hd: boolean; port: boolean; dev: boolean; devc: boolean; vtx: boolean; req: number };
   hdg: number;
   /** частота кадров приёмника, Гц, и срезы сглаживания стиков и газа (0 — выключено) */
   rxhz?: number;
