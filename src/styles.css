@@ -1919,6 +1919,116 @@ textarea {
   fill: var(--warn);
 }
 
+/* Автопилот: картинка дрейфа вокруг точки удержания, стик газа */
+.drift-body {
+  display: grid;
+  grid-template-columns: minmax(200px, 300px) minmax(260px, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+.drift-svg {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+}
+.drift-ring {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.drift-axis {
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+.drift-target {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+}
+.drift-target.on {
+  stroke: var(--ok);
+  fill: color-mix(in srgb, var(--ok) 30%, transparent);
+}
+.drift-point {
+  fill: var(--accent);
+}
+.drift-speed {
+  stroke: var(--warn);
+  stroke-width: 2;
+}
+.drift-nose {
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.throttle-svg {
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  margin: 4px 0 8px;
+}
+.throttle-svg .rescue-label,
+.throttle-svg .training-flag {
+  font-size: 9px;
+}
+.thr-track {
+  fill: color-mix(in srgb, var(--accent) 8%, transparent);
+  stroke: var(--line);
+}
+.thr-hold {
+  fill: color-mix(in srgb, var(--ok) 35%, transparent);
+}
+.thr-stick {
+  fill: var(--muted);
+}
+
+/* Компас: сфера точек калибровки */
+.compass-body {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(260px, 1fr);
+  gap: 18px;
+  align-items: center;
+  margin-top: 8px;
+}
+.mag-sphere {
+  width: 100%;
+  max-width: 240px;
+  height: auto;
+}
+.mag-globe {
+  fill: color-mix(in srgb, var(--accent) 6%, transparent);
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.mag-wire {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+.mag-dot {
+  fill: var(--accent);
+}
+.compass-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  overflow: hidden;
+  margin: 8px 0 4px;
+}
+.compass-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+@media (max-width: 760px) {
+  .drift-body,
+  .compass-body {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* OSD: экран очков, элементы перетаскиваются */
 .osd-layout {
   display: grid;

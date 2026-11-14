@@ -150,6 +150,7 @@ const TAB_PACKS: Record<CopterTab, (Pack | "guided")[]> = {
   vtx: ["freestyle", "race", "longrange"],
   osd: ["freestyle", "race", "longrange", "work"],
   gps: ["longrange", "work", "fleet", "school"],
+  autopilot: ["longrange", "work", "fleet", "school"],
   blackbox: ["freestyle", "race", "longrange", "work", "geek"],
   other: ["geek"],
   cli: ["geek"],

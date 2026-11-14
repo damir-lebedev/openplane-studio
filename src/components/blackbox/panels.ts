@@ -48,6 +48,7 @@ export const MODE_COLORS: Record<string, string> = {
   HORIZON: "#d2a8ff",
   ANGLE: "#3fb950",
   ALT_HOLD: "#39d0ff",
+  POS_HOLD: "#7ee787",
   MANUAL: "#f85149",
   STABILIZE: "#3fb950",
   CRUISE: "#39d0ff",

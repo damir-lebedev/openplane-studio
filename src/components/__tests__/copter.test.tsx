@@ -762,3 +762,133 @@ describe("что подключено (P03) и перегрузка по ток�
     expect(screen.queryByText("Слабее без ARM")).toBeNull();
   });
 });
+
+describe("автопилот: POS HOLD, ALT HOLD и компас (128, 130–132)", () => {
+  const auto = (name: string, value: number | string, more = {}) =>
+    param(name, { group: "autopilot", scope: "master", default: value, value, min: 0, max: 200, from: "table", ...more });
+  const magNum = (name: string, value: number, min: number, max: number) => param(name, { group: "gps", scope: "master", default: value, value, min, max, from: "table" });
+  const magParams = () => [
+    magNum("mag_zero_x", 0, -30000, 30000),
+    magNum("mag_zero_y", 0, -30000, 30000),
+    magNum("mag_zero_z", 0, -30000, 30000),
+    magNum("mag_scale_x", 1000, 500, 2000),
+    magNum("mag_scale_y", 1000, 500, 2000),
+    magNum("mag_scale_z", 1000, 500, 2000),
+    param("align_mag", { group: "gps", scope: "master", type: "enum", options: ["DEFAULT", "CW0", "CW90", "CW180", "CW270", "CW0FLIP", "CW90FLIP", "CW180FLIP", "CW270FLIP"], default: "DEFAULT", value: "DEFAULT", from: "table" }),
+    param("mag_declination", { group: "gps", scope: "master", default: 0, value: 0, min: -1800, max: 1800, units: "0.1°", from: "table" }),
+  ];
+  const withAutopilot = () =>
+    act(() =>
+      useApp.setState((st) => ({
+        copterBoard: dumpedBoard([
+          ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+          auto("alt_hold_adjust_rate", 50, { min: 5 }),
+          auto("alt_hold_deadband", 20, { min: 5, max: 50 }),
+          auto("pos_hold_adjust_rate", 50, { min: 5 }),
+          auto("pos_hold_deadband", 5, { max: 50 }),
+          auto("pos_hold_without_mag", "OFF", { type: "enum", options: ["OFF", "ON"] }),
+          auto("autopilot_max_angle", 50, { min: 10, max: 70 }),
+          auto("autopilot_position_p", 30),
+          auto("autopilot_throttle_max", 1700, { min: 1400, max: 2000 }),
+          ...magParams(),
+        ]),
+      })),
+    );
+
+  beforeEach(() => {
+    sent.length = 0;
+    connect();
+    useApp.setState({ settings: { copterMode: "pro" } });
+  });
+  afterEach(cleanup);
+
+  it("«Автопилот»: картинка дрейфа по живым кадрам, чего не хватает, ползунок шлёт set", async () => {
+    withAutopilot();
+    const gps = { fix: true, sats: 14, lat: 55.75, lon: 37.61, spd: 0, home: 3, dir: 10 };
+    const mag = { raw: [20, 0, -45] as [number, number, number], f: 49, cal: true, ok: true, bad: false };
+    act(() => useApp.setState({ clive: live({ t: 1000, arm: true, mode: "POS_HOLD", gps, mag, hsrc: "MAG", pos: { n: 3.3, e: 1.4, vn: 0.2, ve: 0, hold: "HOLD", tn: 3, te: 1 } }), cliveAt: Date.now() }));
+    render(<CopterView />);
+    tab("Автопилот");
+    expect(screen.getByTestId("drift-phase").textContent).toBe("держит точку");
+    expect(screen.getByTestId("drift-now").textContent).toMatch(/^0\.50 м/);
+    expect(screen.getByTestId("drift-copter")).toBeTruthy();
+    expect(screen.getByText(/90° · компас/)).toBeTruthy();
+    expect(screen.queryByTestId("drift-missing")).toBeNull();
+    // новые кадры — новые точки следа
+    act(() => useApp.setState({ clive: live({ t: 1300, arm: true, mode: "POS_HOLD", gps, mag, hsrc: "MAG", pos: { n: 3.9, e: 1, vn: 0, ve: 0, hold: "HOLD", tn: 3, te: 1 } }) }));
+    expect(screen.getByTestId("drift-now").textContent).toMatch(/^0\.90 м, наибольший 0\.90 м/);
+    expect(document.querySelectorAll(".drift-point").length).toBe(2);
+    // GPS пропал: прошивка говорит, почему не держит
+    act(() => useApp.setState({ clive: live({ t: 1600, arm: true, mode: "ALT_HOLD", mag, posfail: "NO_GPS" }) }));
+    expect(screen.getByTestId("drift-phase").textContent).toBe("не держит");
+    expect(screen.getByText(/нет годного GPS/)).toBeTruthy();
+    // на столе: компас не откалиброван — POS HOLD не возьмётся
+    act(() => useApp.setState({ clive: live({ t: 1900, gps, mag: { ...mag, cal: false, ok: false } }) }));
+    expect(screen.getByTestId("drift-missing").textContent).toMatch(/компас не откалиброван/);
+    // стик газа по alt_hold_*
+    expect(screen.getByTestId("thr-hold-text").textContent).toBe("центр ±10 % — держит высоту");
+    expect(screen.getByText("до упора вверх — набор 5.0 м/с")).toBeTruthy();
+    // ползунок
+    const slider = screen.getByLabelText("Наибольший наклон");
+    fireEvent.change(slider, { target: { value: "35" } });
+    await act(async () => fireEvent.pointerUp(slider));
+    expect(sent).toContain("set autopilot_max_angle 35");
+  });
+
+  it("старая прошивка без удержания позиции — вкладка говорит обновить", () => {
+    render(<CopterView />);
+    tab("Автопилот");
+    expect(screen.getByText(/прошивка без удержания позиции/)).toBeTruthy();
+  });
+
+  it("«Подготовка» → «Компас»: точки на сфере, расчёт и запись калибровки", async () => {
+    withAutopilot();
+    const { alignMag } = await import("../../core/magCal");
+    // датчик стоит CW90, железо рядом сдвигает поле на (12, −7, 4) мкТл
+    const frame = (t: number, att: [number, number, number]) => {
+      const d = Math.PI / 180;
+      const [cr, sr, cp, sp, cy, sy] = [Math.cos(att[0] * d), Math.sin(att[0] * d), Math.cos(att[1] * d), Math.sin(att[1] * d), Math.cos(att[2] * d), Math.sin(att[2] * d)];
+      const x2 = cy * 20;
+      const y1 = -sy * 20;
+      const x = cp * x2 - sp * 45;
+      const z1 = sp * x2 + cp * 45;
+      const body: [number, number, number] = [x, -(cr * y1 + sr * z1), -(-sr * y1 + cr * z1)];
+      // обратное к CW90 — три поворота по 90° (CW270)
+      const s = alignMag("CW270", body);
+      return live({ t, att, hdg: 0, mag: { raw: [s[0] + 12, s[1] - 7, s[2] + 4], f: 60, cal: false, ok: false, bad: false } });
+    };
+    act(() => useApp.setState({ clive: frame(1, [0, 0, 0]), cliveAt: Date.now() }));
+    render(<CopterView />);
+    tab("Подготовка");
+    expect(screen.getByTestId("compass-state").textContent).toBe("не откалиброван");
+    fireEvent.click(screen.getByText("Калибровать"));
+    expect((screen.getByText("Готово — посчитать") as HTMLButtonElement).disabled).toBe(true);
+    let t = 2;
+    for (let roll = -180; roll < 180; roll += 30) {
+      for (let pitch = -75; pitch <= 75; pitch += 25) {
+        for (let yaw = 0; yaw < 360; yaw += 60) {
+          const f = frame(t++, [roll, pitch, yaw]);
+          act(() => useApp.setState({ clive: f }));
+        }
+      }
+    }
+    expect(screen.getByTestId("compass-progress").textContent).toMatch(/сфера покрыта на ([89]\d|100) %/);
+    expect(screen.getByTestId("mag-sphere").querySelectorAll(".mag-dot").length).toBeGreaterThan(100);
+    fireEvent.click(screen.getByText("Готово — посчитать"));
+    expect(screen.getByTestId("compass-verdict").textContent).toBe("Отлично: точки легли на сферу.");
+    expect(screen.getByTestId("compass-align").textContent).toBe("CW90");
+    await act(async () => fireEvent.click(screen.getByText("Записать на плату")));
+    expect(sent).toEqual(expect.arrayContaining(["set mag_zero_x 120", "set mag_zero_y -70", "set mag_zero_z 40", "set mag_scale_x 1000", "set align_mag CW90"]));
+    expect(screen.getByText("Записано")).toBeTruthy();
+  });
+
+  it("компаса нет — карточка говорит, что делать", () => {
+    withAutopilot();
+    act(() => useApp.setState({ clive: live({ t: 5 }), cliveAt: Date.now() }));
+    render(<CopterView />);
+    tab("Подготовка");
+    expect(screen.getByTestId("compass-state").textContent).toBe("не найден");
+    expect(screen.getByText(/не отвечает — проверьте провода SDA\/SCL/)).toBeTruthy();
+    expect(screen.queryByText("Калибровать")).toBeNull();
+  });
+});

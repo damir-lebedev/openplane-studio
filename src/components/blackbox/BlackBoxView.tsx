@@ -314,7 +314,7 @@ function Readout({ flight }: { flight: Flight }) {
   const g = flight.series.QGYRO;
   const c = flight.series.QCTRL;
   const v = (s: typeof q, f: string) => valueAt(s, f, cursor);
-  const modes = names(flight, "names.mode", ["ACRO", "HORIZON", "ANGLE", "ALT_HOLD"]);
+  const modes = names(flight, "names.mode", ["ACRO", "HORIZON", "ANGLE", "ALT_HOLD", "POS_HOLD"]);
   const states = names(flight, "names.state", ["DISARMED", "ARMED", "FAILSAFE"]);
   const flags = v(q, "flags") ?? 0;
   const mode = modes[v(q, "mode") ?? -1] ?? "—";

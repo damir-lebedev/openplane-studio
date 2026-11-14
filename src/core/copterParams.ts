@@ -207,6 +207,7 @@ export type CopterTab =
   | "vtx"
   | "osd"
   | "gps"
+  | "autopilot"
   | "blackbox"
   | "beeper"
   | "other"
@@ -228,6 +229,7 @@ export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "vtx", title: N_("Видео"), board: true },
   { id: "osd", title: N_("OSD"), board: true },
   { id: "gps", title: N_("GPS"), board: true },
+  { id: "autopilot", title: N_("Автопилот"), board: true },
   { id: "blackbox", title: N_("Чёрный ящик"), board: true },
   { id: "beeper", title: N_("Пищалка"), board: true },
   { id: "other", title: N_("Прочее"), board: true },
@@ -254,6 +256,7 @@ export const GROUP_TAB: Record<string, CopterTab> = {
   vtx: "vtx",
   osd: "osd",
   gps: "gps",
+  autopilot: "autopilot",
   blackbox: "blackbox",
   other: "other",
   beeper: "beeper",

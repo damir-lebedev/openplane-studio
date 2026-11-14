@@ -58,9 +58,9 @@ describe("что видно", () => {
     expect(pro).not.toContain("wizard");
   });
 
-  it("«Показать всё» — все 21 вкладка, мастер первым", () => {
+  it("«Показать всё» — все 22 вкладки, мастер первым", () => {
     const all = ids({ ...makeProfile(answers()), showAll: true });
-    expect(all).toHaveLength(21);
+    expect(all).toHaveLength(22);
     expect(all[0]).toBe("wizard");
   });
 

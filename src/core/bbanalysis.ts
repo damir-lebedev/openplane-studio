@@ -4,7 +4,7 @@
 
 import { Flight, lowerBound, Series } from "./blackbox";
 
-const COPTER_MODES = ["ACRO", "HORIZON", "ANGLE", "ALT_HOLD"];
+const COPTER_MODES = ["ACRO", "HORIZON", "ANGLE", "ALT_HOLD", "POS_HOLD"];
 export const FLAG = { armed: 1, airborne: 2, saturated: 4, crashed: 8, failsafe: 16, rxLost: 32 };
 
 export function names(flight: Flight, key: string, fallback: string[]): string[] {

@@ -1,7 +1,8 @@
 // «Подготовка»: как стоит коптер (горизонт), можно ли армить и почему нет,
-// калибровки (клавиши консоли платы: i, o, c) и ответ платы на них.
+// калибровки (клавиши консоли платы: i, o) и ответ платы на них, компас —
+// мастером со сферой точек (CompassCard).
 
-import { CircleCheck, Compass, Crosshair, Gauge } from "lucide-react";
+import { CircleCheck, Crosshair, Gauge } from "lucide-react";
 
 import { api, errorText } from "../../api";
 import { ARM_BENCH_OK } from "../../core/copterParams";
@@ -9,6 +10,7 @@ import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Horizon } from "../live/LiveWidgets";
 import { ArmWhyList } from "./ArmWhy";
+import { CompassCard } from "./CompassCard";
 import { NeedBoard, useCopterLink, useCopterLive } from "./common";
 import { PreflightCard } from "./Preflight";
 import { GoTo } from "./Search";
@@ -21,7 +23,6 @@ const CALIBRATIONS: { key: string; title: string; hint: string; icon: typeof Gau
     hint: "три позы по подсказкам ниже: ровно, нос вверх, правый борт вниз — как плата стоит в раме",
     icon: Crosshair,
   },
-  { key: "c", title: "Компас", hint: "15 с вращать коптер по всем осям; нужен модуль GPS с компасом", icon: Compass },
 ];
 
 export function SetupTab({ onGo }: { onGo?: GoTo }) {
@@ -99,6 +100,7 @@ function SetupBody({ onGo }: { onGo?: GoTo }) {
       </div>
 
       <Calibrations />
+      <CompassCard />
     </div>
   );
 }

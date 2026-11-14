@@ -23,6 +23,7 @@ import { FlashDialog } from "./board/FlashDialog";
 import { UnsavedBar, useCopterLink, useCopterLive } from "./copter/common";
 import { BeeperTab } from "./copter/BeeperTab";
 import { FlightTab } from "./copter/FlightTab";
+import { AutopilotTab } from "./copter/AutopilotTab";
 import { GpsTab } from "./copter/GpsTab";
 import { CliTab, FailsafeTab, ListTab, OtherTab, PowerTab, VtxTab } from "./copter/MiscTabs";
 import { ModesTab } from "./copter/ModesTab";
@@ -173,6 +174,7 @@ export function CopterView() {
           {tab === "vtx" && <VtxTab />}
           {tab === "osd" && <OsdTab />}
           {tab === "gps" && <GpsTab />}
+          {tab === "autopilot" && <AutopilotTab />}
           {tab === "blackbox" && <ListTab tab="blackbox" />}
           {tab === "beeper" && <BeeperTab />}
           {tab === "other" && <OtherTab />}

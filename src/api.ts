@@ -205,6 +205,14 @@ export interface CopterLive {
    */
   osd?: { chip: boolean; msp: boolean; c: number; r: number; hd: boolean; port: boolean; dev: boolean; devc: boolean; vtx: boolean; req: number };
   hdg: number;
+  /** откуда курс: MAG — компас, GPS — выучен по полёту, NONE — только гироскоп */
+  hsrc?: "MAG" | "GPS" | "NONE";
+  /** компас: сырое поле (мкТл, оси датчика), модуль после калибровки, откалиброван, верим ли, расходится ли с полётом */
+  mag?: { raw: [number, number, number]; f: number; cal: boolean; ok: boolean; bad: boolean };
+  /** оценка положения (от дома, м) и скорости; удержание позиции: этап (HOLD, BRAKE, MOVE) и точка */
+  pos?: { n: number; e: number; vn: number; ve: number; hold?: string; tn?: number; te?: number };
+  /** POS HOLD включён, но не держит: NO_GPS, NO_HEADING, DRIFT */
+  posfail?: string;
   /** частота кадров приёмника, Гц, и срезы сглаживания стиков и газа (0 — выключено) */
   rxhz?: number;
   rcsp?: number;
