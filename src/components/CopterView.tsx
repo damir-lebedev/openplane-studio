@@ -36,6 +36,7 @@ import { CopterSearch, FromBfTab, GoTo } from "./copter/Search";
 import { SetupTab } from "./copter/SetupTab";
 import { TipCard } from "./copter/TipCard";
 import { FiltersTab, PidTab, RatesTab } from "./copter/TuneTabs";
+import { AutotuneTab } from "./copter/AutotuneTab";
 import { Wizard } from "./copter/Wizard";
 
 export function CopterView() {
@@ -168,6 +169,7 @@ export function CopterView() {
           {tab === "pid" && <PidTab />}
           {tab === "rates" && <RatesTab />}
           {tab === "filters" && <FiltersTab />}
+          {tab === "autotune" && <AutotuneTab />}
           {tab === "failsafe" && <FailsafeTab />}
           {tab === "power" && <PowerTab />}
           {tab === "parts" && <PartsTab />}

@@ -72,7 +72,7 @@ const fmtDuration = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s 
 
 // ---------------- журналы: плата, папка, файл ----------------
 
-function Library({ onOpen }: { onOpen: (buffer: ArrayBuffer, label: string, path?: string) => Promise<void> }) {
+export function Library({ onOpen }: { onOpen: (buffer: ArrayBuffer, label: string, path?: string) => Promise<void> }) {
   const linkOpen = useApp((s) => s.link.state === "open");
   // папка журналов — проект того, что прошито в подключённой плате (коптер или самолёт)
   const project = useApp((s) => {

@@ -46,6 +46,7 @@ describe("что видно", () => {
     const tabs = ids(makeProfile(answers({ goals: ["race"] })));
     expect(tabs.slice(0, 2)).toEqual(["wizard", "flight"]);
     expect(tabs).toContain("pid");
+    expect(tabs).toContain("autotune");
     expect(tabs).not.toContain("motors");
     expect(tabs).not.toContain("cli");
   });
@@ -58,9 +59,9 @@ describe("что видно", () => {
     expect(pro).not.toContain("wizard");
   });
 
-  it("«Показать всё» — все 22 вкладки, мастер первым", () => {
+  it("«Показать всё» — все 23 вкладки, мастер первым", () => {
     const all = ids({ ...makeProfile(answers()), showAll: true });
-    expect(all).toHaveLength(22);
+    expect(all).toHaveLength(23);
     expect(all[0]).toBe("wizard");
   });
 

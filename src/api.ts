@@ -182,6 +182,8 @@ export interface CopterLive {
   ch: number[];
   /** крен, тангаж, рысканье, ° */
   att: [number, number, number];
+  /** chirp (измерение коптера): идёт ли свип, ось (или следующая), частота, номер свипа, чем кончился прошлый */
+  chirp?: { on: boolean; axis: number; hz: number; run: number; end: string };
   /** фильтр ориентации MEKF: найденное смещение гироскопа, °/с (крен, тангаж, рысканье) */
   gbias?: [number, number, number];
   /** и вера акселерометру, % (100 — висит спокойно или стоит, 0 — манёвр) */

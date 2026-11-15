@@ -202,6 +202,7 @@ export type CopterTab =
   | "pid"
   | "rates"
   | "filters"
+  | "autotune"
   | "failsafe"
   | "power"
   | "vtx"
@@ -224,6 +225,7 @@ export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "pid", title: N_("PID"), board: true },
   { id: "rates", title: N_("Расходы"), board: true },
   { id: "filters", title: N_("Фильтры"), board: true },
+  { id: "autotune", title: N_("Измерение и автонастройка"), board: false },
   { id: "failsafe", title: N_("Безопасность"), board: true },
   { id: "power", title: N_("Питание"), board: true },
   { id: "vtx", title: N_("Видео"), board: true },

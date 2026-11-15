@@ -3159,6 +3159,63 @@ textarea {
 .filter-curve.d {
   stroke: var(--warn);
 }
+/* «Измерение и автонастройка»: графики «было → стало» */
+.tune-plots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px 16px;
+  margin-top: 8px;
+}
+.tune-plot {
+  margin: 0;
+}
+.tune-plot figcaption {
+  font-size: 12px;
+  color: var(--text-2);
+  margin-bottom: 2px;
+}
+.tune-plot svg {
+  width: 100%;
+  height: auto;
+}
+.tune-line {
+  fill: none;
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+}
+.tune-line.now {
+  stroke: var(--text-3);
+}
+.tune-line.next {
+  stroke: var(--accent);
+}
+.tune-line.model {
+  stroke: var(--warn);
+}
+.tune-dot {
+  fill: var(--text-2);
+}
+.tune-keepout {
+  fill: var(--warn);
+  opacity: 0.12;
+}
+.tune-minus-one {
+  fill: var(--err);
+}
+.tune-table td b {
+  color: var(--accent);
+}
+.tune-steps {
+  margin: 6px 0 8px 18px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+.tune-cli pre {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  font-size: 12px;
+}
 .filter-notch {
   stroke: var(--accent-line);
   stroke-dasharray: 4 4;
