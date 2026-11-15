@@ -182,6 +182,10 @@ export interface CopterLive {
   ch: number[];
   /** крен, тангаж, рысканье, ° */
   att: [number, number, number];
+  /** фильтр ориентации MEKF: найденное смещение гироскопа, °/с (крен, тангаж, рысканье) */
+  gbias?: [number, number, number];
+  /** и вера акселерометру, % (100 — висит спокойно или стоит, 0 — манёвр) */
+  atrust?: number;
   alt: number;
   vz: number;
   thr: number;

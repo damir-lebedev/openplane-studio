@@ -2332,5 +2332,9 @@
   "точек пока нет": "no dots yet",
   "уже хватает, но чем полнее, тем точнее": "already enough, but the fuller the better",
   "унесло дальше 10 м от точки — удержание выключено, пока не выключите и не включите режим": "blown more than 10 m from the point — hold is off until you switch the mode off and on",
-  "центр ±{p} % — держит высоту": "centre ±{p} % — holds altitude"
+  "центр ±{p} % — держит высоту": "centre ±{p} % — holds altitude",
+  "Вера акселерометру": "Accelerometer trust",
+  "Насколько фильтр ориентации сейчас верит акселерометру: на манёвре — почти нет, в спокойном висении и на земле — полностью.": "How much the attitude filter trusts the accelerometer right now: hardly at all in a manoeuvre, fully in a calm hover and on the ground.",
+  "Нуль гироскопа": "Gyro zero offset",
+  "Фильтр ориентации сам находит, на сколько врёт нуль гироскопа, и вычитает это. Рысканье без компаса не видно.": "The attitude filter finds how far the gyro zero is off and subtracts it. Yaw cannot be seen without a compass."
 }

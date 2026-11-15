@@ -54,6 +54,16 @@ function SetupBody({ onGo }: { onGo?: GoTo }) {
             <span className="mono">{live ? `${Math.round(live.hdg)}°` : "—"}</span>
             <span>{t("Высота")}</span>
             <span className="mono">{live ? `${live.alt.toFixed(1)} ${t("м")}` : "—"}</span>
+            {live?.gbias && (
+              <>
+                <span title={t("Фильтр ориентации сам находит, на сколько врёт нуль гироскопа, и вычитает это. Рысканье без компаса не видно.")}>{t("Нуль гироскопа")}</span>
+                <span className="mono">
+                  {live.gbias.slice(0, 2).map((b) => (b >= 0 ? "+" : "") + b.toFixed(2)).join(" / ")} {t("°/с")}
+                </span>
+                <span title={t("Насколько фильтр ориентации сейчас верит акселерометру: на манёвре — почти нет, в спокойном висении и на земле — полностью.")}>{t("Вера акселерометру")}</span>
+                <span className="mono">{live.atrust ?? 0}%</span>
+              </>
+            )}
           </div>
         </div>
         <p className="hint">{t("Наклоните коптер вправо — горизонт должен уйти влево, крен — стать больше нуля; нос вверх — тангаж больше нуля. Не так — откалибруйте установку платы.")}</p>
