@@ -5,6 +5,8 @@
 //! все запросы к плате идут через неё. Перед прошивкой связь отпускается.
 //! Чёрный ящик (список полётов, выгрузка) — тоже через неё: поток на время
 //! выгрузки перестаёт спрашивать живые данные (blackbox.rs).
+//! Порт "tcp:127.0.0.1:5761" — не COM, а SITL (прошивка на ПК, sitl.rs): тот
+//! же поток консоли по TCP плюс строки "@sim {...}" (событие "board-sim").
 
 use std::io::{Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -55,7 +57,40 @@ struct BoardJson<'a> {
     data: Value,
 }
 
-fn open(port: &str, stm32: bool) -> Res<Box<dyn serialport::SerialPort>> {
+/// Поток платы: COM-порт или TCP (SITL). Чтение с таймаутом ~30 мс.
+pub trait Port: Read + Write + Send {}
+impl<T: Read + Write + Send + ?Sized> Port for T {}
+pub type BoxPort = Box<dyn Port>;
+
+/// Таймаут чтения: COM отдаёт TimedOut, сокет — WouldBlock (Unix) или TimedOut (Windows).
+pub fn quiet(e: &std::io::Error) -> bool {
+    matches!(e.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock)
+}
+
+pub fn is_tcp(port: &str) -> bool {
+    port.starts_with("tcp:")
+}
+
+fn open_tcp(addr: &str, wait: Duration) -> Res<BoxPort> {
+    let deadline = Instant::now() + wait;
+    loop {
+        match std::net::TcpStream::connect(addr) {
+            Ok(s) => {
+                let _ = s.set_nodelay(true);
+                s.set_read_timeout(Some(Duration::from_millis(30))).map_err(|e| e.to_string())?;
+                return Ok(Box::new(s));
+            }
+            Err(e) if Instant::now() >= deadline => return Err(format!("{addr}: {e}")),
+            Err(_) => thread::sleep(Duration::from_millis(200)),
+        }
+    }
+}
+
+fn open(port: &str, stm32: bool) -> Res<BoxPort> {
+    if let Some(addr) = port.strip_prefix("tcp:") {
+        // симулятор мог только что запуститься — даём ему подняться
+        return open_tcp(addr, Duration::from_secs(5));
+    }
     let mut p = serialport::new(port, 115_200)
         .timeout(Duration::from_millis(30))
         .dtr_on_open(stm32)
@@ -71,7 +106,7 @@ fn open(port: &str, stm32: bool) -> Res<Box<dyn serialport::SerialPort>> {
     if !stm32 {
         let _ = p.write_request_to_send(false);
     }
-    Ok(p)
+    Ok(Box::new(p))
 }
 
 #[derive(PartialEq)]
@@ -105,7 +140,7 @@ fn handle_line(app: &AppHandle, port: &str, line: &str) -> Got {
     if trimmed == REFUSED {
         return Got::Refused;
     }
-    for (prefix, event) in [("@live ", "board-live"), ("@id ", "board-id"), ("@scan ", "board-scan")] {
+    for (prefix, event) in [("@live ", "board-live"), ("@id ", "board-id"), ("@scan ", "board-scan"), ("@sim ", "board-sim")] {
         if let Some(json) = trimmed.strip_prefix(prefix) {
             if let Ok(data) = serde_json::from_str::<Value>(json) {
                 let _ = app.emit(event, BoardJson { port, data });
@@ -264,7 +299,7 @@ fn mav_fields(fc: &mut serde_json::Map<String, Value>, kind: u8, autopilot: u8) 
     fc.insert("vehicle".into(), Value::from(kind));
 }
 
-fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>, stop: Arc<AtomicBool>, rx: Receiver<Msg>) {
+fn run(app: AppHandle, port: String, mut serial: BoxPort, stop: Arc<AtomicBool>, rx: Receiver<Msg>) {
     let _ = app.emit("board-link", LinkStatus { port: &port, state: "open", error: None });
     let mut buf = [0u8; 2048];
     let mut pending: Vec<u8> = Vec::new();
@@ -313,6 +348,20 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
             break;
         }
         match serial.read(&mut buf) {
+            // SITL перезапустился (reboot/save в CLI) — сокет закрыт: ждём новый, как
+            // плату после перезагрузки; не поднялся за 15 с — связь пропала
+            Ok(0) if is_tcp(&port) => match open_tcp(&port[4..], Duration::from_secs(15)) {
+                Ok(s) => {
+                    serial = s;
+                    pending.clear();
+                    let _ = serial.write_all(b"\x02id\n");
+                    next_live = Instant::now();
+                }
+                Err(e) => {
+                    error = Some(e);
+                    break;
+                }
+            },
             Ok(0) => {}
             Ok(n) => {
                 pending.extend_from_slice(&buf[..n]);
@@ -357,7 +406,7 @@ fn run(app: AppHandle, port: String, mut serial: Box<dyn serialport::SerialPort>
                     pending.clear();
                 }
             }
-            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => {}
+            Err(e) if quiet(&e) => {}
             Err(e) => {
                 error = Some(e.to_string());
                 break;

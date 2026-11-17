@@ -17,6 +17,7 @@ use serde::Serialize;
 use serde_json::{json, Map, Value};
 use tauri::{AppHandle, Emitter};
 
+use crate::link::BoxPort;
 use crate::util::{err, hangar_dir, Res};
 
 pub const SECTOR: usize = 4096;
@@ -66,7 +67,7 @@ fn fields(rest: &str) -> Map<String, Value> {
 
 /// Ввод платы во время работы: строки и байты. Не ящику — в обычный разбор (on_line).
 struct Reader<'a> {
-    serial: &'a mut Box<dyn serialport::SerialPort>,
+    serial: &'a mut BoxPort,
     pending: &'a mut Vec<u8>,
 }
 
@@ -78,7 +79,7 @@ impl Reader<'_> {
                 self.pending.extend_from_slice(&buf[..n]);
                 Ok(n)
             }
-            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => Ok(0),
+            Err(e) if crate::link::quiet(&e) => Ok(0),
             Err(e) => Err(e.to_string()),
         }
     }
@@ -109,7 +110,7 @@ impl Reader<'_> {
 
 pub fn run(
     app: &AppHandle,
-    serial: &mut Box<dyn serialport::SerialPort>,
+    serial: &mut BoxPort,
     pending: &mut Vec<u8>,
     job: Job,
     on_line: &mut dyn FnMut(&str),
@@ -120,7 +121,7 @@ pub fn run(
     }
 }
 
-fn list(serial: &mut Box<dyn serialport::SerialPort>, pending: &mut Vec<u8>, on_line: &mut dyn FnMut(&str)) -> Res<Value> {
+fn list(serial: &mut BoxPort, pending: &mut Vec<u8>, on_line: &mut dyn FnMut(&str)) -> Res<Value> {
     serial.write_all(b"\x02bb list\n").map_err(|e| e.to_string())?;
     let mut r = Reader { serial, pending };
     let mut state = Map::new();
@@ -141,7 +142,7 @@ fn list(serial: &mut Box<dyn serialport::SerialPort>, pending: &mut Vec<u8>, on_
 
 fn get(
     app: &AppHandle,
-    serial: &mut Box<dyn serialport::SerialPort>,
+    serial: &mut BoxPort,
     pending: &mut Vec<u8>,
     flight: u16,
     on_line: &mut dyn FnMut(&str),

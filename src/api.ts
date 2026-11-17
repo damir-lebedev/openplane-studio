@@ -286,6 +286,39 @@ export interface ScanResult {
   error?: string;
 }
 
+/** Кадр симулятора — "@sim {...}" (src/sitl/main.cpp прошивки), ~30 Гц. */
+export interface SimFrame {
+  /** время модели, с */
+  t: number;
+  /** положение: север, восток, вниз, м (от точки старта) */
+  pos: [number, number, number];
+  /** ориентация: кватернион рама FRD → Земля NED (w, x, y, z) */
+  q: [number, number, number, number];
+  /** скорость NED, м/с */
+  vel: [number, number, number];
+  arm: boolean;
+  /** стоит или лежит на земле */
+  gnd: boolean;
+  volts: number;
+  amps: number;
+  /** ветер: север, восток, м/с */
+  wind: [number, number];
+  /** симулятор получает каналы пульта */
+  rc: boolean;
+  /** команды моторов 0..1 и обороты, Гц */
+  m: number[];
+  hz: number[];
+}
+
+export interface SitlStatus {
+  exe: string | null;
+  running: boolean;
+  port: string;
+}
+
+/** Порт симулятора ("tcp:127.0.0.1:5761"), а не COM. */
+export const isSimPort = (port: string | null | undefined) => !!port && port.startsWith("tcp:");
+
 export interface LinkStatus {
   port: string;
   state: "open" | "closed" | "error";
@@ -355,7 +388,20 @@ export const api = {
   bbDownload: (flight: number, project: string | null) => invoke<string>("blackbox_download", { flight, project }),
   bbFiles: (project: string | null) => invoke<LogFile[]>("blackbox_files", { project }),
   bbRead: (path: string) => invoke<ArrayBuffer>("blackbox_read", { path }),
+  /** Симулятор (SITL) в копии исходников dir: собран ли, запущен ли. */
+  sitlStatus: (dir: string) => invoke<SitlStatus>("sitl_status", { dir }),
+  /** Запустить; имя порта — для linkStart. */
+  sitlStart: (dir: string) => invoke<string>("sitl_start", { dir }),
+  sitlStop: () => invoke<void>("sitl_stop"),
+  /** Стереть настройки симулятора (останавливает его). */
+  sitlReset: () => invoke<void>("sitl_reset"),
+  /** pio run -e sitl; строки — task-log с task = "build". */
+  sitlBuild: (dir: string) => invoke<boolean>("sitl_build", { dir }),
 };
+
+export function onSimFrame(handler: (frame: SimFrame) => void): Promise<UnlistenFn> {
+  return listen<{ port: string; data: SimFrame }>("board-sim", (e) => handler(e.payload.data));
+}
 
 export interface BoardFlight {
   n: number;

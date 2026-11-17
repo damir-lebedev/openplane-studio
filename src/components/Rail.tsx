@@ -1,4 +1,4 @@
-import { Cpu, HardDrive, Package, RadioTower, Route, Settings, Warehouse } from "lucide-react";
+import { Cpu, Gamepad2, HardDrive, Package, RadioTower, Route, Settings, Warehouse } from "lucide-react";
 import { ReactNode } from "react";
 
 import { profileOf, sectionVisible } from "../core/pilot";
@@ -12,6 +12,7 @@ const ITEMS: { id: Section; label: string; icon: ReactNode; soon?: boolean }[] =
   { id: "live", label: N_("Онлайн"), icon: <RadioTower size={21} />, soon: true },
   { id: "blackbox", label: N_("Ящик"), icon: <HardDrive size={21} /> },
   { id: "cargo", label: N_("Грузы"), icon: <Package size={21} />, soon: true },
+  { id: "sim", label: N_("Симулятор"), icon: <Gamepad2 size={21} /> },
 ];
 
 export function Logo({ size = 40 }: { size?: number }) {

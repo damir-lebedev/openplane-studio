@@ -10,6 +10,7 @@ mod hangar;
 mod link;
 mod radio;
 mod setup;
+mod sitl;
 mod source;
 mod system;
 mod update;
@@ -315,10 +316,51 @@ async fn blackbox_read(path: String) -> Res<tauri::ipc::Response> {
     blocking(move || blackbox::read(&path).map(tauri::ipc::Response::new)).await
 }
 
+#[tauri::command]
+fn sitl_status(state: State<'_, sitl::SitlState>, dir: String) -> sitl::SitlStatus {
+    state.status(Path::new(&dir))
+}
+
+/// Запустить симулятор (если ещё нет) — имя порта для link_start.
+#[tauri::command]
+async fn sitl_start(app: AppHandle, dir: String) -> Res<String> {
+    blocking(move || app.state::<sitl::SitlState>().start(Path::new(&dir))).await
+}
+
+#[tauri::command]
+async fn sitl_stop(app: AppHandle) -> Res<()> {
+    blocking(move || {
+        app.state::<link::LinkState>().stop()?;
+        app.state::<sitl::SitlState>().stop();
+        Ok(())
+    })
+    .await
+}
+
+#[tauri::command]
+async fn sitl_reset(app: AppHandle) -> Res<()> {
+    blocking(move || {
+        app.state::<link::LinkState>().stop()?;
+        app.state::<sitl::SitlState>().reset_settings()
+    })
+    .await
+}
+
+/// Собрать симулятор; вывод — событиями задачи "build", как у прошивки.
+#[tauri::command]
+async fn sitl_build(app: AppHandle, dir: String) -> Res<bool> {
+    blocking(move || {
+        app.state::<sitl::SitlState>().stop();
+        sitl::build(&app, Path::new(&dir)).map(|(ok, _)| ok)
+    })
+    .await
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(link::LinkState::default())
+        .manage(sitl::SitlState::default())
         .invoke_handler(tauri::generate_handler![
             link_start,
             link_stop,
@@ -363,7 +405,18 @@ pub fn run() {
             platformio_install,
             setup_status,
             setup_run,
+            sitl_status,
+            sitl_start,
+            sitl_stop,
+            sitl_reset,
+            sitl_build,
         ])
-        .run(tauri::generate_context!())
-        .expect("OpenPlane Studio не запустился");
+        .build(tauri::generate_context!())
+        .expect("OpenPlane Studio не запустился")
+        .run(|app, event| {
+            // приложение закрыли — симулятор не остаётся висеть на порту
+            if let tauri::RunEvent::Exit = event {
+                app.state::<sitl::SitlState>().stop();
+            }
+        });
 }

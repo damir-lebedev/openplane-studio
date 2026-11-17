@@ -11,6 +11,7 @@ import { Onboarding } from "./components/onboarding/Onboarding";
 import { Rail } from "./components/Rail";
 import { Settings } from "./components/Settings";
 import { SetupDialog } from "./components/Setup";
+import { SimView } from "./components/sim/SimView";
 import { Toasts } from "./components/Toasts";
 import { UpdateCard } from "./components/Update";
 import { needsOnboarding } from "./core/pilot";
@@ -63,6 +64,8 @@ export default function App() {
           <CopterView />
         ) : section === "blackbox" ? (
           <BlackBoxView />
+        ) : section === "sim" ? (
+          <SimView />
         ) : section === "settings" ? (
           <Settings />
         ) : (

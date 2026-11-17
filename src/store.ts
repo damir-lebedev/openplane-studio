@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-import { api, AppInfo, CalibFlags, CopterLive, Device, errorText, FcInfo, Identity, inTauri, LiveFrame, onBoardEvents, onUpdateProgress, ScanResult, Settings } from "./api";
+import { api, AppInfo, CalibFlags, CopterLive, Device, errorText, FcInfo, Identity, inTauri, isSimPort, LiveFrame, onBoardEvents, onUpdateProgress, ScanResult, Settings } from "./api";
 import { applyMessage, CopterBoard, emptyBoard, ParamValue, setCommand } from "./core/copterParams";
 import { blankCopter, copterFromKit, CopterProject, isCopter, newCopterId } from "./core/copter";
 import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
@@ -21,7 +21,7 @@ import {
   StepId,
 } from "./core/project";
 
-export type Section = "hangar" | "board" | "copter" | "flights" | "live" | "blackbox" | "cargo" | "settings";
+export type Section = "hangar" | "board" | "copter" | "flights" | "live" | "blackbox" | "cargo" | "sim" | "settings";
 export type Mode = "simple" | "full";
 
 export interface PortInfo {
@@ -632,6 +632,9 @@ export const useApp = create<AppState>((set, get) => ({
       const devices = await api.devicesList();
       const ports = { ...get().ports };
       const present = new Set(devices.map((d) => d.port).filter(Boolean) as string[]);
+      // симулятор (порт tcp:) — не USB-устройство: его связь опрос устройств не трогает
+      const simLink = isSimPort(get().link.port) && get().link.state !== "idle";
+      if (simLink) present.add(get().link.port!);
       for (const port of Object.keys(ports)) if (!present.has(port)) delete ports[port];
       set({ devices, ports });
       // Полётник на STM32 (наша прошивка, Betaflight, INAV) или ArduPilot/PX4 — подключаемся сами и держим связь.
@@ -642,7 +645,7 @@ export const useApp = create<AppState>((set, get) => ({
         const sameOpen = link.port === cdc.port && (link.state === "open" || link.state === "connecting");
         const cooling = link.state === "error" && Date.now() - link.attemptAt < 5000;
         const held = get().linkHold === cdc.port;
-        if (!sameOpen && !cooling && !held) void get().connect(cdc.port, true);
+        if (!sameOpen && !cooling && !held && !simLink) void get().connect(cdc.port, true);
       } else if (link.state === "open" && link.port && !present.has(link.port)) {
         set({ link: { port: null, state: "idle", attemptAt: 0 }, live: null, clive: null, copterBoard: emptyBoard() });
       }
