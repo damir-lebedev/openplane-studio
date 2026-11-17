@@ -2,9 +2,15 @@
 //! GPL — не входят в приложение, качаются с их GitHub по кнопке) — на
 //! SD-карту пульта EdgeTX, подключённого по USB как диск. Прошивка коптера
 //! отвечает на их MSP через CRSF (plane: copter/CrsfMsp.h).
+//!
+//! «Найти упавший» (P11): журналы телеметрии EdgeTX (`LOGS/*.csv` на SD
+//! пульта) — начало и конец свежих файлов; последнюю точку GPS ищет
+//! `src/core/findLost.ts`. Карта открывается в браузере (`open_map`).
 
 use std::fs;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::time::UNIX_EPOCH;
 
 use serde::Serialize;
 use serde_json::Value;
@@ -130,6 +136,84 @@ pub fn install_lua(app: &AppHandle, sd: &str) -> Res<LuaInstalled> {
     Ok(LuaInstalled { version: rel.version, files })
 }
 
+/// Журнал EdgeTX: имя, время записи (с UNIX), начало (заголовок) и хвост.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RadioLog {
+    pub name: String,
+    pub modified: u64,
+    pub size: u64,
+    pub head: String,
+    pub tail: String,
+}
+
+const LOG_HEAD: u64 = 4 * 1024;
+const LOG_TAIL: u64 = 512 * 1024;
+
+fn read_range(path: &Path, from: u64, len: u64) -> Res<String> {
+    let mut f = fs::File::open(path).map_err(err("журнал пульта"))?;
+    f.seek(SeekFrom::Start(from)).map_err(err("журнал пульта"))?;
+    let mut buf = Vec::new();
+    f.take(len).read_to_end(&mut buf).map_err(err("журнал пульта"))?;
+    Ok(String::from_utf8_lossy(&buf).into_owned())
+}
+
+/// Свежие журналы телеметрии с карты пульта, новые первыми (не больше `max`).
+pub fn read_logs(sd: &str, max: usize) -> Res<Vec<RadioLog>> {
+    let root = Path::new(sd);
+    let dir = ["LOGS", "logs", "Logs"].iter().map(|d| root.join(d)).find(|d| d.is_dir());
+    let Some(dir) = dir else { return Ok(Vec::new()) };
+    let mut files: Vec<(u64, u64, PathBuf)> = fs::read_dir(&dir)
+        .map_err(err("папка LOGS"))?
+        .flatten()
+        .filter_map(|e| {
+            let p = e.path();
+            let csv = p.extension().map(|x| x.eq_ignore_ascii_case("csv")).unwrap_or(false);
+            let meta = e.metadata().ok()?;
+            if !csv || !meta.is_file() || meta.len() == 0 {
+                return None;
+            }
+            let modified = meta.modified().ok()?.duration_since(UNIX_EPOCH).ok()?.as_secs();
+            Some((modified, meta.len(), p))
+        })
+        .collect();
+    files.sort_by(|a, b| b.0.cmp(&a.0));
+    files
+        .into_iter()
+        .take(max)
+        .map(|(modified, size, p)| {
+            let head = read_range(&p, 0, LOG_HEAD)?;
+            let tail = if size > LOG_HEAD { read_range(&p, size.saturating_sub(LOG_TAIL).max(LOG_HEAD), LOG_TAIL)? } else { String::new() };
+            let name = p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            Ok(RadioLog { name, modified, size, head, tail })
+        })
+        .collect()
+}
+
+/// Ссылка на карту — только известные сайты карт (точку открывает браузер).
+pub fn map_url_allowed(url: &str) -> bool {
+    ["https://www.openstreetmap.org/", "https://www.google.com/maps/", "https://yandex.ru/maps/"].iter().any(|p| url.starts_with(p))
+        && !url.chars().any(|c| c.is_whitespace() || c == '"' || c == '\'' || c == '`')
+}
+
+pub fn open_map(url: &str) -> Res<()> {
+    if !map_url_allowed(url) {
+        return Err("эту ссылку приложение не открывает".into());
+    }
+    let mut cmd = if cfg!(windows) {
+        let mut c = command("rundll32");
+        c.arg("url.dll,FileProtocolHandler");
+        c
+    } else if cfg!(target_os = "macos") {
+        command("open")
+    } else {
+        command("xdg-open")
+    };
+    cmd.arg(url);
+    cmd.spawn().map_err(err("браузер"))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -168,5 +252,40 @@ mod tests {
         assert!(sd.join("SCRIPTS/TOOLS/bf.lua").is_file());
         assert!(sd.join("SCRIPTS/TOOLS/ExpressLRS.lua").is_file());   // своё на карте не трогаем
         let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn reads_newest_logs_head_and_tail() {
+        let tmp = std::env::temp_dir().join(format!("op-radio-logs-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        assert!(read_logs(tmp.to_str().unwrap(), 3).unwrap().is_empty());   // нет LOGS — пусто
+        let logs = tmp.join("LOGS");
+        fs::create_dir_all(&logs).unwrap();
+        fs::write(logs.join("Quad-2026-11-17.csv"), "Date,Time,GPS\n2026-11-17,10:00:00.000,55.1 37.1\n").unwrap();
+        fs::write(logs.join("notes.txt"), "x").unwrap();
+        let mut big = String::from("Date,Time,GPS\n");
+        while (big.len() as u64) < LOG_TAIL + LOG_HEAD * 2 {
+            big.push_str("2026-11-18,10:00:00.000,55.2 37.2\n");
+        }
+        big.push_str("2026-11-18,10:05:00.000,55.3 37.3\n");
+        std::thread::sleep(std::time::Duration::from_millis(1100));
+        fs::write(logs.join("Quad-2026-11-18.csv"), &big).unwrap();
+        let r = read_logs(tmp.to_str().unwrap(), 5).unwrap();
+        assert_eq!(r.len(), 2);
+        assert_eq!(r[0].name, "Quad-2026-11-18.csv");
+        assert!(r[0].head.starts_with("Date,Time,GPS"));
+        assert!(r[0].tail.ends_with("55.3 37.3\n"));
+        assert!((r[0].tail.len() as u64) <= LOG_TAIL);
+        assert!(r[1].tail.is_empty() && r[1].head.contains("55.1 37.1"));
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn only_map_links_open() {
+        assert!(map_url_allowed("https://www.openstreetmap.org/?mlat=55.75&mlon=37.61#map=18/55.75/37.61"));
+        assert!(map_url_allowed("https://www.google.com/maps/search/?api=1&query=55.75,37.61"));
+        assert!(!map_url_allowed("https://evil.example/maps"));
+        assert!(!map_url_allowed("file:///C:/Windows"));
+        assert!(!map_url_allowed("https://www.google.com/maps/ \" & calc"));
     }
 }

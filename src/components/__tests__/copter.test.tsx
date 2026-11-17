@@ -425,6 +425,21 @@ describe("вкладки коптера", () => {
     expect(useApp.getState().currentCopter()?.failsafeCheckedAt).toBeTruthy();
   });
 
+  it("найти упавший (P11): готовность кнопками, последняя точка из живого кадра, SD пульта", async () => {
+    useApp.setState({ clive: live({ gps: { fix: false, sats: 2, lat: 0, lon: 0, spd: 0, last: [55.75, 37.61] } }) });
+    render(<CopterView />);
+    tab("Безопасность");
+    expect(screen.getByText("Фикс GPS пропал — последняя точка: 55.750000, 37.610000")).toBeTruthy();
+    const card = document.querySelector(".find-lost") as HTMLElement;
+    const enable = [...card.querySelectorAll("button")].filter((b) => b.textContent === "Включить");
+    expect(enable).toHaveLength(2);   // маяк моторами и координаты в очках; пищалка RX_LOST включена
+    for (const b of enable) fireEvent.click(b);
+    expect(sent).toEqual(expect.arrayContaining(["set dshot_beacon_off_flags 512", `set osd_gps_lat_pos ${0x0800 | 1 | (3 << 5)}`]));
+    expect([...card.querySelectorAll("button")].filter((b) => b.textContent === "Включить")).toHaveLength(0);
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: /Точка из журнала пульта/ })));
+    expect(screen.getByText(/SD-карта пульта не найдена/)).toBeTruthy();
+  });
+
   it("почему не армится: слово как в очках и кнопки «исправить» (P10)", () => {
     useApp.setState({ clive: live({ block: ["THROTTLE", "CLI", "NO_ACC_CAL", "RXLOSS"] }) });
     render(<CopterView />);

@@ -7,6 +7,7 @@ import { CopterFirmwareConfig, CopterProject } from "./core/copter";
 import { Manifest } from "./core/manifest";
 import { FirmwareFingerprint } from "./core/migrate";
 import type { PilotProfile } from "./core/pilot";
+import type { RadioLog } from "./core/findLost";
 import type { PilotLearn } from "./core/tips";
 import type { UpdateAsset, UpdateInfo } from "./core/update";
 import { FirmwareConfig, FlashRecord, PlaneProject } from "./core/project";
@@ -231,7 +232,7 @@ export interface CopterLive {
   /** спектр гироскопа (060–063): ширина полосы, Гц; полосы 0, bw, 2bw… в дБ над 0.01 °/с (сумма осей);
    *  центры динамических режекторов по осям; обороты моторов, Гц (DShot — каждый, модель — один) */
   spec?: CopterSpectrum;
-  gps?: { fix: boolean; sats: number; lat: number; lon: number; spd: number; home?: number; dir?: number };
+  gps?: { fix: boolean; sats: number; lat: number; lon: number; spd: number; home?: number; dir?: number; /** фикс пропал — последняя точка с фиксом */ last?: [number, number] };
   /** команда моторов 0…1 (−1 — стоит, turtle mode) */
   motors: number[];
   /** заармлен в turtle mode: моторы крутятся наоборот */
@@ -334,6 +335,8 @@ export const api = {
   updateCheck: () => invoke<UpdateInfo>("update_check"),
   /** Диски, похожие на SD-карту пульта EdgeTX (пульт — USB-накопителем). */
   radioFindSd: () => invoke<string[]>("radio_find_sd"),
+  radioReadLogs: (sd: string) => invoke<RadioLog[]>("radio_read_logs", { sd }),
+  openMap: (url: string) => invoke<void>("open_map", { url }),
   /** Lua-скрипты Betaflight (последний выпуск с GitHub) — в SCRIPTS на карте. */
   radioInstallLua: (sd: string) => invoke<{ version: string; files: number }>("radio_install_lua", { sd }),
   /** путь к скачанному и проверенному установщику (ход — onUpdateProgress) */

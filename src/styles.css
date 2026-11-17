@@ -3254,3 +3254,40 @@ textarea {
   flex: 1;
   max-width: 260px;
 }
+/* «Найти упавший» (FindLost.tsx) */
+.find-checks {
+  list-style: none;
+  margin: 6px 0 10px;
+  padding: 0;
+}
+.find-checks li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.find-checks li .btn {
+  margin-left: auto;
+}
+.find-radio,
+.find-cards,
+.find-maps {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.find-point {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--panel-2, rgba(127, 127, 127, 0.08));
+}
+.find-coords {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1.25em;
+  font-variant-numeric: tabular-nums;
+}

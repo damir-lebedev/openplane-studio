@@ -98,6 +98,16 @@ fn radio_find_sd() -> Vec<String> {
 }
 
 #[tauri::command]
+async fn radio_read_logs(sd: String) -> Res<Vec<radio::RadioLog>> {
+    blocking(move || radio::read_logs(&sd, 5)).await
+}
+
+#[tauri::command]
+fn open_map(url: String) -> Res<()> {
+    radio::open_map(&url)
+}
+
+#[tauri::command]
 async fn radio_install_lua(app: AppHandle, sd: String) -> Res<radio::LuaInstalled> {
     blocking(move || radio::install_lua(&app, &sd)).await
 }
@@ -377,6 +387,8 @@ pub fn run() {
             update_cleanup,
             radio_find_sd,
             radio_install_lua,
+            radio_read_logs,
+            open_map,
             settings_load,
             settings_save,
             hangar_list,
