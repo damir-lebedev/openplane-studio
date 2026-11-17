@@ -18,6 +18,8 @@ pub const REPO: &str = "damir-lebedev/OpenPlaneProject";
 /// Что прошивке нужно из репозитория.
 const NEEDED_DIRS: &[&str] = &["include", "src", "lib", "tools"];
 const NEEDED_ROOT_EXT: &[&str] = &[".ini", ".csv"];
+/// Из тестов — только то, из чего собирается симулятор (env sitl): фейки железа и модель полёта.
+pub const NEEDED_TEST_DIRS: &[&str] = &["test/native/support", "test/native/support_stm32", "test/native/helpers"];
 /// Метка снимка в папке исходников: откуда он и какой коммит.
 pub const MARKER: &str = ".openplane-source.json";
 
@@ -133,6 +135,7 @@ pub fn marker(dir: &Path) -> Option<(String, String)> {
 
 fn needed(path: &str) -> bool {
     match path.split_once('/') {
+        Some(("test", _)) => NEEDED_TEST_DIRS.iter().any(|d| path.starts_with(&format!("{d}/"))),
         Some((top, _)) => NEEDED_DIRS.contains(&top),
         None => NEEDED_ROOT_EXT.iter().any(|ext| path.ends_with(ext)),
     }
@@ -242,7 +245,8 @@ fn download_archive(root: &Path, tmp: &Path, commit: &str) -> Res<()> {
     fs::create_dir_all(&unpack).map_err(err("папка загрузки"))?;
     let mut cmd = command(system_tool("tar"));
     cmd.arg("-xzf").arg(&archive).arg("-C").arg(&unpack);
-    for skip in ["*/airframe", "*/docs", "*/test", "*/.github"] {
+    // из test/ остаются только папки симулятора (NEEDED_TEST_DIRS)
+    for skip in ["*/airframe", "*/docs", "*/.github", "*/test/test_*", "*/test/native_stm32", "*/test/native/test_*", "*/test/*.md"] {
         cmd.arg("--exclude").arg(skip);
     }
     let out = run_capture(cmd, None)?;
@@ -277,6 +281,9 @@ mod tests {
         assert!(!needed("docs/PILOT_GUIDE.md"));
         assert!(!needed("README.md"));
         assert!(!needed("test/native/test_rc/test_main.cpp"));
+        assert!(needed("test/native/helpers/QuadSim.h"));
+        assert!(needed("test/native/support_stm32/Arduino.h"));
+        assert!(!needed("test/native_stm32/test_app_stm32_copter/test_main.cpp"));
     }
 
     #[test]

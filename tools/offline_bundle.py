@@ -47,6 +47,8 @@ PACKAGES = [
 # Серии STM32, под которые есть (и будут) платы: H7 — DevEBox, WeAct, Matek; F4 — F405.
 SERIES = ("STM32H7xx", "STM32F4xx")
 FIRMWARE_DIRS = ("include", "src", "lib", "tools")
+# симулятор (env sitl) собирается с фейками железа и моделью полёта из тестов
+FIRMWARE_TEST_DIRS = ("test/native/support", "test/native/support_stm32", "test/native/helpers")
 FIRMWARE_ROOT_EXT = (".ini", ".csv")
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -158,7 +160,7 @@ def main():
     fw_src = os.path.abspath(args.firmware)
     fw = os.path.join(work, "OpenPlaneProject")
     os.makedirs(fw)
-    for d in FIRMWARE_DIRS:
+    for d in FIRMWARE_DIRS + FIRMWARE_TEST_DIRS:
         if os.path.isdir(os.path.join(fw_src, d)):
             shutil.copytree(os.path.join(fw_src, d), os.path.join(fw, d), ignore=shutil.ignore_patterns("__pycache__"))
     for f in os.listdir(fw_src):
