@@ -5,9 +5,9 @@
 // Словарей у языка два: строки приложения (en.json) и строки прошивки —
 // описания из Config.h, названия плат и датчиков (en.firmware.json). Их
 // сверяет с исходниками tools/i18n_check.py.
-
-import en from "./locales/en.json";
-import enFirmware from "./locales/en.firmware.json";
+//
+// Словари грузятся отдельным файлом, только когда язык выбран (≈400 КБ: русскому
+// интерфейсу и слабому телефону они при запуске не нужны, P51) — switchLanguage().
 
 type Vars = Record<string, string | number>;
 
@@ -15,8 +15,14 @@ type Vars = Record<string, string | number>;
 export const LANGUAGES = { ru: "Русский", en: "English" } as const;
 export type Language = keyof typeof LANGUAGES;
 
-const dictionaries: Partial<Record<Language, Record<string, string>>> = {
-  en: { ...enFirmware, ...en },
+const dictionaries: Partial<Record<Language, Record<string, string>>> = {};
+
+const loaders: Partial<Record<Language, () => Promise<Record<string, string>>>> = {
+  en: () =>
+    Promise.all([import("./locales/en.json"), import("./locales/en.firmware.json")]).then(([app, firmware]) => ({
+      ...firmware.default,
+      ...app.default,
+    })),
 };
 let language: Language = "ru";
 
@@ -68,6 +74,18 @@ export function setLanguage(lang: string | null | undefined) {
     // не запомнится до следующего запуска — не страшно, язык есть в настройках
   }
   document.documentElement.lang = language;
+}
+
+/** Выбрать язык и дождаться его словаря (без сети: файл внутри приложения). Не загрузился — строки по-русски. */
+export async function switchLanguage(lang: string | null | undefined): Promise<void> {
+  setLanguage(lang);
+  const want = language;
+  if (dictionaries[want] || !loaders[want]) return;
+  try {
+    dictionaries[want] = await loaders[want]!();
+  } catch {
+    // словарь не прочитался — останется исходный русский, приложение работает
+  }
 }
 
 /** Метка строки для перевода, когда t() позовут позже (таблицы имён): возвращает как есть. */

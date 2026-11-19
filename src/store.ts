@@ -7,7 +7,8 @@ import { applyMessage, CopterBoard, emptyBoard, ParamValue, setCommand } from ".
 import { blankCopter, copterFromKit, CopterProject, isCopter, newCopterId } from "./core/copter";
 import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
 import { Manifest } from "./core/manifest";
-import { setLanguage, t } from "./i18n";
+import { switchLanguage, t } from "./i18n";
+import { throttleLatest } from "./core/throttle";
 import { findTemplate, fromTemplate } from "./core/templates";
 import { checkOnStart, shouldOffer, UpdateState } from "./core/update";
 import {
@@ -187,6 +188,8 @@ const redoStacks = new Map<string, PlaneProject[]>();
 let lastEdit = { id: "", at: 0 };
 let toastSeq = 0;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+/** Живые кадры на телефоне — не чаще раза в столько мс (4 Гц: слабому Android хватает, P51). */
+export const LIVE_PHONE_MS = 250;
 let eventsBound = false;
 let unlistenUpdate: (() => void) | null = null;
 let procTimer: ReturnType<typeof setInterval> | null = null;
@@ -247,7 +250,7 @@ export const useApp = create<AppState>((set, get) => ({
       const planes = hangar.filter((p): p is PlaneProject => !isCopter(p));
       const copters = hangar.filter(isCopter);
       // Язык не выбирали: ангар уже с самолётами — им пользовались по-русски, не удивляем.
-      setLanguage(settings.language ?? (planes.length ? "ru" : undefined));
+      await switchLanguage(settings.language ?? (planes.length ? "ru" : undefined));
       const firmwareSource = settings.firmwareSource || info.firmware_guess || undefined;
       const currentId = planes.some((p) => p.id === settings.currentPlane) ? settings.currentPlane! : planes[0]?.id ?? null;
       const copterId = copters.some((c) => c.id === settings.currentCopter) ? settings.currentCopter! : copters[0]?.id ?? null;
@@ -273,10 +276,14 @@ export const useApp = create<AppState>((set, get) => ({
     }
     if (!eventsBound) {
       eventsBound = true;
+      // Телефону — 4 перерисовки в секунду вместо каждого кадра платы (P51); компьютеру — все.
+      const liveMs = isMobile() ? LIVE_PHONE_MS : 0;
+      const setClive = throttleLatest((data: CopterLive) => set({ clive: data, cliveAt: Date.now() }), liveMs);
+      const setLive = throttleLatest((data: LiveFrame) => set({ live: data, liveAt: Date.now() }), liveMs);
       void onBoardEvents({
         live: (_port, data) => {
-          if ("motors" in (data as object) && "state" in (data as object)) set({ clive: data as unknown as CopterLive, cliveAt: Date.now() });
-          else set({ live: data, liveAt: Date.now() });
+          if ("motors" in (data as object) && "state" in (data as object)) setClive(data as unknown as CopterLive);
+          else setLive(data);
         },
         msg: (_port, kind, data) => set((s) => ({ copterBoard: applyMessage(s.copterBoard, kind, data) })),
         fc: (port, data) => set((s) => ({ fc: { ...s.fc, [port]: data } })),
@@ -395,7 +402,7 @@ export const useApp = create<AppState>((set, get) => ({
   },
 
   async saveSettings(patch) {
-    if ("language" in patch) setLanguage(patch.language);
+    if ("language" in patch) await switchLanguage(patch.language);
     const settings = { ...get().settings, ...patch };
     set({ settings });
     await api.settingsSave(settings);

@@ -21,7 +21,7 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { api, BoardFlights, errorText, inTauri, LogFile, onBlackboxProgress } from "../../api";
 import { decodeFlight, extractFlight, Flight, looksLikeRing, RingFlight, ringFlights, valueAt } from "../../core/blackbox";
@@ -30,7 +30,6 @@ import { addNote, EMPTY_LEARN, noteFromFlight } from "../../core/tips";
 import type { WorkerReply } from "../../core/bbworker";
 import { locale, t } from "../../i18n";
 import { useApp } from "../../store";
-import { Attitude3D } from "./Attitude3D";
 import { useBb } from "./bbstore";
 import { formatTime } from "./draw";
 import { COLORS, COPTER_DEFAULT, COPTER_PANELS, customPanel, MODE_COLORS, PanelDef, PLANE_DEFAULT, PLANE_PANELS } from "./panels";
@@ -38,6 +37,9 @@ import { SpectrumChart } from "./SpectrumChart";
 import { TimeChart } from "./TimeChart";
 import { EVENT_COLORS, Timeline, timelineHint } from "./Timeline";
 import "../../blackbox.css";
+
+// three.js — отдельным файлом, только когда открыт журнал коптера (P51).
+const Attitude3D = lazy(() => import("./Attitude3D").then((m) => ({ default: m.Attitude3D })));
 
 // ---------------- разбор в фоне ----------------
 
@@ -687,7 +689,11 @@ export function BlackBoxView() {
           </div>
         </div>
         <div className="bb-side">
-          {flight.vehicle === "copter" && <Attitude3D flight={flight} />}
+          {flight.vehicle === "copter" && (
+            <Suspense fallback={null}>
+              <Attitude3D flight={flight} />
+            </Suspense>
+          )}
           <Readout flight={flight} />
           <SpectrumChart flight={flight} />
           <Events flight={flight} />

@@ -75,6 +75,25 @@ OSD), работает так же, как на ПК. Чего нет и не б
 - Сборка из Git Bash не видит переменные среды пользователя — `JAVA_HOME`, `ANDROID_HOME`,
   `NDK_HOME` задать в команде.
 
+## Слабый телефон (P51)
+
+Замер на Redmi 14C (Helio G81, 4 ГБ), было (debug) → стало (release):
+
+| | было | стало | цель |
+|---|---|---|---|
+| APK | 380 МБ (с офлайн-пакетами 224) | 7.5 МБ | — |
+| установка `adb install` | 24 с | 5 с | — |
+| `am start -W` | 2.1 с | 0.42 с; интерфейс целиком через 1.2 с | ≤ 3 с |
+| память PSS | 225 МБ | 122–130 МБ | ≤ 250 МБ |
+| прокрутка ангара | — | 238 кадров, 0 рывков, p99 12 мс | 60 к/с |
+
+Что сделано: Rust в release (5.8 МБ `.so` вместо ~150), только arm64, без офлайн-пакетов ПК;
+главный JS 2.27 → 0.91 МБ — three.js (чёрный ящик, симулятор) и английский словарь грузятся
+отдельными файлами, когда нужны (`App.tsx` lazy, `i18n.switchLanguage`); живые кадры платы
+на телефоне — не чаще 4 раз в секунду (`core/throttle.ts`, `store.LIVE_PHONE_MS`), на ПК все.
+`backdrop-filter` на телефоне выключен ещё в P48 b. Мерить: `dumpsys gfxinfo <pkg> reset`,
+свайпы `input swipe`, `dumpsys gfxinfo` / `dumpsys meminfo`.
+
 ## Дальше
 
 - Скачивание `.bin` из релиза кнопкой рядом с «Прошить файлом» — после P49.
@@ -122,8 +141,23 @@ cd src-tauri/gen/android
 ./gradlew assembleUniversalDebug -x rustBuildUniversalDebug -x rustBuildArm64Debug -x rustBuildArmDebug -x rustBuildX86Debug -x rustBuildX86_64Debug
 ```
 
-Debug-APK весит ~160 МБ: `.so` с отладочной информацией. Для тестеров позже — Rust
-в release-профиле (≈15–25 МБ), P49.
+Debug-APK весит ~160 МБ: `.so` с отладочной информацией.
+
+**Тестерам — release (7.5 МБ, P51).** Своего ключа пока нет (P49) — подписываем тем же
+debug-ключом, что и debug-сборку, поэтому `adb install -r` ставится поверх и данные остаются:
+
+```
+npx tauri android build --apk --target aarch64
+BT=$ANDROID_HOME/build-tools/36.0.0
+$BT/zipalign -p -f 4 src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk aligned.apk
+$BT/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android --key-pass pass:android --ks-key-alias androiddebugkey --out OpenPlane-Studio.apk aligned.apk
+```
+
+Ловушки: офлайн-пакеты сборки прошивки (pio, Python, ~215 МБ) телефону не нужны —
+`src-tauri/tauri.android.conf.json` убирает `bundle.resources`, но Tauri **не чистит** старую
+копию в `gen/android/app/src/main/assets/resources/` (в .gitignore) — если APK снова сотни МБ,
+удалить эту папку. Переменные `JAVA_HOME`/`ANDROID_HOME`/`NDK_HOME` из Git Bash агента не
+видны — задавать в команде.
 
 Проверка, что Rust-часть не сломана, без SDK и NDK:
 

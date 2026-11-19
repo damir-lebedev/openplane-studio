@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { getLanguage, plural, setLanguage, systemLanguage, t } from "./i18n";
+import { getLanguage, plural, setLanguage, switchLanguage, systemLanguage, t } from "./i18n";
 import en from "./locales/en.json";
 import enFirmware from "./locales/en.firmware.json";
 
 const vars = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort().join(" ");
 
 describe("перевод интерфейса", () => {
+  // словарь английского — отдельным файлом: загрузить один раз, дальше setLanguage мгновенный
+  beforeAll(() => switchLanguage("en"));
   afterEach(() => setLanguage("ru"));
 
   it("русский — исходные строки, английский — из словарей приложения и прошивки", () => {

@@ -1,6 +1,5 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 
-import { BlackBoxView } from "./components/blackbox/BlackBoxView";
 import { BoardView } from "./components/board/BoardView";
 import { BoardPanel } from "./components/BoardPanel";
 import { ComingSoon } from "./components/ComingSoon";
@@ -11,13 +10,17 @@ import { Onboarding } from "./components/onboarding/Onboarding";
 import { Rail } from "./components/Rail";
 import { Settings } from "./components/Settings";
 import { SetupDialog } from "./components/Setup";
-import { SimView } from "./components/sim/SimView";
 import { Toasts } from "./components/Toasts";
 import { UpdateCard } from "./components/Update";
 import { isMobile } from "./api";
 import { needsOnboarding } from "./core/pilot";
 import { getLanguage } from "./i18n";
 import { useApp } from "./store";
+
+// three.js (≈1 МБ) — только в чёрном ящике и симуляторе: грузим, когда их открыли, а не при запуске
+// (на слабом телефоне это секунды холодного старта, P51).
+const BlackBoxView = lazy(() => import("./components/blackbox/BlackBoxView").then((m) => ({ default: m.BlackBoxView })));
+const SimView = lazy(() => import("./components/sim/SimView").then((m) => ({ default: m.SimView })));
 
 export default function App() {
   const init = useApp((s) => s.init);
@@ -64,9 +67,13 @@ export default function App() {
         ) : section === "copter" ? (
           <CopterView />
         ) : section === "blackbox" ? (
-          <BlackBoxView />
+          <Suspense fallback={null}>
+            <BlackBoxView />
+          </Suspense>
         ) : section === "sim" && !isMobile() ? (
-          <SimView />
+          <Suspense fallback={null}>
+            <SimView />
+          </Suspense>
         ) : section === "settings" ? (
           <Settings />
         ) : (
