@@ -68,7 +68,7 @@ function PlaneCard({ plane, onDelete }: { plane: PlaneProject; onDelete: () => v
         <span>{t("Прошит")}</span>
         <span>{plane.lastFlash ? new Date(plane.lastFlash.at).toLocaleString(locale()) : "—"}</span>
       </div>
-      <div className="row" style={{ marginTop: "auto" }}>
+      <div className="row card-actions">
         <button className="btn" onClick={() => open(false)}>
           {t("Настроить")}
         </button>
@@ -152,7 +152,7 @@ function CopterCard({ copter, onDelete }: { copter: CopterProject; onDelete: () 
         <span>{t("Прошит")}</span>
         <span>{copter.lastFlash ? new Date(copter.lastFlash.at).toLocaleString(locale()) : "—"}</span>
       </div>
-      <div className="row" style={{ marginTop: "auto" }}>
+      <div className="row card-actions">
         <button className="btn primary" onClick={open}>
           {t("Открыть")}
         </button>

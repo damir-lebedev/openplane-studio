@@ -52,6 +52,12 @@ describe("подбор дрона (P07)", () => {
     expect(screen.getByText(/Цифровые очки/)).toBeTruthy();
   });
 
+  it("свои классы dpick-*: общий .pick (строка списка, flex в ряд) клал карточку в строку — Ангар на телефоне листался вбок", () => {
+    const { container } = render(<DronePicker />);
+    expect(container.querySelector(".dpick")).toBeTruthy();
+    expect(container.querySelector(".pick, [class^='pick-'], [class*=' pick-']")).toBeNull();
+  });
+
   it("«Дрон уже есть» сохраняет ответ", async () => {
     render(<DronePicker />);
     click(/Дрон уже есть/);

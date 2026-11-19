@@ -91,9 +91,10 @@
     gap: 6px;
   }
 
-  /* страницы */
+  /* страницы: вбок страница не листается никогда — у лент вкладок своя прокрутка */
   .page {
     padding: 14px 12px 28px;
+    overflow-x: hidden;
   }
   .page-head {
     flex-direction: column;
@@ -124,9 +125,132 @@
   .btn {
     min-height: 40px;
   }
+  /* длинная надпись («SwC: вверх — …») переносится, а не тянет страницу вбок */
+  .btn {
+    height: auto;
+    max-width: 100%;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    white-space: normal;
+  }
   .input,
   .select {
     min-height: 40px;
+  }
+
+  /* ангар: две большие кнопки поровну, иконки рядом — в одну строку */
+  .page-head .row > .btn {
+    flex: 1 1 0;
+    padding: 0 10px;
+  }
+  .planes {
+    gap: 12px;
+  }
+  .card .card-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .card-actions > .grow {
+    display: none;
+  }
+  .card-actions > .btn:not(.small) {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0 8px;
+  }
+  .card-actions > .btn.small {
+    flex: none;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+  }
+  .plane-card.add.split {
+    min-height: 0;
+    flex-direction: row;
+  }
+  .plane-card.add.split button {
+    padding: 18px 8px;
+  }
+  .plane-card.add.split button + button {
+    border-top: 0;
+    border-left: 1px dashed var(--line);
+  }
+
+  /* подбор дрона: вопросы столбиком, переключатели во всю ширину */
+  .dpick-head .btn {
+    width: 40px;
+    padding: 0;
+  }
+  .dpick-head .btn span {
+    display: none;
+  }
+  .dpick-ask {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .dpick-q {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+  .dpick-q .seg {
+    display: flex;
+  }
+  .dpick-q .seg button {
+    flex: 1 1 0;
+    height: 36px;
+    padding: 0 6px;
+  }
+
+  /* длинные пути и хэши — переносом */
+  .mono {
+    overflow-wrap: anywhere;
+  }
+
+  /* плата самолёта: одна колонка, шапка и низ — переносом */
+  .board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .board-top {
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    padding: 12px 12px 8px;
+  }
+  .board-top h1 {
+    flex: 1 1 100%;
+    font-size: 18px;
+  }
+  .board-top > .grow {
+    display: none;
+  }
+  .stepper {
+    padding: 2px 12px 10px;
+    scrollbar-width: none;
+  }
+  .board-body {
+    grid-template-columns: minmax(0, 1fr);
+    overflow: auto;
+  }
+  .step-content {
+    overflow: visible;
+    padding: 16px 12px 24px;
+  }
+  .board-foot {
+    flex-wrap: nowrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  /* «Назад» — одной стрелкой, чтобы «Далее» не уезжал на вторую строку */
+  .board-foot .btn:not(.primary) {
+    flex: none;
+    width: 40px;
+    padding: 0;
+    font-size: 0;
+  }
+  /* широкие таблицы листаются сами, страница — нет */
+  .pins-table {
+    display: block;
+    overflow-x: auto;
   }
 
   /* коптер: вкладки — горизонтальной лентой над содержимым */

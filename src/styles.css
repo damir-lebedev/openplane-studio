@@ -970,7 +970,7 @@ textarea {
 /* ангар */
 .planes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 16px;
 }
 .plane-card {
@@ -999,6 +999,9 @@ textarea {
 .plane-card.add:hover {
   border-color: var(--accent-line);
   color: var(--accent);
+}
+.plane-card .card-actions {
+  margin-top: auto;
 }
 .kv {
   display: grid;
@@ -2880,43 +2883,106 @@ textarea {
   margin: 8px 0;
 }
 
-/* Подбор дрона (P07) */
-.pick {
+/* Подбор дрона (P07) — классы dpick-*, не путать с .pick (строка списка) */
+.dpick {
   margin-bottom: 18px;
+  border-color: var(--accent-line);
+  background: radial-gradient(600px 160px at 0% 0%, rgba(57, 208, 255, 0.08), transparent 70%),
+    linear-gradient(180deg, rgba(23, 35, 49, 0.9), rgba(18, 28, 39, 0.9));
 }
-.pick h3 svg,
-.pick h4 svg {
-  vertical-align: -3px;
+.dpick h3 {
+  margin: 0 0 2px;
 }
-.pick h4 {
-  margin: 16px 0 6px;
+.dpick h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 18px 0 4px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
-.pick-ask {
+.dpick-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.dpick-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.dpick-head .btn {
+  flex: none;
+}
+.dpick-ask {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  margin: 8px 0 12px;
+  gap: 10px 24px;
+  margin: 16px 0 6px;
 }
-.pick-row {
+.dpick-q {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.dpick-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+  gap: 0 32px;
+}
+.dpick-col {
+  min-width: 0;
+}
+.dpick-main {
+  margin-top: 12px;
+  padding: 2px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+.dpick-main .dpick-row {
+  border-bottom: 0;
+}
+.dpick-main .sub {
+  margin: 0 0 10px;
+}
+.dpick-row {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 8px 0;
   border-bottom: 1px solid var(--line);
 }
-.pick-row.total {
+.dpick-row > .grow {
+  min-width: 0;
+}
+.dpick-row.total {
   border-bottom: 0;
   font-size: 16px;
 }
-.pick-usd {
+.dpick-usd {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
-.pick-parts {
+.dpick-parts {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+.dpick .sub {
+  overflow-wrap: anywhere;
+}
+.dpick-note {
+  margin-top: 14px;
 }
 
 /* Почему не армится (P10) */
