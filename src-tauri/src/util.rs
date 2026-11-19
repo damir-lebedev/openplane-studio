@@ -12,6 +12,11 @@ use tauri::{AppHandle, Emitter, Manager};
 
 pub type Res<T> = Result<T, String>;
 
+/// Ответ команд, которым нужен ПК (COM-порт, PlatformIO, Python): на телефоне
+/// их окно не показывает, но если вызвали — честный отказ с кодом в начале.
+#[allow(dead_code)]
+pub const NOT_ON_ANDROID: &str = "NOT_ON_ANDROID: недоступно на Android";
+
 pub fn err<E: std::fmt::Display>(context: &str) -> impl FnOnce(E) -> String + '_ {
     move |e| format!("{context}: {e}")
 }
@@ -106,6 +111,10 @@ pub fn local_data_dir() -> PathBuf {
 }
 
 pub fn hangar_dir(app: &AppHandle) -> Res<PathBuf> {
+    // Android: «Документы» — общая память с разрешениями; ангар — в своей папке приложения.
+    if cfg!(target_os = "android") {
+        return Ok(app.path().app_data_dir().map_err(err("папка данных приложения"))?.join("Hangar"));
+    }
     let docs = app.path().document_dir().map_err(err("папка «Документы»"))?;
     Ok(docs.join("OpenPlane").join("Hangar"))
 }

@@ -91,6 +91,18 @@ fn open(port: &str, stm32: bool) -> Res<BoxPort> {
         // симулятор мог только что запуститься — даём ему подняться
         return open_tcp(addr, Duration::from_secs(5));
     }
+    open_serial(port, stm32)
+}
+
+/// Android: COM-порта нет, плата по USB-OTG — через плагин (P47).
+#[cfg(target_os = "android")]
+fn open_serial(port: &str, _stm32: bool) -> Res<BoxPort> {
+    let _ = port;
+    Err(crate::util::NOT_ON_ANDROID.into())
+}
+
+#[cfg(not(target_os = "android"))]
+fn open_serial(port: &str, stm32: bool) -> Res<BoxPort> {
     let mut p = serialport::new(port, 115_200)
         .timeout(Duration::from_millis(30))
         .dtr_on_open(stm32)

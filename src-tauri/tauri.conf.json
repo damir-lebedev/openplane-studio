@@ -57,6 +57,9 @@
         "silent": true
       }
     },
+    "android": {
+      "minSdkVersion": 24
+    },
     "publisher": "OpenPlane",
     "category": "Utility",
     "shortDescription": "OpenPlane Studio",

@@ -340,6 +340,9 @@ export const STX = "\u0002";
 
 export const inTauri = () => typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/** Studio на телефоне (Android): нет PlatformIO, Python и симулятора — то, что требует ПК, не показываем. */
+export const isMobile = () => typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent);
+
 export const api = {
   appInfo: () => invoke<AppInfo>("app_info"),
   updateCheck: () => invoke<UpdateInfo>("update_check"),

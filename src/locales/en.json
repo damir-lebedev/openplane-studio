@@ -2526,5 +2526,6 @@
   "Радар забора в очках выключен — включите кнопкой ниже.": "The fence radar is off in the goggles — turn it on with the button below.",
   "Радиус от дома": "Radius from home",
   "в очках сейчас, до края {m} м": "in goggles now, {m} m to the edge",
-  "так в очках: ^ — вы, H — дом, точки — край": "as in goggles: ^ — you, H — home, dots — edge"
+  "так в очках: ^ — вы, H — дом, точки — край": "as in goggles: ^ — you, H — home, dots — edge",
+  "На телефоне — язык и профиль; сборка прошивки из исходников — в Studio на компьютере.": "On the phone: language and profile. Building firmware from source is done in Studio on a computer."
 }

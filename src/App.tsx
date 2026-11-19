@@ -14,6 +14,7 @@ import { SetupDialog } from "./components/Setup";
 import { SimView } from "./components/sim/SimView";
 import { Toasts } from "./components/Toasts";
 import { UpdateCard } from "./components/Update";
+import { isMobile } from "./api";
 import { needsOnboarding } from "./core/pilot";
 import { getLanguage } from "./i18n";
 import { useApp } from "./store";
@@ -64,7 +65,7 @@ export default function App() {
           <CopterView />
         ) : section === "blackbox" ? (
           <BlackBoxView />
-        ) : section === "sim" ? (
+        ) : section === "sim" && !isMobile() ? (
           <SimView />
         ) : section === "settings" ? (
           <Settings />
@@ -73,9 +74,10 @@ export default function App() {
         )}
       </main>
       <BoardPanel />
-      <SetupDialog />
+      {/* на телефоне нет сборки (pio, Python) и установщика .exe — APK обновляется отдельно (P49) */}
+      {!isMobile() && <SetupDialog />}
       {onboarding && <Onboarding />}
-      <UpdateCard />
+      {!isMobile() && <UpdateCard />}
       <Toasts />
     </div>
   );

@@ -285,6 +285,8 @@ npm test               # логика и интерфейс на фейково�
 npm run tauri build    # установщик: Windows — NSIS, macOS — .dmg (src-tauri/target/release/bundle)
 ```
 
+Android (APK, в работе): что поставить и как собрать — [docs/ANDROID.md](docs/ANDROID.md).
+
 Описание прошивки для тестов (`src/core/__fixtures__/manifest.json`) и
 таблицы пинов STM32 обновляются из исходников прошивки и STM32duino:
 

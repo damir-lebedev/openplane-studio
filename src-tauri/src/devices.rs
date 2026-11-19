@@ -1,12 +1,17 @@
 //! Что подключено по USB: COM-порты (наша прошивка, мосты ESP32) и
 //! STM32 в системном загрузчике DFU (у него COM-порта нет).
 
+// Android: COM-портов и libusb нет (P47 — USB-плагин), классификация ждёт его.
+#![cfg_attr(target_os = "android", allow(dead_code))]
+
 use std::io::{Read, Write};
 use std::time::{Duration, Instant};
 
+#[cfg(not(target_os = "android"))]
 use nusb::MaybeFuture;
 use serde::Serialize;
 use serde_json::Value;
+#[cfg(not(target_os = "android"))]
 use serialport::{SerialPortType, UsbPortInfo};
 
 use crate::util::{err, Res};
@@ -49,6 +54,7 @@ fn autopilot_usb(vid: u16, pid: u16) -> bool {
     matches!((vid, pid), (0x1209, 0x5740) | (0x1209, 0x5741)) || matches!(vid, 0x26AC | 0x2DAE | 0x3162)
 }
 
+#[cfg(not(target_os = "android"))]
 fn classify(port: &str, usb: &UsbPortInfo) -> Device {
     let (vid, pid) = (usb.vid, usb.pid);
     let (kind, title) = if vid == STM32_VID && pid == STM32_CDC_PID {
@@ -74,6 +80,13 @@ fn classify(port: &str, usb: &UsbPortInfo) -> Device {
     }
 }
 
+/// Android: COM-портов и libusb нет — список даёт USB-плагин (P47).
+#[cfg(target_os = "android")]
+pub fn list() -> Vec<Device> {
+    Vec::new()
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn list() -> Vec<Device> {
     let mut out = Vec::new();
     if let Ok(ports) = serialport::available_ports() {
@@ -106,6 +119,13 @@ pub fn list() -> Vec<Device> {
     out
 }
 
+#[cfg(target_os = "android")]
+fn open(port: &str, _stm32: bool) -> Res<crate::link::BoxPort> {
+    let _ = port;
+    Err(crate::util::NOT_ON_ANDROID.into())
+}
+
+#[cfg(not(target_os = "android"))]
 fn open(port: &str, stm32: bool) -> Res<Box<dyn serialport::SerialPort>> {
     // DevEBox (USB CDC) молчит без DTR. У ESP32 DTR/RTS дёргают сброс и
     // загрузчик — их не трогаем, как monitor_dtr/monitor_rts = 0 в platformio.ini.
@@ -131,6 +151,7 @@ fn open(port: &str, stm32: bool) -> Res<Box<dyn serialport::SerialPort>> {
 /// Нет ответа — Ok(None): на плате не наша прошивка или старая.
 pub fn identity(port: &str, stm32: bool) -> Res<Option<Value>> {
     let mut p = open(port, stm32)?;
+    #[cfg(not(target_os = "android"))]
     let _ = p.clear(serialport::ClearBuffer::Input);
     let deadline = Instant::now() + Duration::from_millis(2500);
     let mut next_ask = Instant::now();

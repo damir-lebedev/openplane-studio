@@ -1,6 +1,7 @@
 import { Cpu, Gamepad2, HardDrive, Package, RadioTower, Route, Settings, Warehouse } from "lucide-react";
 import { ReactNode } from "react";
 
+import { isMobile } from "../api";
 import { profileOf, sectionVisible } from "../core/pilot";
 import { N_, t } from "../i18n";
 import { Section, useApp } from "../store";
@@ -43,7 +44,10 @@ export function Rail() {
   const settings = useApp((s) => s.settings);
   // разделы чужих наборов не видны (самолётная «Плата» — у крыльев, «Грузы» — у флота)
   const profile = profileOf(settings);
-  const items = ITEMS.filter((item) => sectionVisible(profile, item.id) || section === item.id);
+  // симулятор — прошивка, собранная на ПК; на телефоне его нет
+  const items = ITEMS.filter(
+    (item) => (sectionVisible(profile, item.id) || section === item.id) && !(item.id === "sim" && isMobile()),
+  );
   return (
     <nav className="rail">
       <Logo />
