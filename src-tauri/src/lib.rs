@@ -113,6 +113,11 @@ async fn radio_install_lua(app: AppHandle, sd: String) -> Res<radio::LuaInstalle
 }
 
 #[tauri::command]
+async fn radio_install_oplane(source: String, sd: String) -> Res<usize> {
+    blocking(move || radio::install_oplane(&source, &sd)).await
+}
+
+#[tauri::command]
 fn settings_load(app: AppHandle) -> Res<Value> {
     hangar::load_settings(&app)
 }
@@ -387,6 +392,7 @@ pub fn run() {
             update_cleanup,
             radio_find_sd,
             radio_install_lua,
+            radio_install_oplane,
             radio_read_logs,
             open_map,
             settings_load,

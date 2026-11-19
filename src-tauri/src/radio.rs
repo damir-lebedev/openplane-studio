@@ -1,7 +1,10 @@
 //! Настройка с пульта: Lua-скрипты Betaflight (betaflight-tx-lua-scripts,
 //! GPL — не входят в приложение, качаются с их GitHub по кнопке) — на
 //! SD-карту пульта EdgeTX, подключённого по USB как диск. Прошивка коптера
-//! отвечает на их MSP через CRSF (plane: copter/CrsfMsp.h).
+//! отвечает на их MSP через CRSF (plane: copter/CrsfMsp.h). Свой скрипт
+//! OpenPlane (188b: GPS Rescue, учебные ограничения, страницы OSD, экран
+//! телеметрии `oplan`) лежит в исходниках прошивки (`tools/edgetx/SCRIPTS`)
+//! и копируется оттуда (`install_oplane`), без интернета.
 //!
 //! «Найти упавший» (P11): журналы телеметрии EdgeTX (`LOGS/*.csv` на SD
 //! пульта) — начало и конец свежих файлов; последнюю точку GPS ищет
@@ -214,6 +217,26 @@ pub fn open_map(url: &str) -> Res<()> {
     Ok(())
 }
 
+/// Папка своего Lua-скрипта в исходниках прошивки.
+pub fn oplane_scripts(source: &Path) -> PathBuf {
+    source.join("tools").join("edgetx").join("SCRIPTS")
+}
+
+/// Скрипт OpenPlane из исходников `source` — на карту `sd`. Число файлов.
+pub fn install_oplane(source: &str, sd: &str) -> Res<usize> {
+    let root = Path::new(sd);
+    if !is_radio_sd(root) {
+        return Err(format!("{sd} не похож на SD-карту пульта (нет папки RADIO)"));
+    }
+    let scripts = oplane_scripts(Path::new(source));
+    if !scripts.join("TOOLS").join("OpenPlane.lua").is_file() {
+        return Err(format!(
+            "в исходниках {source} нет скрипта пульта (tools/edgetx): обновите их в «Настройках»"
+        ));
+    }
+    copy_tree(&scripts, &root.join("SCRIPTS"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -251,6 +274,27 @@ mod tests {
         assert_eq!(copy_tree(&src, &sd.join("SCRIPTS")).unwrap(), 2);
         assert!(sd.join("SCRIPTS/TOOLS/bf.lua").is_file());
         assert!(sd.join("SCRIPTS/TOOLS/ExpressLRS.lua").is_file());   // своё на карте не трогаем
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn copies_own_script_from_sources() {
+        let tmp = std::env::temp_dir().join(format!("op-oplane-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        let source = tmp.join("plane");
+        let sd = tmp.join("sd");
+        fs::create_dir_all(sd.join("RADIO")).unwrap();
+        let (src, card) = (source.to_string_lossy().into_owned(), sd.to_string_lossy().into_owned());
+        assert!(install_oplane(&src, &card).unwrap_err().contains("tools/edgetx"));   // старые исходники
+        let scripts = oplane_scripts(&source);
+        for f in ["TOOLS/OpenPlane.lua", "OPLANE/msp.lua", "TELEMETRY/oplan.lua"] {
+            let p = scripts.join(f);
+            fs::create_dir_all(p.parent().unwrap()).unwrap();
+            fs::write(p, "--").unwrap();
+        }
+        assert_eq!(install_oplane(&src, &card).unwrap(), 3);
+        assert!(sd.join("SCRIPTS/TELEMETRY/oplan.lua").is_file());
+        assert!(install_oplane(&src, &tmp.to_string_lossy()).is_err());   // не карта пульта
         let _ = fs::remove_dir_all(&tmp);
     }
 

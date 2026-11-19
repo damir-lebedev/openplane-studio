@@ -2457,5 +2457,10 @@
   "юго-запад": "south-west",
   "На пульте модель «{tx}», а имя коптера пустое — назови коптер так же (OSD → «Имя коптера»)": "The radio model is “{tx}” but the craft name is empty — give the quad the same name (OSD → “Craft name”)",
   "На пульте модель «{tx}», а коптер — «{craft}»: та ли модель выбрана?": "The radio model is “{tx}” but the quad is “{craft}”: is the right model selected?",
-  "Пульт — та модель: «{tx}»": "The radio has the right model: “{tx}”"
+  "Пульт — та модель: «{tx}»": "The radio has the right model: “{tx}”",
+  "Записываю…": "Writing…",
+  "Не указана папка исходников прошивки (Настройки)": "Firmware source folder is not set (Settings)",
+  "Свой скрипт OpenPlane: GPS Rescue, учебные ограничения, страницы OSD и экран телеметрии": "Our own OpenPlane script: GPS Rescue, training limits, OSD pages and a telemetry screen",
+  "Скрипт OpenPlane на SD": "OpenPlane script to SD",
+  "Скрипт OpenPlane на карте {sd}: {n} файлов. На пульте: SYS → TOOLS → OpenPlane.": "OpenPlane script on card {sd}: {n} files. On the radio: SYS → TOOLS → OpenPlane."
 }

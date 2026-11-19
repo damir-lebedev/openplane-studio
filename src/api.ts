@@ -341,6 +341,8 @@ export const api = {
   openMap: (url: string) => invoke<void>("open_map", { url }),
   /** Lua-скрипты Betaflight (последний выпуск с GitHub) — в SCRIPTS на карте. */
   radioInstallLua: (sd: string) => invoke<{ version: string; files: number }>("radio_install_lua", { sd }),
+  /** Свой Lua-скрипт OpenPlane (tools/edgetx исходников прошивки) — на SD пульта; число файлов. */
+  radioInstallOplane: (source: string, sd: string) => invoke<number>("radio_install_oplane", { source, sd }),
   /** путь к скачанному и проверенному установщику (ход — onUpdateProgress) */
   updateDownload: (asset: UpdateAsset) => invoke<string>("update_download", { asset }),
   /** true — установщик запущен и приложение закрывается (Windows) */

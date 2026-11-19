@@ -494,6 +494,23 @@ describe("вкладки коптера", () => {
     expect(await screen.findByText(/Карта пульта не найдена/)).toBeTruthy();
   });
 
+  it("приёмник: свой скрипт OpenPlane — из исходников прошивки, без них кнопка неактивна", async () => {
+    const settings = useApp.getState().settings;
+    useApp.setState({ settings: { ...settings, firmwareSource: undefined } });
+    const { unmount } = render(<CopterView />);
+    tab("Приёмник");
+    expect((screen.getByRole("button", { name: /Скрипт OpenPlane на SD/ }) as HTMLButtonElement).disabled).toBe(true);
+    unmount();
+    useApp.setState({ settings: { ...settings, firmwareSource: "C:/src/plane" } });
+    render(<CopterView />);
+    tab("Приёмник");
+    const btn = screen.getByRole("button", { name: /Скрипт OpenPlane на SD/ }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    fireEvent.click(btn);
+    expect(await screen.findByText(/Карта пульта не найдена/)).toBeTruthy();
+    useApp.setState({ settings });
+  });
+
   it("без платы вкладки просят подключить коптер", () => {
     useApp.setState({ link: { port: null, state: "idle", attemptAt: 0 } });
     render(<CopterView />);
