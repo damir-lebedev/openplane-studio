@@ -1,7 +1,8 @@
 // Кнопка «Прошить»: сборка → плата в загрузчик → заливка → проверка паспорта.
 // Каждая ошибка — одна фраза «что случилось» и действие «что сделать».
 
-import { api, CalibFlags, Device, errorText, Identity, onTaskLog } from "./api";
+import { api, CalibFlags, Device, errorText, Identity, isMobile, onFlashProgress, onTaskLog } from "./api";
+import { checkBin, exportBinName } from "./core/binFile";
 import { BoardDump, copterConfig, copterHash, findCopterEnv } from "./core/copter";
 import { CLI_FIRMWARES, FIRMWARE_NAMES, firmwareOf } from "./core/detect";
 import { isFresh } from "./core/live";
@@ -253,9 +254,13 @@ function failFlash(e: unknown, step: string) {
   }));
 }
 
+/** Что делал коптер в последний раз — «Повторить» повторяет то же (прошивка или экспорт). */
+let lastCopterMode: "flash" | "export" = "flash";
+
 /** Вызов окна прошивки: самолёт или коптер — по id. */
 export function runAnyFlash(id: string) {
-  return useApp.getState().copters.some((c) => c.id === id) ? runCopterFlash(id) : runFlash(id);
+  if (isMobile() && retryBinFlash(id)) return;
+  return useApp.getState().copters.some((c) => c.id === id) ? runCopterFlash(id, lastCopterMode) : runFlash(id);
 }
 
 export async function runFlash(planeId: string) {
@@ -430,7 +435,11 @@ export async function readBoardDump(copterId: string, port: string): Promise<Boa
  * из него заголовок платы в копию исходников; плата уходит в загрузчик
  * командой bl, родная прошивка сохраняется в проект — и только потом заливка.
  */
-export async function runCopterFlash(copterId: string) {
+/** «Прошить» (mode "flash") или «Экспорт для телефона» ("export"): та же сборка
+ *  под этот коптер, но вместо заливки — firmware.bin в «Загрузки». */
+export async function runCopterFlash(copterId: string, mode: "flash" | "export" = "flash") {
+  const exporting = mode === "export";
+  lastCopterMode = mode;
   const app = useApp.getState();
   const copter = app.copters.find((c) => c.id === copterId);
   const manifest = app.manifest;
@@ -444,9 +453,9 @@ export async function runCopterFlash(copterId: string) {
   // Дамп снимается всегда, когда на плате родная прошивка: без него нечего переносить.
   const needDump = !copter.boardDump && (!!env?.needsBoardDump || !!bfPort);
   const fwName = nativeName(bfPort);
-  const steps = initialSteps(dfu);
+  const steps = exporting ? [initialSteps(dfu)[0], { id: "export", title: t("Файл для телефона"), status: "wait" as const }] : initialSteps(dfu);
   if (needDump) steps.unshift({ id: "dump", title: t("Дамп и распиновка из {fw}", { fw: fwName }), status: "wait" });
-  if (bfPort && dfu) steps.splice(steps.findIndex((s) => s.id === "upload"), 0, { id: "backup", title: t("Родная прошивка — в запас"), status: "wait" });
+  if (bfPort && dfu && !exporting) steps.splice(steps.findIndex((s) => s.id === "upload"), 0, { id: "backup", title: t("Родная прошивка — в запас"), status: "wait" });
 
   app.startFlash({ planeId: copterId, vehicle: "copter", running: true, steps, progress: null, activity: t("Готовлю исходники…"), log: [] });
   const unlisten = await followLog();
@@ -503,6 +512,18 @@ export async function runCopterFlash(copterId: string) {
       throw new FlashError(why.title, why.text, why.action);
     }
     setStep("build", "ok", built.firmware ? built.firmware.split(/[\\/]/).pop() : undefined);
+
+    // экспорт: файл для телефона вместо заливки (плата не нужна)
+    if (exporting) {
+      current = "export";
+      setStep("export", "run");
+      const name = exportBinName(copter.name, copter.board);
+      const path = await api.firmwareExportBin(prepared.dir, copter.board, name);
+      setStep("export", "ok", name);
+      const text = t("Файл {name} — в папке «Загрузки» ({path}). Перекиньте его на телефон и нажмите там «Прошить файлом» на странице коптера.", { name, path });
+      flash().setFlash((f) => ({ ...f, running: false, progress: null, activity: "", done: { verified: true, text } }));
+      return;
+    }
 
     // 2. плата
     current = "board";
@@ -629,4 +650,160 @@ async function verifyCopter(name: string, hash: string, dfu: boolean): Promise<{
     return { ok: false, text: t("Плата ответила, но хэш конфигурации другой: {got} вместо {want}.", { got: identity.config || t("пусто"), want: hash }) };
   }
   return { ok: true, text: t("На плате ровно то, что в проекте: «{plane}», хэш {hash}, {port}.", { plane: identity.plane, hash, port: cdc.port }) };
+}
+
+// ---------------- телефон: готовый .bin (P48) ----------------
+
+/** Последний файл — для кнопки «Повторить» в окне прошивки. */
+let lastBin: { copterId: string; file: File } | null = null;
+
+/** Ответы Rust (usb_android/dfuse) кодом в начале — фраза и действие. */
+export function explainBinError(text: string): { title: string; text: string; action?: FlashAction } {
+  const code = text.split(":")[0];
+  const rest = text.slice(code.length + 1).trim();
+  switch (code) {
+    case "ARMED":
+      return { title: t("Плата заармлена"), text: t("Снимите ARM (тумблер на пульте) и повторите."), action: "retry" };
+    case "NO_BOARD":
+      return { title: t("Плата не найдена"), text: t("Подключите плату к телефону кабелем USB-C ↔ USB-C (или через OTG-переходник) и повторите."), action: "retry" };
+    case "NO_DFU":
+      return { title: t("Плата не перешла в режим прошивки"), text: t("Зажмите BOOT на плате, вставьте кабель и повторите."), action: "bootloader" };
+    case "NO_PERMISSION":
+      return { title: t("Нет доступа к USB"), text: t("Разрешите Studio доступ к плате в окне Android и повторите."), action: "retry" };
+    case "WRONG_CHIP":
+      return { title: t("Файл не для этой платы"), text: rest, action: "retry" };
+    case "TOO_BIG":
+      return { title: t("Файл слишком большой"), text: rest };
+    case "EMPTY_IMAGE":
+      return { title: t("Файл пустой"), text: t("Скачайте файл прошивки ещё раз.") };
+    case "VERIFY":
+      return { title: t("Сверка не сошлась"), text: t("Записанное отличается от файла. Прошейте ещё раз — настройки не тронуты."), action: "retry" };
+    default:
+      return { title: t("Прошивка не удалась"), text: text || t("Подробности — в журнале ниже."), action: "retry" };
+  }
+}
+
+/** Плата с нашей прошивкой рядом: порт и паспорт (env из @id). */
+function phoneBoard(): { port: string | null; identity: Identity | null; dfu: boolean } {
+  const app = useApp.getState();
+  const dfu = app.devices.some((d) => d.kind === "stm32-dfu");
+  const linked = app.link.state === "open" ? app.link.port : null;
+  const port = linked ?? app.devices.find((d) => d.kind === "stm32-cdc")?.port ?? null;
+  return { port, identity: port ? (app.ports[port]?.identity ?? null) : null, dfu };
+}
+
+/**
+ * Телефон: прошить готовый .bin (из релиза или экспорт с ПК). Сборки нет —
+ * проверка файла → плата в загрузчик ('D') → стирание только секторов образа,
+ * запись, сверка (Rust DfuSe) → плата снова на связи, калибровки на месте.
+ */
+export async function runBinFlash(copterId: string, file: File) {
+  const app = useApp.getState();
+  const copter = app.copters.find((c) => c.id === copterId);
+  if (!copter || app.flash?.running) return;
+  lastBin = { copterId, file };
+  const steps: FlashStep[] = [
+    { id: "check", title: t("Файл прошивки"), status: "wait" },
+    { id: "board", title: t("Плата в режим прошивки"), status: "wait" },
+    { id: "upload", title: t("Заливка"), status: "wait" },
+    { id: "verify", title: t("Сверка и запуск"), status: "wait" },
+  ];
+  app.startFlash({ planeId: copterId, vehicle: "copter", running: true, steps, progress: null, activity: t("Читаю файл…"), log: [] });
+  let current = "check";
+  let unlisten: (() => void) | null = null;
+  let record: FlashRecord | null = null;
+  const toVerify = () => {
+    if (current === "verify") return;
+    setStep("board", "ok");
+    setStep("upload", "ok");
+    current = "verify";
+    setStep("verify", "run");
+  };
+  try {
+    // 1. файл
+    setStep("check", "run");
+    const board = phoneBoard();
+    if (board.identity?.armed) throw new FlashError(t("Плата заармлена"), t("Снимите ARM (тумблер на пульте) и повторите."), "retry");
+    const check = checkBin({ name: file.name, size: file.size, boardEnv: board.identity?.board ?? null, copterEnv: copter.board || null }, t);
+    if (check.error) throw new FlashError(t("Этот файл не подойдёт"), check.error, "retry");
+    if (check.warning) appendLog(check.warning);
+    if (!board.port && !board.dfu) {
+      throw new FlashError(t("Плата не найдена"), t("Подключите плату к телефону кабелем USB-C ↔ USB-C (или через OTG-переходник) и повторите."), "retry");
+    }
+    const image = new Uint8Array(await file.arrayBuffer());
+    const kb = Math.ceil(image.length / 1024);
+    setStep("check", "ok", `${file.name} · ${kb} KB`);
+    appendLog(t("Файл {name}: {kb} КБ, сборка {env}, чип {chip}", { name: file.name, kb, env: check.env ?? "?", chip: check.chip ?? "?" }));
+
+    // 2–4. загрузчик → заливка → сверка: этапы шлёт Rust
+    const before = calibNow();
+    current = "board";
+    setStep("board", "run");
+    activity(board.dfu ? t("Плата уже в режиме прошивки") : t("Перезагружаю плату в режим прошивки ({port})…", { port: board.port ?? "" }));
+    // порт откроет Rust — связь отпускает его и не подключается заново, пока идёт прошивка
+    if (!board.dfu && board.port && app.link.port === board.port) await releasePort(board.port);
+    unlisten = await onFlashProgress((p) => {
+      if (p.phase === "erase" || p.phase === "write") {
+        if (current === "board") {
+          setStep("board", "ok", "STM32 BOOTLOADER");
+          current = "upload";
+          setStep("upload", "run");
+        }
+        activity(p.phase === "erase" ? t("Стираю старую прошивку…") : t("Записываю…"), p.phase === "erase" ? p.fraction * 0.2 : 0.2 + p.fraction * 0.8);
+      } else if (p.phase === "verify" || p.phase === "done") {
+        toVerify();
+        activity(p.phase === "verify" ? t("Сверяю записанное с файлом…") : t("Плата запускается…"), p.phase === "verify" ? p.fraction : null);
+      }
+    });
+    const flashed = await api.flashBin(image, board.dfu ? null : board.port, check.chip).catch((e) => {
+      const why = explainBinError(errorText(e));
+      throw new FlashError(why.title, why.text, why.action);
+    });
+    appendLog(t("Записано {kb} КБ в {chip} за {s} с", { kb, chip: flashed.chip.toUpperCase(), s: flashed.seconds.toFixed(1) }));
+    toVerify();
+
+    // 5. плата снова на связи с той же сборкой
+    useApp.setState({ linkHold: null });
+    activity(t("Жду, пока плата загрузится…"));
+    const cdc = await waitDevice((d) => d.kind === "stm32-cdc", 20000);
+    let identity: Identity | null = null;
+    if (cdc?.port) {
+      for (let i = 0; i < 4 && !identity; i++) {
+        await sleep(700);
+        identity = await api.boardIdentity(cdc.port, true).catch(() => null);
+      }
+    }
+    const ok = !!identity && (!check.env || identity.board === check.env);
+    const text = !cdc?.port
+      ? t("Прошивка залита и сверена, но плата не появилась снова. Переподключите кабель.")
+      : !identity
+        ? t("Прошивка залита и сверена, плата на связи, но паспорт не прочитался.")
+        : ok
+          ? t("Прошито: {env}, коммит {commit}. Настройки и калибровки остались на плате.", { env: identity.board, commit: identity.commit || "?" })
+          : t("Плата ответила, но сборка другая: {got} вместо {want}.", { got: identity.board, want: check.env ?? "?" });
+    setStep("verify", ok ? "ok" : "fail", ok ? undefined : t("не подтверждено"));
+    const env = identity?.board ?? check.env ?? copter.board;
+    record = { at: new Date().toISOString(), board: env, commit: identity?.commit || null, configHash: identity?.config ?? "", ok, note: file.name };
+    flash().setFlash((f) => ({ ...f, running: false, progress: null, activity: "", done: { verified: ok, text } }));
+    if (ok) void checkCalibrations(before);
+  } catch (e) {
+    failFlash(e, current);
+  } finally {
+    unlisten?.();
+    useApp.setState({ linkHold: null });
+  }
+  if (record) {
+    const done = record;
+    useApp.getState().updateCopter(copterId, (c) => {
+      c.lastFlash = done;
+      c.history = [done, ...c.history].slice(0, 50);
+    });
+  }
+}
+
+/** «Повторить» в окне прошивки на телефоне — тот же файл. */
+export function retryBinFlash(copterId: string): boolean {
+  if (!lastBin || lastBin.copterId !== copterId) return false;
+  void runBinFlash(copterId, lastBin.file);
+  return true;
 }

@@ -241,3 +241,93 @@ pub fn bf_board(app: &AppHandle, source: &Path, args: &[String]) -> Res<TaskResu
     let (code, tail) = run_streaming(app, "bfboard", cmd)?;
     Ok(TaskResult { ok: code == 0, code, tail, firmware: None })
 }
+
+/// Имя файла экспорта годится: `.bin`, без папок и запрещённых в Windows символов.
+pub fn export_name_ok(name: &str) -> bool {
+    name.len() > 4
+        && name.len() <= 120
+        && name.to_lowercase().ends_with(".bin")
+        && !name.starts_with('.')
+        && !name.chars().any(|c| matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control())
+        && name != ".."
+}
+
+/// Папка «Загрузки» пользователя; нет — None (тогда папка рядом с проектом).
+fn downloads_dir() -> Option<PathBuf> {
+    let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })?;
+    let dir = PathBuf::from(home).join("Downloads");
+    dir.is_dir().then_some(dir)
+}
+
+/// «Экспорт для телефона» (P48): собранный `firmware.bin` копией `<dest>/<name>`
+/// (по умолчанию — «Загрузки»), затем папка открывается с выделенным файлом.
+/// Телефон прошивает этот файл кнопкой «Прошить файлом»: самолёт со своими
+/// датчиками и тумблерами собирается только на ПК (Config.h компилируется).
+pub fn export_bin(dir: &Path, env: &str, name: &str, dest: Option<&Path>) -> Res<String> {
+    if !export_name_ok(name) {
+        return Err(format!("имя файла «{name}» не подходит"));
+    }
+    let bin = dir.join(".pio").join("build").join(env).join("firmware.bin");
+    if !bin.is_file() {
+        return Err(format!("NO_BIN: нет {} — сначала сборка", bin.display()));
+    }
+    let target_dir = match dest {
+        Some(d) => d.to_path_buf(),
+        None => downloads_dir().unwrap_or_else(|| dir.join("export")),
+    };
+    fs::create_dir_all(&target_dir).map_err(err("папка для файла"))?;
+    let out = target_dir.join(name);
+    fs::copy(&bin, &out).map_err(err("копия прошивки"))?;
+    Ok(out.to_string_lossy().into_owned())
+}
+
+/// Показать файл в проводнике / Finder (папка — на Linux).
+pub fn reveal(path: &Path) -> Res<()> {
+    let mut cmd = if cfg!(windows) {
+        let mut c = command("explorer");
+        c.arg(format!("/select,{}", path.display()));
+        c
+    } else if cfg!(target_os = "macos") {
+        let mut c = command("open");
+        c.arg("-R").arg(path);
+        c
+    } else {
+        let mut c = command("xdg-open");
+        c.arg(path.parent().unwrap_or(path));
+        c
+    };
+    cmd.spawn().map_err(err("проводник"))?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod export_tests {
+    use super::*;
+
+    #[test]
+    fn export_name_rules() {
+        assert!(export_name_ok("Мой-квадрик-matek-h743-quad.bin"));
+        assert!(export_name_ok("openplane-matek-h743.BIN"));
+        assert!(!export_name_ok("../evil.bin"));
+        assert!(!export_name_ok("a\\b.bin"));
+        assert!(!export_name_ok("firmware.hex"));
+        assert!(!export_name_ok(".bin"));
+        assert!(!export_name_ok("con:.bin"));
+    }
+
+    #[test]
+    fn copies_built_bin_and_refuses_without_build() {
+        let root = std::env::temp_dir().join(format!("op-export-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let dest = root.join("out");
+        assert!(export_bin(&root, "matek-h743-quad", "q-matek-h743-quad.bin", Some(&dest)).unwrap_err().starts_with("NO_BIN"));
+        let build = root.join(".pio").join("build").join("matek-h743-quad");
+        fs::create_dir_all(&build).unwrap();
+        fs::write(build.join("firmware.bin"), [1u8, 2, 3]).unwrap();
+        let out = export_bin(&root, "matek-h743-quad", "q-matek-h743-quad.bin", Some(&dest)).unwrap();
+        assert_eq!(fs::read(&out).unwrap(), vec![1, 2, 3]);
+        assert!(out.ends_with("q-matek-h743-quad.bin"));
+        assert!(export_bin(&root, "matek-h743-quad", "../x.bin", Some(&dest)).is_err());
+        let _ = fs::remove_dir_all(&root);
+    }
+}

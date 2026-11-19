@@ -200,6 +200,17 @@ async fn firmware_upload(app: AppHandle, dir: String, env: String, port: Option<
     blocking(move || firmware::upload(&app, Path::new(&dir), &env, port.as_deref())).await
 }
 
+/// «Экспорт для телефона»: firmware.bin → «Загрузки»/<name>, папка открывается.
+#[tauri::command]
+async fn firmware_export_bin(dir: String, env: String, name: String) -> Res<String> {
+    blocking(move || {
+        let out = firmware::export_bin(Path::new(&dir), &env, &name, None)?;
+        let _ = firmware::reveal(Path::new(&out));
+        Ok(out)
+    })
+    .await
+}
+
 #[tauri::command]
 async fn bf_board(app: AppHandle, source: String, args: Vec<String>) -> Res<firmware::TaskResult> {
     blocking(move || firmware::bf_board(&app, Path::new(&source), &args)).await
@@ -449,6 +460,7 @@ pub fn run() {
             firmware_apply,
             firmware_build,
             firmware_upload,
+            firmware_export_bin,
             bf_board,
             path_exists,
             text_read,

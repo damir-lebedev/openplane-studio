@@ -10,9 +10,10 @@
 // на плате: правка уходит на плату сразу, «Сохранить» — во флеш. Поиск в
 // шапке находит настройку по имени BF или словами и подсвечивает её.
 
-import { CircleDot, Eye, EyeOff, Zap } from "lucide-react";
+import { CircleDot, Eye, EyeOff, Smartphone, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { isMobile } from "../api";
 import { findCopterEnv } from "../core/copter";
 import { CopterTab } from "../core/copterParams";
 import { copterTabs, PACKS, profileOf, tabPack } from "../core/pilot";
@@ -20,6 +21,7 @@ import { betaflightPort, runCopterFlash } from "../flash";
 import { t } from "../i18n";
 import { useApp } from "../store";
 import { FlashDialog } from "./board/FlashDialog";
+import { BinFlashButton } from "./copter/BinFlashButton";
 import { UnsavedBar, useCopterLink, useCopterLive } from "./copter/common";
 import { BeeperTab } from "./copter/BeeperTab";
 import { FlightTab } from "./copter/FlightTab";
@@ -141,10 +143,26 @@ export function CopterView() {
             {profile.showAll ? <EyeOff size={15} /> : <Eye size={15} />}
             {t("Показать всё")}
           </button>
-          <button className="btn primary" disabled={!!blocker || !!flash?.running || link.armed} title={blocker ?? undefined} onClick={() => void runCopterFlash(copter.id)}>
-            <Zap size={16} />
-            {t("Прошить")}
-          </button>
+          {isMobile() ? (
+            // телефон не собирает прошивку (Config.h — только на ПК): готовый .bin
+            <BinFlashButton copterId={copter.id} disabled={!!flash?.running || link.armed} />
+          ) : (
+            <>
+              <button
+                className="btn ghost"
+                disabled={!!blocker || !!flash?.running}
+                title={blocker ?? t("Собрать прошивку этого коптера в файл .bin — прошить его с телефона (Studio для Android)")}
+                onClick={() => void runCopterFlash(copter.id, "export")}
+              >
+                <Smartphone size={15} />
+                {t("Экспорт для телефона")}
+              </button>
+              <button className="btn primary" disabled={!!blocker || !!flash?.running || link.armed} title={blocker ?? undefined} onClick={() => void runCopterFlash(copter.id)}>
+                <Zap size={16} />
+                {t("Прошить")}
+              </button>
+            </>
+          )}
         </div>
       </div>
       <UnsavedBar />

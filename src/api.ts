@@ -378,6 +378,8 @@ export const api = {
   firmwareApply: (source: string, dir: string, config: FirmwareConfig | CopterFirmwareConfig) =>
     invoke<ApplyResult>("firmware_apply", { source, dir, config }),
   firmwareBuild: (dir: string, env: string) => invoke<TaskResult>("firmware_build", { dir, env }),
+  /** ПК: собранный firmware.bin → «Загрузки»/name (для телефона), папка открывается; путь. */
+  firmwareExportBin: (dir: string, env: string, name: string) => invoke<string>("firmware_export_bin", { dir, env, name }),
   firmwareUpload: (dir: string, env: string, port: string | null) =>
     invoke<TaskResult>("firmware_upload", { dir, env, port }),
   /** tools/bf_board.py из исходников (строки журнала — task-log с task = "bfboard") */
