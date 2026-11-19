@@ -921,7 +921,8 @@ describe("автопилот: POS HOLD, ALT HOLD и компас (128, 130–132
       for (let pitch = -75; pitch <= 75; pitch += 25) {
         for (let yaw = 0; yaw < 360; yaw += 60) {
           const f = frame(t++, [roll, pitch, yaw]);
-          act(() => useApp.setState({ clive: f }));
+          // как связь: каждый кадр свежий (иначе на медленной машине CI кадры «устаревают» посреди сбора)
+          act(() => useApp.setState({ clive: f, cliveAt: Date.now() }));
         }
       }
     }
