@@ -15,6 +15,7 @@ import { useApp } from "../../store";
 import { NeedBoard, ParamList, shown, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 import { FailsafeDrillCard } from "./FailsafeDrill";
 import { FindLostCard } from "./FindLost";
+import { GpsSpoofCard } from "./GpsSpoof";
 import { TrainingCard } from "./TrainingCard";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -95,6 +96,7 @@ function FailsafeBody() {
       </div>
       <FailsafeDrillCard />
       <FindLostCard />
+      <GpsSpoofCard />
       <TrainingCard />
       <ParamList title={t("Failsafe")} params={fs} />
       <ParamList title={t("ARM и защита")} params={arm} />

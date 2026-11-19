@@ -43,6 +43,13 @@ describe("перед полётом (P08)", () => {
     expect(preflightReady(preflight(live(), aux, true, true))).toBe(true);
   });
 
+  it("GPS подменяют — строка GPS красная, даже с фиксом", () => {
+    const items = preflight(live({ gps: { fix: true, sats: 14, lat: 0, lon: 0, spd: 0, trust: 0, spoof: "JUMP" } }), aux, true);
+    const gps = items.find((x) => x.id === "gps")!;
+    expect(gps.ok).toBe(false);
+    expect(gps.vars).toEqual({ why: "JUMP" });
+  });
+
   it("не полная батарея, нет пульта, GPS ищет, ANGLE не на тумблере, CLI открыт", () => {
     const items = preflight(live({ full: false, cell: 3.85, rx: "lost", gps: { fix: false, sats: 4, lat: 0, lon: 0, spd: 0 }, block: ["RXLOSS", "CLI", "THROTTLE"] }), aux.slice(0, 1), true);
     expect(state(items)).toMatchObject({ battery: false, radio: false, gps: false, angle: false, rescue: false, arm: false });

@@ -48,7 +48,9 @@ export function preflight(live: CopterLive | null, aux: AuxRow[], propsChecked: 
   const model = modelItem(live.tx, craftName);
   if (model) items.push(model);
 
-  if (live.gps) {
+  if (live.gps?.spoof) {
+    items.push({ id: "gps", ok: false, text: N_("GPS подменяют ({why}) — он выключен до посадки: ни POS HOLD, ни возврата домой"), vars: { why: live.gps.spoof } });
+  } else if (live.gps) {
     items.push(
       live.gps.fix
         ? { id: "gps", ok: true, text: N_("GPS: {sats} спутн. — дом запишется при ARM"), vars: { sats: live.gps.sats } }

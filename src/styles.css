@@ -3254,6 +3254,24 @@ textarea {
   flex: 1;
   max-width: 260px;
 }
+/* «Подмена GPS» (GpsSpoof.tsx) */
+.spoof-trust {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+}
+.spoof-bar {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+}
+.spoof-bar > div {
+  height: 100%;
+  transition: width 0.3s ease;
+}
 /* «Найти упавший» (FindLost.tsx) */
 .find-checks {
   list-style: none;

@@ -2486,5 +2486,18 @@
   "нагрузка {s} из 15": "stress {s} of 15",
   "предупреждение": "warning",
   "просадка: проверьте пайку питания": "voltage sag: check the power solder joints",
-  "тревога": "alert"
+  "тревога": "alert",
+  "GPS SPOOF в очках (osd_warn_gps_spoof)": "GPS SPOOF in the goggles (osd_warn_gps_spoof)",
+  "GPS подменяют ({why}) — он выключен до посадки: ни POS HOLD, ни возврата домой": "GPS is being spoofed ({why}) — it is off until landing: no POS HOLD, no return home",
+  "GPS подменяют: {why}. Он выключен из навигации до посадки — ведите коптер сами (ANGLE/ALT HOLD), возврата домой по GPS не будет.": "GPS is being spoofed: {why}. It is out of navigation until landing — fly the quad yourself (ANGLE/ALT HOLD), there will be no GPS return home.",
+  "GPS разгоняется, а акселерометр — нет (увод)": "GPS accelerates but the accelerometer does not (lead-away)",
+  "Доверие GPS": "GPS trust",
+  "Доверие GPS появится, когда GPS подключён и коптер на связи.": "GPS trust shows up once a GPS is connected and the quad is online.",
+  "Над деревьями коптер «уводит» в сторону? Это подмена GPS. Прошивка сверяет каждую точку с акселерометром, ветром и барометром; заметила — выключает GPS до посадки: POS HOLD становится ALT HOLD, в очках GPS SPOOF.": "Above the trees the quad gets \"pulled\" sideways? That is GPS spoofing. The firmware checks every fix against the accelerometer, wind and barometer; once it notices, GPS is switched off until landing: POS HOLD becomes ALT HOLD, the goggles show GPS SPOOF.",
+  "Подмена GPS": "GPS spoofing",
+  "Проверка подмены включена (gps_spoof_detect)": "Spoofing check is on (gps_spoof_detect)",
+  "ветер «сменился» на 5 м/с — скорость GPS подменена": "the wind \"changed\" by 5 m/s — GPS speed is spoofed",
+  "высота GPS разошлась с барометром": "GPS altitude disagrees with the barometer",
+  "приёмник сам сообщил о подмене": "the receiver itself reported spoofing",
+  "точка прыгнула дальше, чем коптер мог долететь": "the position jumped farther than the quad could fly"
 }

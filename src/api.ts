@@ -238,7 +238,7 @@ export interface CopterLive {
   /** спектр гироскопа (060–063): ширина полосы, Гц; полосы 0, bw, 2bw… в дБ над 0.01 °/с (сумма осей);
    *  центры динамических режекторов по осям; обороты моторов, Гц (DShot — каждый, модель — один) */
   spec?: CopterSpectrum;
-  gps?: { fix: boolean; sats: number; lat: number; lon: number; spd: number; home?: number; dir?: number; /** фикс пропал — последняя точка с фиксом */ last?: [number, number] };
+  gps?: { fix: boolean; sats: number; lat: number; lon: number; spd: number; home?: number; dir?: number; /** фикс пропал — последняя точка с фиксом */ last?: [number, number]; /** доверие GPS 0…100 (проверка подмены) */ trust?: number; /** подмена: JUMP, VELOCITY, WIND, ALTITUDE, RECEIVER — GPS выключен из навигации */ spoof?: string };
   /** команда моторов 0…1 (−1 — стоит, turtle mode) */
   motors: number[];
   /** заармлен в turtle mode: моторы крутятся наоборот */
