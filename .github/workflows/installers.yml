@@ -114,6 +114,9 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: android-actions/setup-android@v3
+        with:
+          # по умолчанию ставит пакет «tools» — его в SDK больше нет, sdkmanager падает
+          packages: platform-tools
       - name: NDK и build-tools
         run: |
           sdkmanager "ndk;${NDK_VERSION}" "build-tools;36.0.0" "platforms;android-36"
