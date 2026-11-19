@@ -1390,8 +1390,9 @@ textarea {
 }
 .copter-tab {
   text-align: left;
-  height: 32px;
-  padding: 0 12px;
+  min-height: 32px;
+  padding: 6px 12px;
+  line-height: 1.25;
   border: 0;
   border-radius: 8px;
   background: transparent;

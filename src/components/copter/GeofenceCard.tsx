@@ -124,7 +124,7 @@ function GeofencePicture({ v }: { v: GeofenceView }) {
         )}
         {dot && <circle cx={dot.x} cy={dot.y} r={5} className="rescue-copter" />}
         {now?.flag && (
-          <text x={cx} y={12} className="training-flag" textAnchor="middle">
+          <text x={cx} y={136} className="training-flag" textAnchor="middle">
             {now.flag}
           </text>
         )}
