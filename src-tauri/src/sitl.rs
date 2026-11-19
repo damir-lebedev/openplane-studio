@@ -74,7 +74,9 @@ impl SitlState {
         }
         let data = data_dir();
         std::fs::create_dir_all(&data).map_err(|e| format!("{}: {e}", data.display()))?;
-        let child = command(&exe)
+        let mut cmd = command(&exe);
+        with_mingw(&mut cmd);
+        let child = cmd
             .args(["--port", &PORT.to_string(), "--eeprom"])
             .arg(data.join("eeprom.bin"))
             .current_dir(&data)
@@ -113,15 +115,25 @@ impl SitlState {
 pub fn build(app: &AppHandle, dir: &Path) -> Res<(bool, String)> {
     let mut cmd = command(crate::firmware::pio()?);
     cmd.args(["run", "-e", "sitl", "-d"]).arg(dir);
-    let mingw = home().join("tools").join("mingw64").join("bin");
-    if mingw.is_dir() {
-        let path = std::env::var_os("PATH").unwrap_or_default();
-        let mut parts = vec![mingw];
-        parts.extend(std::env::split_paths(&path));
-        if let Ok(joined) = std::env::join_paths(parts) {
-            cmd.env("PATH", joined);
-        }
-    }
+    with_mingw(&mut cmd);
     let (code, tail) = run_streaming(app, "build", cmd)?;
     Ok((code == 0, tail))
+}
+
+/// MinGW (~/tools/mingw64/bin) первым в PATH: компилятор для сборки и его DLL
+/// (libstdc++-6, libgcc_s_seh-1, libwinpthread-1) для запуска. Прошивка
+/// собирает симулятор статически (tools/sitl_link.py), но exe из копий
+/// исходников до этого без DLL не стартует: Studio из меню «Пуск» MinGW в
+/// PATH не видит, и Windows показывает «libstdc++-6.dll was not found».
+fn with_mingw(cmd: &mut std::process::Command) {
+    let mingw = home().join("tools").join("mingw64").join("bin");
+    if !mingw.is_dir() {
+        return;
+    }
+    let path = std::env::var_os("PATH").unwrap_or_default();
+    let mut parts = vec![mingw];
+    parts.extend(std::env::split_paths(&path));
+    if let Ok(joined) = std::env::join_paths(parts) {
+        cmd.env("PATH", joined);
+    }
 }
