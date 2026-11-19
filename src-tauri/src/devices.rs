@@ -1,9 +1,6 @@
 //! Что подключено по USB: COM-порты (наша прошивка, мосты ESP32) и
 //! STM32 в системном загрузчике DFU (у него COM-порта нет).
 
-// Android: COM-портов и libusb нет (P47 — USB-плагин), классификация ждёт его.
-#![cfg_attr(target_os = "android", allow(dead_code))]
-
 use std::io::{Read, Write};
 use std::time::{Duration, Instant};
 
@@ -54,36 +51,49 @@ fn autopilot_usb(vid: u16, pid: u16) -> bool {
     matches!((vid, pid), (0x1209, 0x5740) | (0x1209, 0x5741)) || matches!(vid, 0x26AC | 0x2DAE | 0x3162)
 }
 
-#[cfg(not(target_os = "android"))]
-fn classify(port: &str, usb: &UsbPortInfo) -> Device {
-    let (vid, pid) = (usb.vid, usb.pid);
+/// Тип и название устройства по VID/PID (ПК — из COM-порта, телефон — из USB-плагина).
+pub fn classify_ids(
+    port: &str,
+    vid: u16,
+    pid: u16,
+    product: Option<String>,
+    manufacturer: Option<String>,
+    serial: Option<String>,
+) -> Device {
     let (kind, title) = if vid == STM32_VID && pid == STM32_CDC_PID {
         ("stm32-cdc", "STM32, USB-порт".to_string())
+    } else if vid == STM32_VID && pid == STM32_DFU_PID {
+        ("stm32-dfu", "STM32 в режиме прошивки (DFU)".to_string())
     } else if autopilot_usb(vid, pid) {
-        ("fc-usb", usb.product.clone().unwrap_or_else(|| "полётник ArduPilot/PX4".into()))
+        ("fc-usb", product.clone().unwrap_or_else(|| "полётник ArduPilot/PX4".into()))
     } else if vid == 0x303A {
         ("esp32-usb", "ESP32, родной USB".to_string())
     } else if let Some(name) = bridge_name(vid, pid) {
         ("usb-serial", format!("мост {name}"))
     } else {
-        ("serial", usb.product.clone().unwrap_or_else(|| "COM-порт".into()))
+        ("serial", product.clone().unwrap_or_else(|| "COM-порт".into()))
     };
     Device {
         kind: kind.into(),
         port: Some(port.into()),
         vid: Some(vid),
         pid: Some(pid),
-        product: usb.product.clone(),
-        manufacturer: usb.manufacturer.clone(),
-        serial: usb.serial_number.clone(),
+        product,
+        manufacturer,
+        serial,
         title,
     }
 }
 
-/// Android: COM-портов и libusb нет — список даёт USB-плагин (P47).
+#[cfg(not(target_os = "android"))]
+fn classify(port: &str, usb: &UsbPortInfo) -> Device {
+    classify_ids(port, usb.vid, usb.pid, usb.product.clone(), usb.manufacturer.clone(), usb.serial_number.clone())
+}
+
+/// Android: COM-портов и libusb нет — список даёт USB-плагин (usb_android.rs).
 #[cfg(target_os = "android")]
 pub fn list() -> Vec<Device> {
-    Vec::new()
+    crate::usb_android::list()
 }
 
 #[cfg(not(target_os = "android"))]
@@ -120,9 +130,8 @@ pub fn list() -> Vec<Device> {
 }
 
 #[cfg(target_os = "android")]
-fn open(port: &str, _stm32: bool) -> Res<crate::link::BoxPort> {
-    let _ = port;
-    Err(crate::util::NOT_ON_ANDROID.into())
+fn open(port: &str, stm32: bool) -> Res<crate::usb_android::AndroidPort> {
+    crate::usb_android::open(port, stm32)
 }
 
 #[cfg(not(target_os = "android"))]
@@ -180,6 +189,12 @@ pub fn identity(port: &str, stm32: bool) -> Res<Option<Value>> {
 }
 
 /// Клавиша 'D' консоли: плата перезагружается в загрузчик USB DFU (STM32).
+#[cfg(target_os = "android")]
+pub fn reboot_to_bootloader(port: &str) -> Res<()> {
+    crate::usb_android::reboot_to_bootloader(port)
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn reboot_to_bootloader(port: &str) -> Res<()> {
     let mut p = open(port, true)?;
     p.write_all(b"D").map_err(err("запись в порт"))?;
@@ -198,5 +213,14 @@ mod tests {
         assert!(autopilot_usb(0x2DAE, 0x1016));
         assert!(!autopilot_usb(0x1209, 0x0001));
         assert!(!autopilot_usb(STM32_VID, STM32_CDC_PID));
+    }
+
+    #[test]
+    fn classify_by_ids() {
+        assert_eq!(classify_ids("usb:/dev/bus/usb/001/002", STM32_VID, STM32_CDC_PID, None, None, None).kind, "stm32-cdc");
+        assert_eq!(classify_ids("x", STM32_VID, STM32_DFU_PID, None, None, None).kind, "stm32-dfu");
+        assert_eq!(classify_ids("x", 0x303A, 0x1001, None, None, None).kind, "esp32-usb");
+        let ch = classify_ids("x", 0x1A86, 0x55D4, None, None, None);
+        assert_eq!((ch.kind.as_str(), ch.title.as_str()), ("usb-serial", "мост CH343"));
     }
 }

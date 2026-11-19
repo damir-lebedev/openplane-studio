@@ -387,6 +387,11 @@ export const api = {
   devicesList: () => invoke<Device[]>("devices_list"),
   boardIdentity: (port: string, stm32: boolean) => invoke<Identity | null>("board_identity", { port, stm32 }),
   boardBootloader: (port: string) => invoke<void>("board_bootloader", { port }),
+  /** Телефон (USB-OTG): прошить готовый .bin. `port` — плата с нашей прошивкой
+   *  (уйдёт в загрузчик по 'D'), null — плата уже в DFU; `chip` — f405/h743 для проверки.
+   *  Байты идут телом запроса, без JSON. Прогресс — onFlashProgress. */
+  flashBin: (image: Uint8Array, port: string | null, chip?: string | null) =>
+    invoke<FlashedBin>("firmware_flash_bin", image, { headers: { port: port ?? "", chip: chip ?? "" } }),
   portHolders: () => invoke<PortHolder[]>("port_holders"),
   portHoldersKill: (pids: number[]) => invoke<number>("port_holders_kill", { pids }),
   dfuDriverStatus: () => invoke<DriverStatus>("dfu_driver_status"),
@@ -417,6 +422,22 @@ export const api = {
   /** pio run -e sitl; строки — task-log с task = "build". */
   sitlBuild: (dir: string) => invoke<boolean>("sitl_build", { dir }),
 };
+
+/** Этап прошивки с телефона: bootloader → erase → write → verify → done, доля 0..1. */
+export interface FlashProgress {
+  phase: "bootloader" | "erase" | "write" | "verify" | "done";
+  fraction: number;
+}
+
+export interface FlashedBin {
+  chip: string;
+  bytes: number;
+  seconds: number;
+}
+
+export function onFlashProgress(handler: (p: FlashProgress) => void): Promise<UnlistenFn> {
+  return listen<FlashProgress>("flash-progress", (e) => handler(e.payload));
+}
 
 export function onSimFrame(handler: (frame: SimFrame) => void): Promise<UnlistenFn> {
   return listen<{ port: string; data: SimFrame }>("board-sim", (e) => handler(e.payload.data));

@@ -94,11 +94,10 @@ fn open(port: &str, stm32: bool) -> Res<BoxPort> {
     open_serial(port, stm32)
 }
 
-/// Android: COM-порта нет, плата по USB-OTG — через плагин (P47).
+/// Android: COM-порта нет, плата по USB-OTG — через плагин (usb_android.rs).
 #[cfg(target_os = "android")]
-fn open_serial(port: &str, _stm32: bool) -> Res<BoxPort> {
-    let _ = port;
-    Err(crate::util::NOT_ON_ANDROID.into())
+fn open_serial(port: &str, stm32: bool) -> Res<BoxPort> {
+    Ok(Box::new(crate::usb_android::open(port, stm32)?))
 }
 
 #[cfg(not(target_os = "android"))]

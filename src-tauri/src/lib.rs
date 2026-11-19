@@ -5,6 +5,7 @@
 
 mod blackbox;
 mod devices;
+mod dfuse;
 mod firmware;
 mod hangar;
 mod link;
@@ -14,6 +15,8 @@ mod sitl;
 mod source;
 mod system;
 mod update;
+#[cfg(target_os = "android")]
+mod usb_android;
 mod util;
 
 use std::path::{Path, PathBuf};
@@ -226,6 +229,32 @@ async fn board_identity(port: String, stm32: bool) -> Res<Option<Value>> {
     blocking(move || devices::identity(&port, stm32)).await
 }
 
+/// Прошить готовый `.bin` (телефон, USB-OTG): тело запроса — байты образа,
+/// заголовки `port` (порт платы с нашей прошивкой; нет — плата уже в DFU) и
+/// `chip` (f405/h743 — для проверки). Прогресс — события "flash-progress".
+#[tauri::command]
+async fn firmware_flash_bin(app: AppHandle, request: tauri::ipc::Request<'_>) -> Res<Value> {
+    let tauri::ipc::InvokeBody::Raw(image) = request.body() else {
+        return Err("прошивка: ждали байты образа".into());
+    };
+    let header = |k: &str| request.headers().get(k).and_then(|v| v.to_str().ok()).filter(|v| !v.is_empty()).map(str::to_string);
+    let (image, port, chip) = (image.clone(), header("port"), header("chip"));
+    #[cfg(target_os = "android")]
+    {
+        blocking(move || {
+            let done = usb_android::flash(&app, port.as_deref(), &image, chip.as_deref())?;
+            serde_json::to_value(done).map_err(|e| e.to_string())
+        })
+        .await
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        // на ПК шьёт PlatformIO (firmware_upload): там же собирается образ
+        let _ = (app, image, port, chip);
+        Err("DESKTOP_USES_PIO: на компьютере прошивка — кнопкой «Прошить»".into())
+    }
+}
+
 #[tauri::command]
 async fn board_bootloader(port: String) -> Res<()> {
     blocking(move || devices::reboot_to_bootloader(&port)).await
@@ -378,7 +407,11 @@ async fn sitl_build(app: AppHandle, dir: String) -> Res<bool> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // телефон: USB-OTG через Kotlin-плагин (порт платы и загрузчик DFU)
+    #[cfg(target_os = "android")]
+    let builder = builder.plugin(usb_android::init());
+    builder
         .manage(link::LinkState::default())
         .manage(sitl::SitlState::default())
         .invoke_handler(tauri::generate_handler![
@@ -422,6 +455,7 @@ pub fn run() {
             devices_list,
             board_identity,
             board_bootloader,
+            firmware_flash_bin,
             port_holders,
             port_holders_kill,
             dfu_driver_status,

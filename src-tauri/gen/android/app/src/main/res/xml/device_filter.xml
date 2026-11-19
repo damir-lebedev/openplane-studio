@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Какие USB-устройства открывают OpenPlane Studio при подключении (и дают разрешение сразу). -->
+<resources>
+    <!-- STM32: наша прошивка (USB CDC) и системный загрузчик DFU -->
+    <usb-device vendor-id="1155" product-id="22336" />
+    <usb-device vendor-id="1155" product-id="57105" />
+    <!-- ESP32-S3/C3, родной USB (Espressif) -->
+    <usb-device vendor-id="12346" />
+    <!-- мосты ESP32-плат: CH34x, CP210x, FTDI -->
+    <usb-device vendor-id="6790" />
+    <usb-device vendor-id="4292" product-id="60000" />
+    <usb-device vendor-id="1027" />
+</resources>

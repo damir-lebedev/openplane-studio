@@ -19,3 +19,6 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# USB-OTG: команды плагина ищутся по аннотациям, UsbNative вызывается из Rust (JNI)
+-keep class com.openplane.studio.usb.** { *; }
+-keep class com.hoho.android.usbserial.** { *; }

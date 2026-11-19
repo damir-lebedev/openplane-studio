@@ -26,6 +26,11 @@ sha2 = "0.10"
 serialport = "4"
 nusb = "0.2"
 
+# Android: байты порта приходят из Kotlin прямым JNI-вызовом (usb_android.rs);
+# та же версия, что у tauri.
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
+
 [profile.release]
 codegen-units = 1
 lto = true
