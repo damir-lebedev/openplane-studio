@@ -372,6 +372,29 @@ describe("вкладки коптера", () => {
     expect(sent.filter((c) => c.startsWith("dshot"))).toEqual(["dshot 1 8 12", "dshot 1 1", "dshot all 1"]);
   });
 
+  it("моторы: EDT регуляторов (091) — подсказка включить и таблица по живому кадру", () => {
+    const edt = param("dshot_edt", { group: "motors", scope: "master", type: "enum", options: ["OFF", "ON"], default: "OFF", value: "OFF", from: "table", text: "EDT" });
+    const bidir = param("dshot_bidir", { group: "motors", scope: "master", type: "enum", options: ["OFF", "ON"], default: "OFF", value: "ON", from: "table", text: "bidir" });
+    act(() =>
+      useApp.setState((s) => ({
+        copterBoard: { ...s.copterBoard, header: { ...s.copterBoard.header!, dshotCommands: true }, params: { ...s.copterBoard.params, dshot_edt: edt, dshot_bidir: bidir } },
+      })),
+    );
+    render(<CopterView />);
+    tab("Моторы");
+    expect(screen.getByText(/Включите dshot_edt/)).toBeTruthy();
+    cleanup();
+    act(() => useApp.setState({ clive: live({ esc: [[45, 16.5, 12, 3], [104, 16.4, 13, 0x40], [46, 15.7, 12, 0], [44, 16.5, null, 0]] }) }));
+    render(<CopterView />);
+    tab("Моторы");
+    expect(screen.getByText("Регуляторы")).toBeTruthy();
+    expect(screen.getByText("104 °C").closest("tr")?.className).toContain("warn-text");
+    expect(screen.getByText("предупреждение")).toBeTruthy();
+    expect(screen.getByText("просадка: проверьте пайку питания")).toBeTruthy();   // M3 на 0.8 В ниже
+    expect(screen.getByText("нагрузка 3 из 15")).toBeTruthy();
+    expect(screen.queryByText(/Всего .* А по регуляторам/)).toBeNull();   // у M4 нет тока
+  });
+
   it("режимы: turtle mode — схема моторов от стиков пульта", () => {
     act(() =>
       useApp.setState((s) => ({

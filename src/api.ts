@@ -207,6 +207,8 @@ export interface CopterLive {
   ovl?: "ESC" | "BATT" | "LIMIT" | "";
   /** наибольший ток на мотор за полёт, А */
   mma?: number;
+  /** EDT регуляторов (dshot_edt): [°C, В, А, статус] по моторам, null — не приходило */
+  esc?: (number | null)[][];
   vtx?: { on: boolean; mhz: number; mw: number; pit: boolean; cap: number };
   /**
    * Куда рисуется OSD: чип на плате и/или очки по MSP DisplayPort; экран c × r

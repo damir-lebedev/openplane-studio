@@ -2475,5 +2475,16 @@
   "не отвечает": "not responding",
   "Или скрипт OpenPlane на пульте: экран телеметрии oplan запоминает точку сам.": "Or the OpenPlane radio script: the oplan telemetry screen keeps the point by itself.",
   "После этой точки GPS потерял фикс — коптер, скорее всего, лежит здесь, в пределах 5–10 м.": "GPS lost its fix after this point — the quad most likely lies here, within 5–10 m.",
-  "скрипт OpenPlane на пульте": "OpenPlane radio script"
+  "скрипт OpenPlane на пульте": "OpenPlane radio script",
+  "EDT включён, но регуляторы его не шлют: подключите батарею (команду плата повторит сама) или обновите прошивку регуляторов.": "EDT is on, but the ESCs don't send it: plug in the battery (the board resends the command itself) or update the ESC firmware.",
+  "Включите dshot_edt — регуляторы Bluejay, BLHeli_32 и AM32 пришлют температуру, напряжение и ток.": "Turn on dshot_edt — Bluejay, BLHeli_32 and AM32 ESCs will report temperature, voltage and current.",
+  "Всего {a} А по регуляторам — защите по току хватает и без датчика тока на плате.": "{a} A total from the ESCs — enough for overcurrent protection even without a current sensor on the board.",
+  "Горячий — от {c} °C: Bluejay и BLHeli_32 сами режут газ около 140 °C.": "Hot from {c} °C: Bluejay and BLHeli_32 cut throttle themselves around 140 °C.",
+  "Расширенная телеметрия (dshot_edt)": "Extended telemetry (dshot_edt)",
+  "Регуляторы молчат: сначала включите dshot_bidir (нужна перезагрузка), затем dshot_edt.": "The ESCs are silent: turn on dshot_bidir first (needs a reboot), then dshot_edt.",
+  "Температура": "Temperature",
+  "нагрузка {s} из 15": "stress {s} of 15",
+  "предупреждение": "warning",
+  "просадка: проверьте пайку питания": "voltage sag: check the power solder joints",
+  "тревога": "alert"
 }

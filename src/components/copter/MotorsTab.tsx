@@ -9,6 +9,7 @@ import { TriangleAlert, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { FrameMotor, tabParams } from "../../core/copterParams";
+import { ESC_HOT_C, escRows, escTotalAmps } from "../../core/escTelemetry";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamList, ParamRow, useCopterBoard, useCopterLink, useCopterLive } from "./common";
@@ -104,11 +105,79 @@ export function MotorsBody({ simple = false }: { simple?: boolean }) {
 
       {dshot && <DirectionCard motors={motors} picked={picked} busy={armed || spinning} />}
 
+      {dshot && <EscCard />}
+
       {!simple && (
         <div className="wide">
           <ParamList title={t("Моторы и регуляторы")} params={tabParams(board, "motors")} />
         </div>
       )}
+    </div>
+  );
+}
+
+/** EDT (dshot_edt): температура, напряжение и ток каждого регулятора. */
+export function EscCard() {
+  const board = useCopterBoard();
+  const live = useCopterLive();
+  const rows = escRows(live?.esc);
+  const bidir = board.params.dshot_bidir;
+  const edt = board.params.dshot_edt;
+  const total = escTotalAmps(rows);
+  if (!edt && !rows.length) return null;   // старая прошивка
+  const cell = (v: number | null, unit: string, digits = 0) => (v === null ? "—" : `${v.toFixed(digits)} ${unit}`);
+  return (
+    <div className="card">
+      <h3>{t("Регуляторы")}</h3>
+      {rows.length > 0 ? (
+        <table className="table">
+          <thead>
+            <tr>
+              <th />
+              <th>{t("Температура")}</th>
+              <th>{t("Напряжение")}</th>
+              <th>{t("Ток")}</th>
+              <th>{t("Состояние")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const bad = r.alert || r.error;
+              const state = r.error
+                ? t("ошибка")
+                : r.alert
+                  ? t("тревога")
+                  : r.warning
+                    ? t("предупреждение")
+                    : r.sag
+                      ? t("просадка: проверьте пайку питания")
+                      : r.stress !== null
+                        ? t("нагрузка {s} из 15", { s: r.stress })
+                        : "—";
+              return (
+                <tr key={r.motor} className={bad || r.hot || r.sag ? "warn-text" : undefined}>
+                  <td className="mono">M{r.motor + 1}</td>
+                  <td className="mono">{cell(r.tempC, "°C")}</td>
+                  <td className="mono">{cell(r.volts, t("В"), 2)}</td>
+                  <td className="mono">{cell(r.amps, t("А"))}</td>
+                  <td>{state}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      ) : (
+        <p className="sub">
+          {String(bidir?.value ?? "OFF") !== "ON"
+            ? t("Регуляторы молчат: сначала включите dshot_bidir (нужна перезагрузка), затем dshot_edt.")
+            : String(edt?.value ?? "OFF") !== "ON"
+              ? t("Включите dshot_edt — регуляторы Bluejay, BLHeli_32 и AM32 пришлют температуру, напряжение и ток.")
+              : t("EDT включён, но регуляторы его не шлют: подключите батарею (команду плата повторит сама) или обновите прошивку регуляторов.")}
+        </p>
+      )}
+      {total !== null && <p className="hint">{t("Всего {a} А по регуляторам — защите по току хватает и без датчика тока на плате.", { a: total.toFixed(0) })}</p>}
+      <p className="hint">{t("Горячий — от {c} °C: Bluejay и BLHeli_32 сами режут газ около 140 °C.", { c: ESC_HOT_C })}</p>
+      {edt && <ParamRow p={edt} title={t("Расширенная телеметрия (dshot_edt)")} />}
     </div>
   );
 }
