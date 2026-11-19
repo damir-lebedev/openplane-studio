@@ -180,6 +180,8 @@ export interface CopterLive {
   rssisrc?: "channel" | "frames" | "protocol";
   /** уровень сигнала, dBm — только CRSF */
   dbm?: number;
+  /** имя модели пульта EdgeTX — присылает Lua-скрипт OpenPlane (MSP через CRSF) */
+  tx?: string;
   ch: number[];
   /** крен, тангаж, рысканье, ° */
   att: [number, number, number];

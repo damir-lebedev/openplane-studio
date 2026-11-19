@@ -2454,5 +2454,8 @@
   "спутников: {n}": "satellites: {n}",
   "юг": "south",
   "юго-восток": "south-east",
-  "юго-запад": "south-west"
+  "юго-запад": "south-west",
+  "На пульте модель «{tx}», а имя коптера пустое — назови коптер так же (OSD → «Имя коптера»)": "The radio model is “{tx}” but the craft name is empty — give the quad the same name (OSD → “Craft name”)",
+  "На пульте модель «{tx}», а коптер — «{craft}»: та ли модель выбрана?": "The radio model is “{tx}” but the quad is “{craft}”: is the right model selected?",
+  "Пульт — та модель: «{tx}»": "The radio has the right model: “{tx}”"
 }

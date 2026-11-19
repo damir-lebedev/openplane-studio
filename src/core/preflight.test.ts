@@ -51,6 +51,15 @@ describe("перед полётом (P08)", () => {
     expect(items.find((x) => x.id === "arm")!.vars).toEqual({ why: "CLI OPEN" });
   });
 
+  it("пульт — та модель: имя модели EdgeTX от Lua-скрипта против имени коптера (188b)", () => {
+    const model = (tx: string | undefined, craft: string) => preflight(live({ tx }), aux, true, true, craft).find((x) => x.id === "model");
+    expect(model(undefined, "SEVEN")).toBeUndefined();   // скрипта на пульте нет — строки нет
+    expect(model(" seven", "SEVEN")?.ok).toBe(true);
+    expect(model("Whoop", "SEVEN")).toMatchObject({ ok: false, vars: { tx: "Whoop", craft: "SEVEN" } });
+    expect(model("Whoop", "")?.ok).toBe(false);
+    expect(preflightReady(preflight(live({ tx: "SEVEN" }), aux, true, true, "seven"))).toBe(true);
+  });
+
   it("без батареи и без связи — нет списка", () => {
     expect(state(preflight(live({ v: 0, bat: "NOT PRESENT", full: undefined }), aux, true)).battery).toBe(false);
     expect(preflight(null, aux, true)).toEqual([]);

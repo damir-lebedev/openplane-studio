@@ -8,7 +8,7 @@ import { N_ } from "../i18n";
 import { armWhyList } from "./armWhy";
 import type { AuxRow } from "./copterParams";
 
-export type PreflightId = "battery" | "radio" | "gps" | "arm" | "armSwitch" | "angle" | "rescue" | "failsafe" | "props";
+export type PreflightId = "battery" | "radio" | "model" | "gps" | "arm" | "armSwitch" | "angle" | "rescue" | "failsafe" | "props";
 
 export interface PreflightItem {
   id: PreflightId;
@@ -25,7 +25,17 @@ const BOX_GPS_RESCUE = 46;
 
 const onSwitch = (rows: AuxRow[], box: number) => rows.some((r) => r[1] === box && r[4] > r[3]);
 
-export function preflight(live: CopterLive | null, aux: AuxRow[], propsChecked: boolean, failsafeChecked = false): PreflightItem[] {
+/** Имя модели пульта (Lua-скрипт OpenPlane шлёт его прошивке) против имени коптера:
+ *  ловит «включил на пульте не ту модель». Скрипта нет — строки нет. */
+function modelItem(tx: string | undefined, craftName: string): PreflightItem | null {
+  if (tx === undefined) return null;
+  const craft = craftName.trim();
+  if (!craft) return { id: "model", ok: false, text: N_("На пульте модель «{tx}», а имя коптера пустое — назови коптер так же (OSD → «Имя коптера»)"), vars: { tx } };
+  if (craft.toUpperCase() === tx.trim().toUpperCase()) return { id: "model", ok: true, text: N_("Пульт — та модель: «{tx}»"), vars: { tx } };
+  return { id: "model", ok: false, text: N_("На пульте модель «{tx}», а коптер — «{craft}»: та ли модель выбрана?"), vars: { tx, craft } };
+}
+
+export function preflight(live: CopterLive | null, aux: AuxRow[], propsChecked: boolean, failsafeChecked = false, craftName = ""): PreflightItem[] {
   const items: PreflightItem[] = [];
   if (!live) return items;
   const cell = live.cell ?? 0;
@@ -35,6 +45,8 @@ export function preflight(live: CopterLive | null, aux: AuxRow[], propsChecked: 
   else items.push({ id: "battery", ok: true, text: N_("Батарея полная: {cell} В на банку"), vars: { cell: cell.toFixed(2) } });
 
   items.push(live.rx === "ok" ? { id: "radio", ok: true, text: N_("Пульт на связи") } : { id: "radio", ok: false, text: N_("Нет связи с пультом") });
+  const model = modelItem(live.tx, craftName);
+  if (model) items.push(model);
 
   if (live.gps) {
     items.push(

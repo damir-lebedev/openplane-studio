@@ -17,7 +17,8 @@ export function PreflightCard() {
   const failsafeChecked = useApp((s) => !!s.currentCopter()?.failsafeCheckedAt);
   if (!live || live.arm) return null;
   const rc = board.rc;
-  const items = preflight(live, rc ? (rc.usingFallback ? rc.fallback : rc.aux) : [], props, failsafeChecked);
+  const craft = String(board.params.craft_name?.value ?? "");
+  const items = preflight(live, rc ? (rc.usingFallback ? rc.fallback : rc.aux) : [], props, failsafeChecked, craft);
   const ready = preflightReady(items);
   const motors = board.header?.frame?.motors ?? [];
   return (
