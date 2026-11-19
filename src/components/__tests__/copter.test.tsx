@@ -406,6 +406,27 @@ describe("вкладки коптера", () => {
     expect(ask()).toHaveLength(1);
   });
 
+  it("два гироскопа: карточка только при «gyros» в кадре, состояние и выбор gyro_to_use (P42)", () => {
+    render(<CopterView />);
+    tab("Подготовка");
+    expect(document.querySelector("[data-card=gyros]")).toBeNull();
+    const st = useApp.getState();
+    act(() =>
+      useApp.setState({
+        copterBoard: dumpedBoard([
+          ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+          param("gyro_to_use", { type: "enum", group: "other", scope: "master", options: ["FIRST", "SECOND", "BOTH"], default: "FIRST", value: "FIRST", from: "table" }),
+        ]),
+        clive: live({ gyros: [3, 1, 0] }),
+      }),
+    );
+    const card = document.querySelector("[data-card=gyros]") as HTMLElement;
+    expect(within(card).getByText("в деле")).toBeTruthy();
+    expect(within(card).getByText("в запасе")).toBeTruthy();
+    expect(within(card).getByText(/покрутите коптер/)).toBeTruthy();
+    expect(card.querySelector("[data-param=gyro_to_use]")).toBeTruthy();
+  });
+
   it("тренировка failsafe: шаги по живым кадрам, отметка в проекте (P12)", () => {
     useApp.setState({ clive: live({ arm: false }) });
     render(<CopterView />);

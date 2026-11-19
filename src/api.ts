@@ -191,6 +191,8 @@ export interface CopterLive {
   gbias?: [number, number, number];
   /** и вера акселерометру, % (100 — висит спокойно или стоит, 0 — манёвр) */
   atrust?: number;
+  /** два гироскопа (copter/GyroSelect.h): маска живых, маска взятых в контур, оси второго 0 — не проверены, 1 — совпали, 2 — нет */
+  gyros?: [number, number, number];
   alt: number;
   vz: number;
   thr: number;

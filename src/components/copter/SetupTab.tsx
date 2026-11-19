@@ -3,15 +3,17 @@
 // мастером со сферой точек (CompassCard).
 
 import { CircleCheck, Crosshair, Gauge } from "lucide-react";
+import { Fragment } from "react";
 
 import { api, errorText } from "../../api";
 import { ARM_BENCH_OK } from "../../core/copterParams";
+import { gyroReport } from "../../core/gyros";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Horizon } from "../live/LiveWidgets";
 import { ArmWhyList } from "./ArmWhy";
 import { CompassCard } from "./CompassCard";
-import { NeedBoard, useCopterLink, useCopterLive } from "./common";
+import { NeedBoard, ParamRow, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 import { PreflightCard } from "./Preflight";
 import { GoTo } from "./Search";
 
@@ -109,8 +111,40 @@ function SetupBody({ onGo }: { onGo?: GoTo }) {
         )}
       </div>
 
+      <GyrosCard />
       <Calibrations />
       <CompassCard />
+    </div>
+  );
+}
+
+/** Два гироскопа на плате (SLIM V4): какой в деле, запасной, выбор gyro_to_use. Один — карточки нет. */
+function GyrosCard() {
+  const live = useCopterLive();
+  const board = useCopterBoard();
+  if (!live?.gyros) return null;
+  const r = gyroReport(live.gyros);
+  const p = board.params["gyro_to_use"];
+  const color = (tone: string) => (tone === "ok" ? "var(--ok)" : tone === "warn" ? "var(--warn)" : undefined);
+  return (
+    <div className="card" data-card="gyros">
+      <h3>{t("Гироскопы")}</h3>
+      <div className="kv">
+        {r.lines.map((l) => (
+          <Fragment key={l.name}>
+            <span>{t(l.name)}</span>
+            <span className="mono" style={{ color: color(l.tone) }}>
+              {t(l.state)}
+            </span>
+          </Fragment>
+        ))}
+      </div>
+      {r.hint && (
+        <p className="hint" style={{ color: color(r.hintTone) }}>
+          {t(r.hint)}
+        </p>
+      )}
+      {p && <ParamRow p={p} title={t("Какой гироскоп брать")} />}
     </div>
   );
 }

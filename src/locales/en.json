@@ -2462,5 +2462,15 @@
   "Не указана папка исходников прошивки (Настройки)": "Firmware source folder is not set (Settings)",
   "Свой скрипт OpenPlane: GPS Rescue, учебные ограничения, страницы OSD и экран телеметрии": "Our own OpenPlane script: GPS Rescue, training limits, OSD pages and a telemetry screen",
   "Скрипт OpenPlane на SD": "OpenPlane script to SD",
-  "Скрипт OpenPlane на карте {sd}: {n} файлов. На пульте: SYS → TOOLS → OpenPlane.": "OpenPlane script on card {sd}: {n} files. On the radio: SYS → TOOLS → OpenPlane."
+  "Скрипт OpenPlane на карте {sd}: {n} файлов. На пульте: SYS → TOOLS → OpenPlane.": "OpenPlane script on card {sd}: {n} files. On the radio: SYS → TOOLS → OpenPlane.",
+  "Второй": "Second",
+  "Второй пойдёт в дело, когда покажет то же, что первый: покрутите коптер в руках (или он проверится сам в первые секунды полёта).": "The second one joins once it reads the same as the first: rotate the copter in your hands (or it checks itself in the first seconds of flight).",
+  "Гироскопы": "Gyros",
+  "Какой гироскоп брать": "Which gyro to use",
+  "Оси второго гироскопа не совпали с первым — до перезагрузки он не используется. Сообщите нам модель платы.": "The second gyro's axes don't match the first — it stays unused until reboot. Please tell us your board model.",
+  "Оси совпадают: откажет выбранный — коптер сам перейдёт на другой.": "Axes match: if the selected gyro fails, the copter switches to the other one by itself.",
+  "Первый": "First",
+  "в деле": "in use",
+  "в запасе": "standby",
+  "не отвечает": "not responding"
 }
