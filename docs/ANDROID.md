@@ -21,35 +21,50 @@ OSD), работает так же, как на ПК. Чего нет и не б
 - P48 — экраны под телефон, выбор `.bin`, экспорт прошивки с ПК.
 - P49 — APK в GitHub-релизе.
 
-## Что поставить для сборки APK (один раз)
+## Что нужно для сборки APK (на этой машине уже стоит с 2026-11-20)
 
-1. **Android Studio** (developer.android.com/studio). В ней *SDK Manager*:
-   - *SDK Platforms*: Android 14 (API 34) или новее;
-   - *SDK Tools*: Android SDK Build-Tools, Android SDK Platform-Tools,
-     Android SDK Command-line Tools, **NDK (Side by side)**.
-2. **JDK 17** — годится тот, что внутри Android Studio (`jbr`).
-3. Переменные среды (Windows, «Изменение переменных среды для своей учётной записи»):
-   ```
-   JAVA_HOME    = C:\Program Files\Android\Android Studio\jbr
-   ANDROID_HOME = %LOCALAPPDATA%\Android\Sdk
-   NDK_HOME     = %LOCALAPPDATA%\Android\Sdk\ndk\<версия>
-   ```
-4. Цели Rust:
-   ```
-   rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-   ```
+Android Studio не обязателен — хватает командной строки:
+
+- JDK 17: `winget install Microsoft.OpenJDK.17 --scope user`;
+- Android command-line tools (`commandlinetools-win-*_latest.zip` с developer.android.com)
+  → `%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest`, затем
+  `sdkmanager --licenses` и
+  `sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" "ndk;28.2.13676358"`
+  (недостающий `compileSdk` из шаблона Gradle докачивает сам);
+- переменные среды пользователя:
+  ```
+  JAVA_HOME    = %LOCALAPPDATA%\Programs\Microsoft\jdk-17.0.10.7-hotspot
+  ANDROID_HOME = %LOCALAPPDATA%\Android\Sdk
+  NDK_HOME     = %LOCALAPPDATA%\Android\Sdk\ndk\28.2.13676358
+  ```
+- цели Rust: `rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android`;
+- **«Режим разработчика» Windows** (Параметры → Обновление и безопасность → Для разработчиков):
+  Tauri кладёт `.so` в `jniLibs` символической ссылкой, без режима сборка падает на
+  «Creation symbolic link is not allowed». Включается один раз, нужны права администратора.
 
 ## Сборка
 
 ```
-npx tauri android init          # один раз: создаст src-tauri/gen/android (хранится в git)
 npx tauri android build --apk --target aarch64 --debug
 ```
 
-APK: `src-tauri/gen/android/app/build/outputs/apk/universal/debug/`. Debug-подпись
-ставится на телефон сразу (разрешить «установку из неизвестных источников») —
+`src-tauri/gen/android` уже создан (`npx tauri android init`) и хранится в git.
+APK: `src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`.
+Debug-подпись ставится на телефон сразу (разрешить «установку из неизвестных источников») —
 так её и отдаём тестерам. Релизная (без `--debug`) без своего ключа подписи не ставится.
 Для отладки на телефоне по кабелю: `npx tauri android dev` (включить «Отладку по USB»).
+
+Без «Режима разработчика» — обходной путь (Rust собран предыдущей командой, она упала
+только на ссылке):
+
+```
+cp src-tauri/target/aarch64-linux-android/debug/libopenplane_studio_lib.so src-tauri/gen/android/app/src/main/jniLibs/arm64-v8a/
+cd src-tauri/gen/android
+./gradlew assembleUniversalDebug -x rustBuildUniversalDebug -x rustBuildArm64Debug -x rustBuildArmDebug -x rustBuildX86Debug -x rustBuildX86_64Debug
+```
+
+Debug-APK весит ~160 МБ: `.so` с отладочной информацией. Для тестеров позже — Rust
+в release-профиле (≈15–25 МБ), P49.
 
 Проверка, что Rust-часть не сломана, без SDK и NDK:
 
