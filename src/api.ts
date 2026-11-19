@@ -233,6 +233,8 @@ export interface CopterLive {
   /** GPS Rescue: этап (CLIMB, FLY_HOME, DESCEND, LAND, ABORT) и почему прервался */
   rescue?: string;
   rescueFail?: string;
+  /** домой вслепую (GPS подменён или заглушён, P43 в): этап (CLIMB, FLY_HOME, LAND), место по своим датчикам от дома, м, и его неуверенность, м */
+  blind?: { phase: string; n: number; e: number; err: number };
   /** учебные ограничения держат: ALT LIMIT, FENCE, FENCE RETURN, SPEED LIMIT */
   train?: string;
   /** спектр гироскопа (060–063): ширина полосы, Гц; полосы 0, bw, 2bw… в дБ над 0.01 °/с (сумма осей);

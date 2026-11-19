@@ -2499,5 +2499,14 @@
   "ветер «сменился» на 5 м/с — скорость GPS подменена": "the wind \"changed\" by 5 m/s — GPS speed is spoofed",
   "высота GPS разошлась с барометром": "GPS altitude disagrees with the barometer",
   "приёмник сам сообщил о подмене": "the receiver itself reported spoofing",
-  "точка прыгнула дальше, чем коптер мог долететь": "the position jumped farther than the quad could fly"
+  "точка прыгнула дальше, чем коптер мог долететь": "the position jumped farther than the quad could fly",
+  "GPS подменяют": "GPS is being spoofed",
+  "GPS подменяют: {why}. Он выключен из навигации до посадки — ведите коптер сами (ANGLE/ALT HOLD); возврат домой (тумблер или потеря связи) пойдёт вслепую.": "GPS is being spoofed: {why}. It is excluded from navigation until landing — fly the copter yourself (ANGLE/ALT HOLD); return home (switch or link loss) will fly blind.",
+  "{phase}, до дома ≈ {d} м ± {err} м": "{phase}, home ≈ {d} m ± {err} m",
+  "Вслепую": "Blind",
+  "Вслепую: {phase}, до дома ≈ {d} м ± {err} м": "Blind: {phase}, home ≈ {d} m ± {err} m",
+  "Домой вслепую выключено (deadreck_max_s = 0)": "Blind return home is off (deadreck_max_s = 0)",
+  "Домой вслепую до {s} с (deadreck_max_s)": "Blind return home for up to {s} s (deadreck_max_s)",
+  "Если GPS подменят или заглушат на пути домой (GPS Rescue), коптер вернётся вслепую: место — от последней честной точки по наклону, ветру и компасу, высота — по барометру. Ошибка — 5–20 % пути, у дома он садится. Вернулся честный GPS — снова по нему.": "If GPS is spoofed or jammed on the way home (GPS Rescue), the copter returns blind: position from the last honest fix using tilt, wind and compass, altitude from the barometer. Error is 5–20 % of the distance; it lands near home. Honest GPS back — it switches back to it.",
+  "летит домой вслепую": "flying home blind"
 }

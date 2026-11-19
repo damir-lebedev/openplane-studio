@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { CopterLive } from "../../api";
 import { CopterBoard, num, rescuePath, tabParams } from "../../core/copterParams";
+import { BLIND_PHASE_TEXT } from "../../core/gpsSpoof";
 import { N_, t } from "../../i18n";
 import { NeedBoard, ParamList, useCopterBoard, useCopterLive } from "./common";
 
@@ -32,6 +33,7 @@ const FAILS: Record<string, string> = {
   GPS_LOST: N_("GPS пропал"),
   NO_PROGRESS: N_("не приближается к дому"),
   FLYAWAY: N_("улетает от дома"),
+  GPS_SPOOF: N_("GPS подменяют"),
 };
 
 function GpsBody() {
@@ -77,6 +79,18 @@ function NowCard({ live }: { live: CopterLive | null }) {
           {live?.rescue ? t(PHASES[live.rescue] ?? live.rescue) : t("не идёт")}
           {live?.rescueFail ? ` — ${t(FAILS[live.rescueFail] ?? live.rescueFail)}` : ""}
         </span>
+        {live?.blind && (
+          <>
+            <span>{t("Вслепую")}</span>
+            <span className="mono warn-text">
+              {t("{phase}, до дома ≈ {d} м ± {err} м", {
+                phase: t(BLIND_PHASE_TEXT[live.blind.phase] ?? live.blind.phase),
+                d: Math.round(Math.hypot(live.blind.n, live.blind.e)),
+                err: Math.round(live.blind.err),
+              })}
+            </span>
+          </>
+        )}
       </div>
     </div>
   );

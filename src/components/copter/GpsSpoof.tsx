@@ -4,7 +4,7 @@
 
 import { CircleCheck, CircleX, ShieldAlert } from "lucide-react";
 
-import { SPOOF_REASON_TEXT, spoofSettings, spoofView } from "../../core/gpsSpoof";
+import { BLIND_PHASE_TEXT, blindView, SPOOF_REASON_TEXT, spoofSettings, spoofView } from "../../core/gpsSpoof";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { useCopterBoard, useCopterLink, useCopterLive } from "./common";
@@ -17,10 +17,17 @@ export function GpsSpoofCard() {
   const cfg = spoofSettings(board.params, board.pending);
   if (!cfg.supported) return null;   // прошивка старше P43
   const view = spoofView(live);
+  const blind = blindView(live);
   const checks = [
     { ok: cfg.detect, title: t("Проверка подмены включена (gps_spoof_detect)"), fix: () => set("gps_spoof_detect", "ON") },
     { ok: cfg.osdWarn, title: t("GPS SPOOF в очках (osd_warn_gps_spoof)"), fix: () => set("osd_warn_gps_spoof", "ON") },
   ];
+  if (cfg.blindSupported)
+    checks.push({
+      ok: cfg.blindS > 0,
+      title: cfg.blindS > 0 ? t("Домой вслепую до {s} с (deadreck_max_s)", { s: cfg.blindS }) : t("Домой вслепую выключено (deadreck_max_s = 0)"),
+      fix: () => set("deadreck_max_s", 120),
+    });
   const color = view.level === "bad" ? "var(--err)" : view.level === "warn" ? "var(--warn)" : "var(--ok)";
   return (
     <div className="card wide gps-spoof">
@@ -54,11 +61,25 @@ export function GpsSpoofCard() {
       ) : (
         <p className="hint">{t("Доверие GPS появится, когда GPS подключён и коптер на связи.")}</p>
       )}
+      {cfg.blindSupported && (
+        <p className="hint">
+          {t("Если GPS подменят или заглушат на пути домой (GPS Rescue), коптер вернётся вслепую: место — от последней честной точки по наклону, ветру и компасу, высота — по барометру. Ошибка — 5–20 % пути, у дома он садится. Вернулся честный GPS — снова по нему.")}
+        </p>
+      )}
       {view.reason && (
         <p className="hint warn-text">
-          {t("GPS подменяют: {why}. Он выключен из навигации до посадки — ведите коптер сами (ANGLE/ALT HOLD), возврата домой по GPS не будет.", {
-            why: t(SPOOF_REASON_TEXT[view.reason]),
-          })}
+          {cfg.blindSupported && cfg.blindS > 0
+            ? t("GPS подменяют: {why}. Он выключен из навигации до посадки — ведите коптер сами (ANGLE/ALT HOLD); возврат домой (тумблер или потеря связи) пойдёт вслепую.", {
+                why: t(SPOOF_REASON_TEXT[view.reason]),
+              })
+            : t("GPS подменяют: {why}. Он выключен из навигации до посадки — ведите коптер сами (ANGLE/ALT HOLD), возврата домой по GPS не будет.", {
+                why: t(SPOOF_REASON_TEXT[view.reason]),
+              })}
+        </p>
+      )}
+      {blind && (
+        <p className="hint warn-text">
+          {t("Вслепую: {phase}, до дома ≈ {d} м ± {err} м", { phase: t(BLIND_PHASE_TEXT[blind.phase] ?? blind.phase), d: blind.dist, err: blind.err })}
         </p>
       )}
     </div>
