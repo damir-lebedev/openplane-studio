@@ -934,7 +934,7 @@ describe("автопилот: POS HOLD, ALT HOLD и компас (128, 130–132
     await act(async () => fireEvent.click(screen.getByText("Записать на плату")));
     expect(sent).toEqual(expect.arrayContaining(["set mag_zero_x 120", "set mag_zero_y -70", "set mag_zero_z 40", "set mag_scale_x 1000", "set align_mag CW90"]));
     expect(screen.getByText("Записано")).toBeTruthy();
-  });
+  }, 30000);   // 432 кадра с отрисовкой: на macOS Intel в CI — 8–9 с
 
   it("компаса нет — карточка говорит, что делать", () => {
     withAutopilot();
