@@ -2568,5 +2568,7 @@
   "Читаю файл…": "Reading the file…",
   "Экспорт для телефона": "Export for phone",
   "Это прошивка ESP32 — она ставится по WiFi, не по кабелю.": "This is ESP32 firmware — it is installed over WiFi, not by cable.",
-  "Этот файл не подойдёт": "This file won't do"
+  "Этот файл не подойдёт": "This file won't do",
+  "Первую прошивку делайте с компьютера": "Do the first flash from a computer",
+  "Переход с Betaflight (снять распиновку платы и собрать прошивку) — в Studio на компьютере. Дальше обновлять можно с телефона: «Экспорт для телефона» на ПК, затем «Прошить файлом» здесь.": "Moving from Betaflight (reading the board pinout and building the firmware) happens in Studio on a computer. After that you can update from the phone: \"Export for phone\" on the PC, then \"Flash a file\" here."
 }

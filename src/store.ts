@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 
-import { api, AppInfo, CalibFlags, CopterLive, Device, errorText, FcInfo, Identity, inTauri, isSimPort, LiveFrame, onBoardEvents, onUpdateProgress, ScanResult, Settings } from "./api";
+import { api, AppInfo, CalibFlags, CopterLive, Device, errorText, FcInfo, Identity, inTauri, isMobile, isSimPort, LiveFrame, onBoardEvents, onUpdateProgress, ScanResult, Settings } from "./api";
 import { applyMessage, CopterBoard, emptyBoard, ParamValue, setCommand } from "./core/copterParams";
 import { blankCopter, copterFromKit, CopterProject, isCopter, newCopterId } from "./core/copter";
 import { Proc, ProcKind, PROC_KEY, procLine, procStart } from "./core/live";
@@ -413,6 +413,13 @@ export const useApp = create<AppState>((set, get) => ({
   async reloadManifest() {
     const source = get().settings.firmwareSource;
     if (!source) {
+      // телефон не читает исходники (нужен Python) — снимок описания, вшитый в приложение
+      // при сборке (`npm run manifest:phone`); отдельный кусок, ПК его не грузит
+      if (isMobile()) {
+        const { default: bundled } = await import("./assets/firmware-manifest.json");
+        set({ manifest: bundled as unknown as Manifest, manifestError: null });
+        return;
+      }
       set({ manifest: null, manifestError: t("Не указана папка с исходниками прошивки — откройте «Настройки»") });
       return;
     }

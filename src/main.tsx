@@ -6,6 +6,7 @@ import { setLanguage, startLanguage } from "./i18n";
 import { useApp } from "./store";
 import "./styles.css";
 import "./live.css";
+import "./phone.css";
 
 // В режиме разработки — состояние приложения из DevTools (проверки через CDP).
 if (import.meta.env.DEV) (window as unknown as { __app: typeof useApp }).__app = useApp;

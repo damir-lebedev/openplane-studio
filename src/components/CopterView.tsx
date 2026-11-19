@@ -59,6 +59,11 @@ export function CopterView() {
   const live = useCopterLive();
   const fc = useApp((s) => s.fc);
 
+  // на телефоне вкладки — горизонтальная лента: выбранную держать в кадре
+  useEffect(() => {
+    document.querySelector<HTMLElement>(".copter-tab.on")?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  }, [tab]);
+
   // найденная настройка: прокрутить к ней и подсветить, когда вкладка нарисована
   useEffect(() => {
     if (!focus) return;

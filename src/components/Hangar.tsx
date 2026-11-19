@@ -1,6 +1,7 @@
 import { Copy, FileCode, GraduationCap, Package, Plane, Plus, Trash, Triangle, Wind, Zap } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 
+import { isMobile } from "../api";
 import { COPTER_KITS, CopterProject, findCopterBuild, findCopterEnv } from "../core/copter";
 import { findBoard, isNone, SENSOR_CATEGORIES } from "../core/manifest";
 import { configHash, PlaneProject, sensorsLabel, toFirmwareConfig } from "../core/project";
@@ -365,7 +366,7 @@ export function Hangar() {
           </button>
         </div>
       </div>
-      {info && (
+      {info && !isMobile() && (
         <p className="hint" style={{ marginTop: 24 }}>
           {t("Папка ангара: {dir}", { dir: info.hangar_dir })}
         </p>

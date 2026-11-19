@@ -232,7 +232,9 @@ export function TxCheck({ onState }: { onState?: (s: CheckState) => void }) {
     phase === "switches" && control && live && Date.now() - silentFor > 8000 && Math.abs(live.ch[expected] - 1500) < 4 && watch.current.range(expected) < 4;
 
   const state: CheckState = record ? "ok" : phase !== "idle" ? "run" : "todo";
-  useEffect(() => onState?.(state), [state, onState]);
+  useEffect(() => {
+    onState?.(state);
+  }, [state, onState]);
 
   return (
     <>

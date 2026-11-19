@@ -1,0 +1,225 @@
+/* Телефон (Studio для Android, 360–420 px). Подключается последним — перекрывает
+   десктопные правила. Системные полосы (строка состояния, навигация, клавиатура)
+   Android отступает сам: MainActivity кладёт их отступами вокруг WebView. */
+@media (max-width: 640px) {
+  :root {
+    --tabbar: 58px;
+    --head: 52px;
+  }
+
+  /* полосы прокрутки съедали 10 px ширины; на телефоне листают пальцем */
+  ::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+
+  /* каркас: шапка сверху, разделы — панелью вкладок снизу (под большой палец) */
+  .app {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: var(--head) minmax(0, 1fr) var(--tabbar);
+  }
+  .header {
+    grid-row: 1;
+    grid-column: 1;
+    gap: 8px;
+    padding: 0 10px;
+    backdrop-filter: none;
+    background: rgba(10, 16, 23, 0.96);
+  }
+  .main {
+    grid-row: 2;
+    grid-column: 1;
+  }
+  .rail {
+    grid-row: 3;
+    grid-column: 1;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 2px;
+    padding: 4px 4px;
+    border-right: 0;
+    border-top: 1px solid var(--line);
+    background: rgba(8, 13, 19, 0.98);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar {
+    display: none;
+  }
+  .rail-logo,
+  .rail-spacer {
+    display: none;
+  }
+  .rail-item {
+    flex: 1 1 0;
+    width: auto;
+    min-width: 58px;
+    padding: 6px 2px 4px;
+    font-size: 10.5px;
+    transition: none;
+  }
+  .rail-item.active::before {
+    left: 14px;
+    right: 14px;
+    top: -4px;
+    bottom: auto;
+    width: auto;
+    height: 3px;
+  }
+  .rail-item .soon {
+    right: calc(50% - 18px);
+  }
+
+  /* шапка: без «OpenPlane Studio» — выбор аппарата и плата */
+  .header-title,
+  .header > svg {
+    display: none;
+  }
+  .header .select {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: none;
+  }
+  .header-spacer {
+    display: none;
+  }
+  .header .pill {
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 48%;
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  /* страницы */
+  .page {
+    padding: 14px 12px 28px;
+  }
+  .page-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .page-head h1 {
+    font-size: 21px;
+  }
+  .page-head .row {
+    flex-wrap: wrap;
+  }
+  .page-head .link-chip {
+    margin: 6px 0 0;
+  }
+  .card {
+    padding: 14px;
+  }
+  /* ряды кнопок и подписей в карточках — переносом, а не вбок за экран */
+  .card .row,
+  .drawer .row,
+  .modal .row {
+    flex-wrap: wrap;
+  }
+
+  /* касания: кнопки и поля не меньше 40 px */
+  .btn {
+    min-height: 40px;
+  }
+  .input,
+  .select {
+    min-height: 40px;
+  }
+
+  /* коптер: вкладки — горизонтальной лентой над содержимым */
+  .copter-page .page-head .row > .csearch {
+    flex: 1 1 100%;
+  }
+  .csearch .input {
+    width: 100%;
+  }
+  .csearch-list {
+    left: 0;
+    width: auto;
+  }
+  .copter-page .page-head .row > .btn {
+    flex: 1 1 0;
+  }
+  .copter-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .copter-tabs {
+    position: sticky;
+    top: -14px;
+    z-index: 5;
+    flex-direction: row;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: 0 -12px;
+    padding: 6px 12px;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    background: rgba(18, 28, 39, 0.98);
+  }
+  .copter-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .copter-tab {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    min-height: 38px;
+  }
+
+  /* окна, тосты, шторка платы */
+  .overlay {
+    backdrop-filter: none;
+    place-items: end center;
+  }
+  .modal {
+    width: 100%;
+    max-height: calc(100% - 24px);
+    padding: 16px;
+    border-radius: 18px 18px 0 0;
+  }
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+  .modal-actions .btn {
+    flex: 1 1 auto;
+  }
+  .toasts {
+    left: 10px;
+    right: 10px;
+    bottom: calc(var(--tabbar) + 10px);
+  }
+  .toast {
+    min-width: 0;
+    max-width: none;
+  }
+  .drawer-back {
+    inset: var(--head) 0 var(--tabbar) 0;
+  }
+  .drawer {
+    width: 100%;
+    border-left: 0;
+  }
+
+  /* анкета */
+  .onb-left {
+    padding: 22px 16px 16px;
+  }
+  .onb h1 {
+    font-size: 24px;
+  }
+  .onb-glow {
+    display: none;
+  }
+  /* «Дальше» всегда под пальцем, даже когда карточки длиннее экрана */
+  .onb-actions {
+    position: sticky;
+    bottom: -16px;
+    margin: 0 -16px -16px;
+    padding: 12px 16px 16px;
+    background: linear-gradient(180deg, rgba(8, 14, 21, 0), rgba(8, 14, 21, 0.96) 30%);
+  }
+}

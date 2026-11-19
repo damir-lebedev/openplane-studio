@@ -2,10 +2,10 @@
 // прошивка — в проект, одной кнопкой «Прошить»), перенос настроек из BF,
 // видеопередатчик, тумблеры, первая настройка, комплектующие, прошивки.
 
-import { ArrowRightLeft, CircleAlert, CircleCheck, Copy, Cpu, History, ScanSearch, TriangleAlert, Upload, Usb, Zap } from "lucide-react";
+import { ArrowRightLeft, CircleAlert, CircleCheck, Copy, Cpu, History, Monitor, ScanSearch, TriangleAlert, Upload, Usb, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { api, errorText } from "../../api";
+import { api, errorText, isMobile } from "../../api";
 import {
   auxName,
   boardDumpCommands,
@@ -189,6 +189,19 @@ function BetaflightCard({ copter }: { copter: CopterProject }) {
   };
 
   if (!env?.needsBoardDump && !dump && !bf) return null;
+  // снять распиновку Betaflight и собрать первую прошивку может только ПК (bf_board.py, pio)
+  if (isMobile())
+    return dump ? null : (
+      <div className="card wide">
+        <div className="row" style={{ gap: 8 }}>
+          <Monitor size={18} color="var(--text-2)" />
+          <h3 style={{ margin: 0 }}>{t("Первую прошивку делайте с компьютера")}</h3>
+        </div>
+        <p className="muted" style={{ marginBottom: 0 }}>
+          {t("Переход с Betaflight (снять распиновку платы и собрать прошивку) — в Studio на компьютере. Дальше обновлять можно с телефона: «Экспорт для телефона» на ПК, затем «Прошить файлом» здесь.")}
+        </p>
+      </div>
+    );
   return (
     <div className="card wide">
       <div className="row" style={{ gap: 8 }}>

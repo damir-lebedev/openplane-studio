@@ -46,7 +46,8 @@ export function Rail() {
   const profile = profileOf(settings);
   // симулятор — прошивка, собранная на ПК; на телефоне его нет
   const items = ITEMS.filter(
-    (item) => (sectionVisible(profile, item.id) || section === item.id) && !(item.id === "sim" && isMobile()),
+    (item) =>
+      (sectionVisible(profile, item.id) || section === item.id) && !(isMobile() && (item.id === "sim" || (item.soon && section !== item.id))),
   );
   return (
     <nav className="rail">

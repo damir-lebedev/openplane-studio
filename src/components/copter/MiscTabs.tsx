@@ -305,7 +305,11 @@ export function CliTab() {
   const [text, setText] = useState("");
   const [paste, setPaste] = useState("");
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => end.current?.scrollIntoView({ block: "end" }), [lines.length]);
+  // фигурные скобки обязательны: в новом WebView scrollIntoView() возвращает Promise,
+  // React принимает его за функцию очистки и роняет всё приложение при уходе с вкладки
+  useEffect(() => {
+    end.current?.scrollIntoView({ block: "end" });
+  }, [lines.length]);
 
   const send = async (line: string) => {
     try {
