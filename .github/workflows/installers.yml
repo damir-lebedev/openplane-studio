@@ -49,6 +49,9 @@ jobs:
             src
             lib
             tools
+            test/native/support
+            test/native/support_stm32
+            test/native/helpers
       - uses: actions/setup-node@v4
         with:
           node-version: 24
