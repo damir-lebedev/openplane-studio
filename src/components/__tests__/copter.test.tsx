@@ -279,6 +279,66 @@ describe("учебные ограничения (P09)", () => {
   });
 });
 
+/** Геозабор (geofence_*), как на плате из коробки. */
+function withGeofence(on = "OFF", mapPos = 2164) {
+  const safety = (name: string, v: number) => param(name, { group: "safety", scope: "master", default: v, value: v, min: 0, max: 10000, from: "table" });
+  act(() =>
+    useApp.setState((st) => ({
+      copterBoard: dumpedBoard([
+        ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+        param("geofence", { type: "enum", group: "safety", scope: "master", options: ["OFF", "ON"], default: "OFF", value: on, from: "table" }),
+        safety("geofence_radius", 200),
+        safety("geofence_alt", 120),
+        param("geofence_no_gps", { type: "enum", group: "safety", scope: "master", options: ["WARN", "RETURN", "LAND"], default: "RETURN", value: "RETURN", from: "table" }),
+        param("osd_fence_map_pos", { group: "osd", scope: "master", default: 2164, value: mapPos, min: 0, max: 16383, from: "table" }),
+        param("osd_fence_pos", { group: "osd", scope: "master", default: 2326, value: 2326, min: 0, max: 16383, from: "table" }),
+      ]),
+    })),
+  );
+}
+
+describe("геозабор (P44)", () => {
+  beforeEach(() => {
+    sent.length = 0;
+    connect();
+  });
+  afterEach(cleanup);
+
+  it("в «Безопасности»: галочка включает, набор «Площадка» — радиус и потолок", () => {
+    withGeofence();
+    render(<CopterView />);
+    tab("Безопасность");
+    expect(screen.getByTestId("geofence-card")).toBeTruthy();
+    fireEvent.click(screen.getByRole("checkbox", { name: /выключен/ }));
+    expect(sent).toEqual(["set geofence ON"]);
+    cleanup();
+    sent.length = 0;
+    withGeofence("ON");
+    render(<CopterView />);
+    tab("Безопасность");
+    fireEvent.click(within(screen.getByTestId("geofence-card")).getByRole("button", { name: "Площадка" }));
+    expect(sent).toEqual(["set geofence_radius 150", "set geofence_alt 60"]);
+  });
+
+  it("радар как в очках; выключен в очках — кнопка включает", () => {
+    withGeofence("ON", 116);
+    render(<CopterView />);
+    tab("Безопасность");
+    expect(screen.getByTestId("geofence-osd").textContent).toContain("^");
+    fireEvent.click(screen.getByRole("button", { name: "Показать радар в очках" }));
+    expect(sent).toEqual(["set osd_fence_map_pos 2164"]);
+  });
+
+  it("в полёте у края — надпись прошивки и до края", () => {
+    withGeofence("ON");
+    act(() => useApp.setState({ clive: live({ arm: true, alt: 12, fence: { f: 3, m: 4 }, gps: { fix: true, sats: 12, lat: 0, lon: 0, spd: 6, home: 196, dir: 90 } }) }));
+    render(<CopterView />);
+    tab("Безопасность");
+    expect(screen.getByText("FENCE RETURN")).toBeTruthy();
+    expect(screen.getByText(/до края 4 м/)).toBeTruthy();
+  });
+});
+
 describe("вкладки коптера", () => {
   beforeEach(() => {
     sent.length = 0;

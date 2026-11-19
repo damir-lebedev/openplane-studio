@@ -237,6 +237,8 @@ export interface CopterLive {
   blind?: { phase: string; n: number; e: number; err: number };
   /** учебные ограничения держат: ALT LIMIT, FENCE, FENCE RETURN, SPEED LIMIT */
   train?: string;
+  /** геозабор (P44, только когда включён): f — биты (1 у края, 2 ведёт назад, 4 у потолка, 8 нет GPS, 16 садится, 32 за краем), m — до края, м */
+  fence?: { f: number; m: number };
   /** спектр гироскопа (060–063): ширина полосы, Гц; полосы 0, bw, 2bw… в дБ над 0.01 °/с (сумма осей);
    *  центры динамических режекторов по осям; обороты моторов, Гц (DShot — каждый, модель — один) */
   spec?: CopterSpectrum;

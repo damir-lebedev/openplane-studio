@@ -9,12 +9,14 @@ import { api, errorText } from "../../api";
 import { VTX_BANDS, vtxFrequency } from "../../core/copter";
 import { CopterParam, CopterTab, num, tabParams } from "../../core/copterParams";
 import { OVERLOAD_TEXT } from "../../core/parts";
+import { isGeofenceParam } from "../../core/geofence";
 import { isTrainingParam } from "../../core/training";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamList, shown, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 import { FailsafeDrillCard } from "./FailsafeDrill";
 import { FindLostCard } from "./FindLost";
+import { GeofenceCard } from "./GeofenceCard";
 import { GpsSpoofCard } from "./GpsSpoof";
 import { TrainingCard } from "./TrainingCard";
 
@@ -61,7 +63,7 @@ function FailsafeBody() {
   const all = tabParams(board, "failsafe");
   const fs = all.filter((p) => p.name.startsWith("failsafe"));
   const crash = all.filter((p) => p.name.startsWith("crash_"));
-  const arm = all.filter((p) => !p.name.startsWith("failsafe") && !p.name.startsWith("crash_") && !isTrainingParam(p.name));
+  const arm = all.filter((p) => !p.name.startsWith("failsafe") && !p.name.startsWith("crash_") && !isTrainingParam(p.name) && !isGeofenceParam(p.name));
   const crashMode = String(board.params.crash_recovery?.value ?? "OFF");
   const delay = num(board, "failsafe_delay", 15) / 10;
   const landing = num(board, "failsafe_landing_time", 60);
@@ -94,6 +96,7 @@ function FailsafeBody() {
         </div>
         {procedure !== "GPS-RESCUE" && <p className="hint">{t("Летаете далеко (7\")? Выберите failsafe_procedure = GPS-RESCUE — по потере связи коптер вернётся домой сам.")}</p>}
       </div>
+      <GeofenceCard />
       <FailsafeDrillCard />
       <FindLostCard />
       <GpsSpoofCard />

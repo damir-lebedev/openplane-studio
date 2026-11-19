@@ -1919,6 +1919,35 @@ textarea {
   fill: var(--warn);
 }
 
+/* Геозабор (GeofenceCard): круг сверху и радар, как в очках */
+.geofence-pictures {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.geofence-svg {
+  width: 150px;
+  height: auto;
+}
+.geofence-svg .rescue-label {
+  font-size: 9px;
+}
+.geofence-osd {
+  margin: 0;
+}
+/* как знаки аналогового OSD: 12 × 18 точек, белые с чёрной обводкой поверх картинки */
+.geofence-osd pre {
+  margin: 0 0 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #2b3a2f;
+  color: #fff;
+  font: 700 16px/18px ui-monospace, Consolas, monospace;
+  letter-spacing: 2.4px;
+  text-shadow: 0 0 2px #000, 0 0 1px #000;
+}
+
 /* Автопилот: картинка дрейфа вокруг точки удержания, стик газа */
 .drift-body {
   display: grid;
