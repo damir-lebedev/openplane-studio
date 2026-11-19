@@ -2570,5 +2570,16 @@
   "Это прошивка ESP32 — она ставится по WiFi, не по кабелю.": "This is ESP32 firmware — it is installed over WiFi, not by cable.",
   "Этот файл не подойдёт": "This file won't do",
   "Первую прошивку делайте с компьютера": "Do the first flash from a computer",
-  "Переход с Betaflight (снять распиновку платы и собрать прошивку) — в Studio на компьютере. Дальше обновлять можно с телефона: «Экспорт для телефона» на ПК, затем «Прошить файлом» здесь.": "Moving from Betaflight (reading the board pinout and building the firmware) happens in Studio on a computer. After that you can update from the phone: \"Export for phone\" on the PC, then \"Flash a file\" here."
+  "Переход с Betaflight (снять распиновку платы и собрать прошивку) — в Studio на компьютере. Дальше обновлять можно с телефона: «Экспорт для телефона» на ПК, затем «Прошить файлом» здесь.": "Moving from Betaflight (reading the board pinout and building the firmware) happens in Studio on a computer. After that you can update from the phone: \"Export for phone\" on the PC, then \"Flash a file\" here.",
+  "firmware-{env}.bin из последнего релиза OpenPlane Studio на GitHub": "firmware-{env}.bin from the latest OpenPlane Studio release on GitHub",
+  "В последнем релизе нет {name}. Сделайте «Экспорт для телефона» на компьютере и прошейте файлом.": "The latest release has no {name}. Use “Export for phone” on a computer and flash that file.",
+  "В релизе нет файла": "Not in the release",
+  "Готовой прошивки нет": "No ready-made firmware",
+  "Для {board} в релизе нет готового файла. Сделайте «Экспорт для телефона» в Studio на компьютере и прошейте файлом.": "The release has no ready-made file for {board}. Use “Export for phone” in Studio on a computer and flash that file.",
+  "Не скачалось": "Download failed",
+  "Подключите плату или выберите сборку у коптера — без неё непонятно, какой файл скачать.": "Connect the board or pick the copter's build — otherwise it's unclear which file to download.",
+  "Проверьте интернет и повторите. ({text})": "Check your internet connection and try again. ({text})",
+  "Скачать и прошить": "Download and flash",
+  "Скачиваю {name} из последнего релиза на GitHub": "Downloading {name} from the latest GitHub release",
+  "Скачиваю {name} из релиза…": "Downloading {name} from the release…"
 }

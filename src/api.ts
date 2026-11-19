@@ -394,6 +394,9 @@ export const api = {
    *  Байты идут телом запроса, без JSON. Прогресс — onFlashProgress. */
   flashBin: (image: Uint8Array, port: string | null, chip?: string | null) =>
     invoke<FlashedBin>("firmware_flash_bin", image, { headers: { port: port ?? "", chip: chip ?? "" } }),
+  /** Готовый `firmware-<env>.bin` последнего релиза Studio (P49), байтами.
+   *  Телефон качает Kotlin-плагином: у github.com нет CORS для fetch из окна. */
+  releaseBin: (env: string) => invoke<ArrayBuffer>("firmware_release_bin", { env }),
   portHolders: () => invoke<PortHolder[]>("port_holders"),
   portHoldersKill: (pids: number[]) => invoke<number>("port_holders_kill", { pids }),
   dfuDriverStatus: () => invoke<DriverStatus>("dfu_driver_status"),

@@ -94,10 +94,52 @@ OSD), работает так же, как на ПК. Чего нет и не б
 `backdrop-filter` на телефоне выключен ещё в P48 b. Мерить: `dumpsys gfxinfo <pkg> reset`,
 свайпы `input swipe`, `dumpsys gfxinfo` / `dumpsys meminfo`.
 
+## Выпуск: APK и готовые прошивки (P49)
+
+Тег `vX.Y.Z` → `.github/workflows/installers.yml` кладёт в выпуск рядом с установщиками ПК:
+
+- `OpenPlane-Studio-Android.apk` — job `android` (ubuntu): JDK 17, SDK + NDK 28.2, Rust
+  `aarch64-linux-android`, свежее описание плат (`opconfig.py describe` из исходников прошивки),
+  `tauri android build --apk --target aarch64`, `zipalign` + `apksigner` **своим ключом** из секретов.
+  Нет секретов — APK собирается, но в выпуск не идёт (предупреждение в журнале Actions);
+  упал — выпуск для ПК всё равно выходит (`continue-on-error`).
+- `firmware-<сборка>.bin` — job `firmware`: `pio run` для `stm32h743-devebox`, `stm32h743-devebox-quad`,
+  `matek-h743`, `matek-h743-quad`, `aocodarc-f405v3-quad` (тот же список — `RELEASE_ENVS` в
+  `src-tauri/src/update.rs` и `src/core/binFile.ts`; `getfun-f405v3-quad` — нет, `#error` до дампа платы).
+
+**«Скачать и прошить»** (телефон, рядом с «Прошить файлом»): сборка — по `@id` платы на связи,
+иначе выбранная у коптера; кнопка видна только для сборок из релиза. Файл
+`releases/latest/download/firmware-<сборка>.bin` качает **Kotlin** (`UsbPlugin.download`: только
+`https://github.com/…`, в кэш приложения, не больше 2 МБ) — у github.com нет CORS, `fetch` из окна
+не пройдёт; Rust (`firmware_release_bin`) читает файл и отдаёт байты окну, дальше — как с файлом
+(`runBinFlash`: проверка имени и размера → DfuSe). Нет файла в релизе — совет «Экспорт для телефона».
+
+### Ключ подписи (один раз, делает владелец)
+
+Ключ — навсегда: обновление APK ставится поверх только с той же подписью. Потеряли ключ — все
+переустанавливают приложение с потерей данных. Хранить `.jks` и пароль вне репозитория, в двух местах.
+
+```powershell
+$jdk = "$env:LOCALAPPDATA\Programs\Microsoft\jdk-17.0.10.7-hotspot\bin"
+& "$jdk\keytool.exe" -genkeypair -v -keystore openplane-release.jks -alias openplane `
+  -keyalg RSA -keysize 4096 -validity 10000 -storetype PKCS12
+# пароль спросит; «Имя и фамилия» — OpenPlane, остальное можно пропустить
+
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("openplane-release.jks")) | Out-File -Encoding ascii ks.b64
+Get-Content ks.b64 -Raw | gh secret set ANDROID_KEYSTORE -R damir-lebedev/openplane-studio
+gh secret set ANDROID_KEY_PASSWORD -R damir-lebedev/openplane-studio   # спросит — тот же пароль
+gh secret set ANDROID_KEY_ALIAS    -R damir-lebedev/openplane-studio -b openplane
+Remove-Item ks.b64
+```
+
+(Или GitHub → Settings → Secrets and variables → Actions → New repository secret, те же три имени.)
+**Тестерам, у которых стоит сборка с debug-ключом** (P51), первый APK из релиза поверх не встанет
+(«Приложение не установлено» — другая подпись): удалить старое приложение и поставить новое; ангар
+телефона при этом стирается.
+
 ## Дальше
 
-- Скачивание `.bin` из релиза кнопкой рядом с «Прошить файлом» — после P49.
-- P49 — APK в GitHub-релизе.
+- P50 — ESP32 по WiFi.
 
 ## Что нужно для сборки APK (на этой машине уже стоит с 2026-11-20)
 

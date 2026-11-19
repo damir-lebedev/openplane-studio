@@ -16,6 +16,22 @@ export const PHONE_ENVS = [
   "stm32h743",
 ] as const;
 
+/** Сборки, чьи `firmware-<env>.bin` лежат в релизе Studio (job firmware в installers.yml,
+ *  как RELEASE_ENVS в update.rs). getfun-f405v3-quad нет — `#error` до дампа платы. */
+export const RELEASE_ENVS = [
+  "stm32h743-devebox",
+  "stm32h743-devebox-quad",
+  "matek-h743",
+  "matek-h743-quad",
+  "aocodarc-f405v3-quad",
+] as const;
+
+/** Сборка для «Скачать прошивку»: плата на связи, иначе выбранная у коптера; null — в релизе нет. */
+export function releaseEnv(boardEnv: string | null | undefined, copterEnv: string | null | undefined): string | null {
+  const env = boardEnv || copterEnv || null;
+  return env && (RELEASE_ENVS as readonly string[]).includes(env) ? env : null;
+}
+
 /** ESP32 — по WiFi (P50), не по USB-OTG. */
 const ESP_ENV = /^esp32/;
 

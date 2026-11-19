@@ -2,7 +2,7 @@
 // Каждая ошибка — одна фраза «что случилось» и действие «что сделать».
 
 import { api, CalibFlags, Device, errorText, Identity, isMobile, onFlashProgress, onTaskLog } from "./api";
-import { checkBin, exportBinName } from "./core/binFile";
+import { checkBin, exportBinName, releaseEnv } from "./core/binFile";
 import { BoardDump, copterConfig, copterHash, findCopterEnv } from "./core/copter";
 import { CLI_FIRMWARES, FIRMWARE_NAMES, firmwareOf } from "./core/detect";
 import { isFresh } from "./core/live";
@@ -655,7 +655,9 @@ async function verifyCopter(name: string, hash: string, dfu: boolean): Promise<{
 // ---------------- телефон: готовый .bin (P48) ----------------
 
 /** Последний файл — для кнопки «Повторить» в окне прошивки. */
-let lastBin: { copterId: string; file: File } | null = null;
+/** Файл с телефона или «из релиза» (скачается на шаге «Файл прошивки»). */
+export type BinSource = File | { release: true };
+let lastBin: { copterId: string; file: BinSource } | null = null;
 
 /** Ответы Rust (usb_android/dfuse) кодом в начале — фраза и действие. */
 export function explainBinError(text: string): { title: string; text: string; action?: FlashAction } {
@@ -683,6 +685,31 @@ export function explainBinError(text: string): { title: string; text: string; ac
   }
 }
 
+/** «Скачать прошивку»: firmware-<env>.bin последнего релиза → File (дальше как с файлом). */
+async function downloadRelease(boardEnv: string | null, copterEnv: string | null): Promise<File> {
+  const env = releaseEnv(boardEnv, copterEnv);
+  const target = boardEnv || copterEnv;
+  if (!env) {
+    throw new FlashError(
+      t("Готовой прошивки нет"),
+      target
+        ? t("Для {board} в релизе нет готового файла. Сделайте «Экспорт для телефона» в Studio на компьютере и прошейте файлом.", { board: target })
+        : t("Подключите плату или выберите сборку у коптера — без неё непонятно, какой файл скачать."),
+    );
+  }
+  const name = `firmware-${env}.bin`;
+  activity(t("Скачиваю {name} из релиза…", { name }));
+  appendLog(t("Скачиваю {name} из последнего релиза на GitHub", { name }));
+  const buf = await api.releaseBin(env).catch((e) => {
+    const text = errorText(e);
+    if (/^(NOT_FOUND|NO_RELEASE_BIN)/.test(text)) {
+      throw new FlashError(t("В релизе нет файла"), t("В последнем релизе нет {name}. Сделайте «Экспорт для телефона» на компьютере и прошейте файлом.", { name }));
+    }
+    throw new FlashError(t("Не скачалось"), t("Проверьте интернет и повторите. ({text})", { text }), "retry");
+  });
+  return new File([buf], name);
+}
+
 /** Плата с нашей прошивкой рядом: порт и паспорт (env из @id). */
 function phoneBoard(): { port: string | null; identity: Identity | null; dfu: boolean } {
   const app = useApp.getState();
@@ -697,11 +724,11 @@ function phoneBoard(): { port: string | null; identity: Identity | null; dfu: bo
  * проверка файла → плата в загрузчик ('D') → стирание только секторов образа,
  * запись, сверка (Rust DfuSe) → плата снова на связи, калибровки на месте.
  */
-export async function runBinFlash(copterId: string, file: File) {
+export async function runBinFlash(copterId: string, source: BinSource) {
   const app = useApp.getState();
   const copter = app.copters.find((c) => c.id === copterId);
   if (!copter || app.flash?.running) return;
-  lastBin = { copterId, file };
+  lastBin = { copterId, file: source };
   const steps: FlashStep[] = [
     { id: "check", title: t("Файл прошивки"), status: "wait" },
     { id: "board", title: t("Плата в режим прошивки"), status: "wait" },
@@ -723,6 +750,7 @@ export async function runBinFlash(copterId: string, file: File) {
     // 1. файл
     setStep("check", "run");
     const board = phoneBoard();
+    const file = source instanceof File ? source : await downloadRelease(board.identity?.board ?? null, copter.board || null);
     if (board.identity?.armed) throw new FlashError(t("Плата заармлена"), t("Снимите ARM (тумблер на пульте) и повторите."), "retry");
     const check = checkBin({ name: file.name, size: file.size, boardEnv: board.identity?.board ?? null, copterEnv: copter.board || null }, t);
     if (check.error) throw new FlashError(t("Этот файл не подойдёт"), check.error, "retry");

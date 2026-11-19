@@ -332,6 +332,19 @@ pub fn reboot_to_bootloader(port: &str) -> Res<()> {
     Ok(())
 }
 
+/// Скачать файл (готовый .bin из релиза) Kotlin-плагином: он кладёт его в кэш
+/// приложения и отдаёт путь; здесь читаем и удаляем. Нет файла — `NOT_FOUND: …`.
+pub fn download(url: &str, max: usize) -> Res<Vec<u8>> {
+    #[derive(Deserialize)]
+    struct Got {
+        path: String,
+    }
+    let g: Got = call("download", json!({ "url": url, "max": max }))?;
+    let bytes = std::fs::read(&g.path).map_err(|e| format!("файл {}: {e}", g.path));
+    let _ = std::fs::remove_file(&g.path);
+    bytes
+}
+
 /// Ответ консоли на 'D' при включённом ARM (CopterConsole::refuseArmed).
 pub fn armed_refusal(text: &str) -> bool {
     text.to_lowercase().contains("только без arm")

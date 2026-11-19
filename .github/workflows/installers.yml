@@ -1,6 +1,8 @@
 # Установщики OpenPlane Studio — всё для сборки и прошивки внутри, интернет
 # пользователю не нужен (tools/offline_bundle.py):
-#   macOS Apple Silicon (.dmg), macOS Intel (.dmg), Windows (.exe, NSIS).
+#   macOS Apple Silicon (.dmg), macOS Intel (.dmg), Windows (.exe, NSIS);
+# ещё Android (.apk, arm64) и готовые прошивки firmware-<env>.bin — их шьёт
+# телефон кнопкой «Скачать и прошить» (releases/latest/download/firmware-<env>.bin).
 # Запуск — вручную (Actions → Установщики → Run workflow): файлы — в артефактах;
 # тегом vX.Y.Z — ещё и выпуск на GitHub с постоянными именами файлов, чтобы
 # кнопка «Скачать» в README вела на releases/latest/download/<имя>.
@@ -79,10 +81,121 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    # APK не должен держать выпуск для компьютеров: упал — выпуск без него
+    continue-on-error: true
+    env:
+      NDK_VERSION: "28.2.13676358"
+      # подпись — своим ключом (docs/ANDROID.md, «Ключ подписи»); нет секретов — APK не выкладываем
+      HAS_KEY: ${{ secrets.ANDROID_KEYSTORE != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Исходники прошивки (описание плат для телефона)
+        uses: actions/checkout@v4
+        with:
+          repository: damir-lebedev/OpenPlaneProject
+          path: firmware
+          sparse-checkout: |
+            include
+            src
+            lib
+            tools
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+      - name: NDK и build-tools
+        run: |
+          sdkmanager "ndk;${NDK_VERSION}" "build-tools;36.0.0" "platforms;android-36"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      - name: Описание прошивки на телефоне (src/assets/firmware-manifest.json)
+        run: python firmware/tools/opconfig.py describe --root firmware --out src/assets/firmware-manifest.json
+      - run: npm ci
+      - name: Сборка APK (arm64, release)
+        run: npx tauri android build --apk --target aarch64
+      - name: Подпись
+        if: env.HAS_KEY == 'true'
+        env:
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          BT="$ANDROID_HOME/build-tools/36.0.0"
+          APK=src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+          echo "$ANDROID_KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.jks"
+          mkdir -p out
+          "$BT/zipalign" -p -f 4 "$APK" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-key-alias "$ANDROID_KEY_ALIAS" \
+            --ks-pass env:ANDROID_KEY_PASSWORD --key-pass env:ANDROID_KEY_PASSWORD \
+            --out out/OpenPlane-Studio-Android.apk "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" verify --print-certs out/OpenPlane-Studio-Android.apk | head -3
+          rm -f "$RUNNER_TEMP/release.jks"
+          ls -la out
+      - name: Без ключа подписи
+        if: env.HAS_KEY != 'true'
+        run: echo "::warning::Нет секрета ANDROID_KEYSTORE — APK собран, но не подписан и в выпуск не идёт (docs/ANDROID.md)"
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_KEY == 'true'
+        with:
+          name: OpenPlaneStudio-Android
+          path: out/OpenPlane-Studio-Android.apk
+          if-no-files-found: error
+          compression-level: 0
+
+  firmware:
+    name: Готовые прошивки
+    runs-on: ubuntu-latest
+    steps:
+      - name: Исходники прошивки
+        uses: actions/checkout@v4
+        with:
+          repository: damir-lebedev/OpenPlaneProject
+          sparse-checkout: |
+            include
+            src
+            lib
+            tools
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ hashFiles('platformio.ini') }}
+      - run: python -m pip install platformio
+      # те же сборки, что RELEASE_ENVS (src-tauri/src/update.rs, src/core/binFile.ts);
+      # getfun-f405v3-quad — нет: #error до дампа платы
+      - name: Сборка
+        run: |
+          mkdir -p out
+          for env in stm32h743-devebox stm32h743-devebox-quad matek-h743 matek-h743-quad aocodarc-f405v3-quad; do
+            pio run -e "$env"
+            cp ".pio/build/$env/firmware.bin" "out/firmware-$env.bin"
+          done
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenPlane-firmware
+          path: out/*.bin
+          if-no-files-found: error
+
   release:
     name: Выпуск на GitHub
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, android, firmware]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -117,5 +230,10 @@ jobs:
           - Windows 10/11 x64 — `OpenPlane-Studio-Windows-Setup.exe` (SmartScreen: «Подробнее» → «Выполнить в любом случае»)
           - macOS Apple Silicon — `OpenPlane-Studio-macOS-AppleSilicon.dmg`
           - macOS Intel — `OpenPlane-Studio-macOS-Intel.dmg` (первый запуск: «Конфиденциальность и безопасность» → «Всё равно открыть»)
+          - Android 7+ (arm64) — `OpenPlane-Studio-Android.apk`: настройка платы по кабелю USB-C ↔ USB-C и прошивка готовым файлом (разрешить «установку из неизвестных источников»)
+
+          Готовые прошивки для телефона (Studio скачивает их сама кнопкой «Скачать и прошить»):
+          `firmware-<сборка>.bin` — STM32H743 DevEBox и Matek H743 (самолёт и коптер), AocodaRC F405 V3 (коптер).
+          На компьютере прошивка собирается под ваш аппарат — эти файлы ему не нужны.
           EOF
           gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --title "OpenPlane Studio $TAG" --notes-file notes.md

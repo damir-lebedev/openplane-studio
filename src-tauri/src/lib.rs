@@ -266,6 +266,30 @@ async fn firmware_flash_bin(app: AppHandle, request: tauri::ipc::Request<'_>) ->
     }
 }
 
+/// Готовый `firmware-<env>.bin` из последнего релиза Studio (P49) — байтами.
+/// Телефон: качает Kotlin-плагин (у github.com нет CORS для fetch из окна); ПК — curl.
+#[tauri::command]
+async fn firmware_release_bin(env: String) -> Res<tauri::ipc::Response> {
+    let url = update::release_bin_url(&env)?;
+    blocking(move || {
+        #[cfg(target_os = "android")]
+        let bytes = usb_android::download(&url, update::RELEASE_BIN_MAX)?;
+        #[cfg(not(target_os = "android"))]
+        let bytes = {
+            let tmp = std::env::temp_dir().join(format!("openplane-release-{env}.bin"));
+            source::download(&url, &tmp).map_err(|e| format!("NOT_FOUND: {e}"))?;
+            let b = std::fs::read(&tmp).map_err(|e| format!("файл {}: {e}", tmp.display()))?;
+            let _ = std::fs::remove_file(&tmp);
+            b
+        };
+        if bytes.is_empty() || bytes.len() > update::RELEASE_BIN_MAX {
+            return Err(format!("TOO_BIG: файл {} байт — не прошивка", bytes.len()));
+        }
+        Ok(tauri::ipc::Response::new(bytes))
+    })
+    .await
+}
+
 #[tauri::command]
 async fn board_bootloader(port: String) -> Res<()> {
     blocking(move || devices::reboot_to_bootloader(&port)).await
@@ -468,6 +492,7 @@ pub fn run() {
             board_identity,
             board_bootloader,
             firmware_flash_bin,
+            firmware_release_bin,
             port_holders,
             port_holders_kill,
             dfu_driver_status,

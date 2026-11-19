@@ -22,7 +22,10 @@ import com.hoho.android.usbserial.driver.CdcAcmSerialDriver
 import com.hoho.android.usbserial.driver.UsbSerialPort
 import com.hoho.android.usbserial.driver.UsbSerialProber
 import com.hoho.android.usbserial.util.SerialInputOutputManager
+import java.io.File
 import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
@@ -40,6 +43,7 @@ class UsbPlugin(private val activity: Activity) : Plugin(activity) {
     private val usb = activity.getSystemService(Context.USB_SERVICE) as UsbManager
     private val io = Executors.newSingleThreadExecutor()
     private val writer = Executors.newSingleThreadExecutor()
+    private val net = Executors.newSingleThreadExecutor()
     private val serials = ConcurrentHashMap<Int, Serial>()
     private val dfus = ConcurrentHashMap<Int, Dfu>()
 
@@ -315,6 +319,61 @@ class UsbPlugin(private val activity: Activity) : Plugin(activity) {
                 d.conn.close()
             }
             invoke.resolve()
+        }
+    }
+
+    // ---------- сеть: готовый .bin из релиза (P49) ----------
+
+    /**
+     * Скачать файл в кэш приложения и вернуть путь (Rust читает и удаляет).
+     * Окно само не может: github.com отвечает на releases/latest/download без CORS.
+     * Только https://github.com/…; редиректы на release-assets идут сами (https → https).
+     */
+    @Command
+    fun download(invoke: Invoke) {
+        val args = invoke.getArgs()
+        val url = args.getString("url", "") ?: ""
+        val max = args.getInteger("max", 4 * 1024 * 1024)
+        if (!url.startsWith("https://github.com/")) {
+            invoke.reject("BAD_URL: только github.com")
+            return
+        }
+        net.execute {
+            guarded(invoke) {
+                val conn = URL(url).openConnection() as HttpURLConnection
+                try {
+                    conn.connectTimeout = 20000
+                    conn.readTimeout = 30000
+                    conn.instanceFollowRedirects = true
+                    conn.setRequestProperty("User-Agent", "OpenPlane-Studio")
+                    val code = conn.responseCode
+                    if (code == 404) throw IOException("NOT_FOUND: в релизе нет файла")
+                    if (code !in 200..299) throw IOException("HTTP $code")
+                    val out = File.createTempFile("release-", ".bin", activity.cacheDir)
+                    var total = 0
+                    conn.inputStream.use { input ->
+                        out.outputStream().use { o ->
+                            val buf = ByteArray(64 * 1024)
+                            while (true) {
+                                val n = input.read(buf)
+                                if (n < 0) break
+                                total += n
+                                if (total > max) {
+                                    out.delete()
+                                    throw IOException("TOO_BIG: больше $max байт")
+                                }
+                                o.write(buf, 0, n)
+                            }
+                        }
+                    }
+                    val res = JSObject()
+                    res.put("path", out.absolutePath)
+                    res.put("size", total)
+                    invoke.resolve(res)
+                } finally {
+                    conn.disconnect()
+                }
+            }
         }
     }
 }

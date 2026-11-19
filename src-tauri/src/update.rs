@@ -21,6 +21,27 @@ use crate::util::{cache_dir, command, err, system_tool, Res};
 
 pub const REPO: &str = "damir-lebedev/openplane-studio";
 
+/// Сборки, чьи `firmware-<env>.bin` кладёт в релиз job `firmware` (installers.yml).
+/// getfun-f405v3-quad нет: `#error` до дампа платы.
+pub const RELEASE_ENVS: [&str; 5] = [
+    "stm32h743-devebox",
+    "stm32h743-devebox-quad",
+    "matek-h743",
+    "matek-h743-quad",
+    "aocodarc-f405v3-quad",
+];
+
+/// Больше этого готовый .bin не бывает (H743 до сектора настроек — 1.875 МБ).
+pub const RELEASE_BIN_MAX: usize = 2 * 1024 * 1024;
+
+/// Ссылка на готовый .bin последнего релиза; сборки не из релиза — ошибка `NO_RELEASE_BIN`.
+pub fn release_bin_url(env: &str) -> Res<String> {
+    if !RELEASE_ENVS.contains(&env) {
+        return Err(format!("NO_RELEASE_BIN: готовой прошивки для {env} в релизе нет"));
+    }
+    Ok(format!("https://github.com/{REPO}/releases/latest/download/firmware-{env}.bin"))
+}
+
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct UpdateInfo {
     /// версия выпуска без «v»
@@ -214,6 +235,17 @@ pub fn cleanup(app: &AppHandle, keep: Option<&str>) -> Res<()> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn release_bin_only_for_release_envs() {
+        assert_eq!(
+            release_bin_url("matek-h743-quad").unwrap(),
+            "https://github.com/damir-lebedev/openplane-studio/releases/latest/download/firmware-matek-h743-quad.bin"
+        );
+        assert!(release_bin_url("getfun-f405v3-quad").unwrap_err().starts_with("NO_RELEASE_BIN"));
+        assert!(release_bin_url("../x").is_err());
+        assert!(release_bin_url("esp32-s3").is_err());
+    }
 
     #[test]
     fn versions_compare_by_numbers() {

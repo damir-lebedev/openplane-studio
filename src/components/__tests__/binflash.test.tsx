@@ -139,6 +139,48 @@ describe("телефон: прошивка готовым .bin", () => {
   });
 });
 
+describe("телефон: «Скачать и прошить» из релиза (P49)", () => {
+  it("скачивает firmware-<env>.bin по @id платы и шьёт его", async () => {
+    const copter = phone();
+    replies.releaseBin = new Uint8Array(2048).buffer;
+    await runBinFlash(copter.id, { release: true });
+    expect(calls.find((c) => c.name === "releaseBin")!.args).toEqual(["matek-h743-quad"]);
+    expect((calls.find((c) => c.name === "flashBin")!.args[0] as Uint8Array).length).toBe(2048);
+    expect(useApp.getState().copters[0].lastFlash).toMatchObject({ ok: true, note: "firmware-matek-h743-quad.bin" });
+  }, 15000);
+
+  it("сборки нет в релизе — понятный отказ без скачивания", async () => {
+    const copter = phone({ ...ID, board: "getfun-f405v3-quad" });
+    await runBinFlash(copter.id, { release: true });
+    expect(names()).not.toContain("releaseBin");
+    expect(useApp.getState().flash?.error?.title).toBe("Готовой прошивки нет");
+  });
+
+  it("файла в релизе нет (404) — совет «Экспорт для телефона»; нет сети — повтор", async () => {
+    const copter = phone();
+    replies.releaseBin = new Error("NOT_FOUND: в релизе нет файла");
+    await runBinFlash(copter.id, { release: true });
+    expect(useApp.getState().flash?.error?.title).toBe("В релизе нет файла");
+    expect(names()).not.toContain("flashBin");
+    replies.releaseBin = new Error("Unable to resolve host github.com");
+    await runBinFlash(copter.id, { release: true });
+    expect(useApp.getState().flash?.error).toMatchObject({ title: "Не скачалось", action: "retry" });
+  });
+
+  it("кнопка видна только для сборок из релиза", () => {
+    setUa(ANDROID_UA);
+    phone();
+    render(<CopterView />);
+    expect(screen.getByText("Скачать и прошить")).toBeTruthy();
+    cleanup();
+    phone({ ...ID, board: "getfun-f405v3-quad" });
+    useApp.setState((s) => ({ copters: s.copters.map((c) => ({ ...c, board: "getfun-f405v3-quad" })) }));
+    render(<CopterView />);
+    expect(screen.queryByText("Скачать и прошить")).toBeNull();
+    expect(screen.getByText("Прошить файлом")).toBeTruthy();
+  });
+});
+
 describe("ПК: экспорт для телефона", () => {
   it("кнопка есть рядом с «Прошить»", () => {
     phone();

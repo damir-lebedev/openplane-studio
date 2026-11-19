@@ -3,6 +3,7 @@
 [![Скачать для Windows](https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-Windows%2010%2F11-0078D6?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/damir-lebedev/openplane-studio/releases/latest/download/OpenPlane-Studio-Windows-Setup.exe)
 [![Скачать для macOS Apple Silicon](https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-macOS%20M1%E2%80%A6M4-111111?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/damir-lebedev/openplane-studio/releases/latest/download/OpenPlane-Studio-macOS-AppleSilicon.dmg)
 [![Скачать для macOS Intel](https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-macOS%20Intel-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/damir-lebedev/openplane-studio/releases/latest/download/OpenPlane-Studio-macOS-Intel.dmg)
+[![Скачать для Android](https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-Android%207%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/damir-lebedev/openplane-studio/releases/latest/download/OpenPlane-Studio-Android.apk)
 
 Установщик работает **без интернета**: внутри всё, чтобы собрать и прошить
 плату (Python, PlatformIO, компилятор и пакеты STM32, библиотеки и исходники
@@ -16,7 +17,8 @@
 приложение и прошивку: [PLAN.md](https://github.com/damir-lebedev/OpenPlaneProject/blob/main/PLAN.md).
 
 **Tauri 2** (Rust) + React + TypeScript + three.js. Windows и macOS; работает
-без интернета.
+без интернета. Android (arm64, 7.5 МБ) — настройка платы по кабелю USB-C ⇄ USB-C и
+прошивка готовым `firmware-<сборка>.bin` из релиза («Скачать и прошить») или файлом с ПК.
 
 ![Шаг «Тумблеры»: живой пульт и 3D-самолёт](docs/images/switches.png)
 
@@ -285,7 +287,9 @@ npm test               # логика и интерфейс на фейково�
 npm run tauri build    # установщик: Windows — NSIS, macOS — .dmg (src-tauri/target/release/bundle)
 ```
 
-Android (APK, в работе): что поставить и как собрать — [docs/ANDROID.md](docs/ANDROID.md).
+Android: что поставить, как собрать и подписать APK — [docs/ANDROID.md](docs/ANDROID.md).
+Выпуск по тегу `vX.Y.Z` (`.github/workflows/installers.yml`) кладёт рядом с установщиками
+`OpenPlane-Studio-Android.apk` и готовые прошивки `firmware-<сборка>.bin`.
 
 Описание прошивки для тестов (`src/core/__fixtures__/manifest.json`) и
 таблицы пинов STM32 обновляются из исходников прошивки и STM32duino:
