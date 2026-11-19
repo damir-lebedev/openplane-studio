@@ -103,6 +103,11 @@ async fn radio_read_logs(sd: String) -> Res<Vec<radio::RadioLog>> {
 }
 
 #[tauri::command]
+async fn radio_read_last_gps(sd: String) -> Res<Option<String>> {
+    blocking(move || radio::read_last_gps(&sd)).await
+}
+
+#[tauri::command]
 fn open_map(url: String) -> Res<()> {
     radio::open_map(&url)
 }
@@ -394,6 +399,7 @@ pub fn run() {
             radio_install_lua,
             radio_install_oplane,
             radio_read_logs,
+            radio_read_last_gps,
             open_map,
             settings_load,
             settings_save,

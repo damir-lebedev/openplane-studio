@@ -193,6 +193,16 @@ pub fn read_logs(sd: &str, max: usize) -> Res<Vec<RadioLog>> {
         .collect()
 }
 
+/// Последняя точка GPS, которую запомнил скрипт OpenPlane на пульте
+/// (`tools/edgetx/SCRIPTS/OPLANE/find.lua`: key=value построчно), или None.
+pub fn read_last_gps(sd: &str) -> Res<Option<String>> {
+    let p = Path::new(sd).join("SCRIPTS").join("OPLANE").join("lastgps.txt");
+    if !p.is_file() {
+        return Ok(None);
+    }
+    read_range(&p, 0, 4096).map(Some)
+}
+
 /// Ссылка на карту — только известные сайты карт (точку открывает браузер).
 pub fn map_url_allowed(url: &str) -> bool {
     ["https://www.openstreetmap.org/", "https://www.google.com/maps/", "https://yandex.ru/maps/"].iter().any(|p| url.starts_with(p))
@@ -321,6 +331,17 @@ mod tests {
         assert!(r[0].tail.ends_with("55.3 37.3\n"));
         assert!((r[0].tail.len() as u64) <= LOG_TAIL);
         assert!(r[1].tail.is_empty() && r[1].head.contains("55.1 37.1"));
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn reads_last_gps_of_radio_script() {
+        let tmp = std::env::temp_dir().join(format!("op-radio-gps-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&tmp);
+        assert_eq!(read_last_gps(tmp.to_str().unwrap()).unwrap(), None);
+        fs::create_dir_all(tmp.join("SCRIPTS/OPLANE")).unwrap();
+        fs::write(tmp.join("SCRIPTS/OPLANE/lastgps.txt"), "lat=55.1\nlon=37.1\n").unwrap();
+        assert_eq!(read_last_gps(tmp.to_str().unwrap()).unwrap().as_deref(), Some("lat=55.1\nlon=37.1\n"));
         let _ = fs::remove_dir_all(&tmp);
     }
 

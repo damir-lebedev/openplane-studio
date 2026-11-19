@@ -1,13 +1,14 @@
 // «Найти упавший» (P11) во вкладке «Безопасность»: готовность коптера к
 // поиску (пищалка, маяк моторами, координаты в очках — кнопками) и
-// последняя точка GPS из журнала EdgeTX на SD пульта (core/findLost.ts).
+// последняя точка GPS из журнала EdgeTX на SD пульта или из файла скрипта
+// OpenPlane на пульте (core/findLost.ts).
 
 import { CircleCheck, CircleX, Copy, MapPin, Search } from "lucide-react";
 import { useState } from "react";
 
 import { api, errorText } from "../../api";
 import { OSD_VISIBLE, osdPos, osdVisible } from "../../core/copterParams";
-import { compassWord, coordText, findLost, findReadiness, mapLinks, type LostPoint } from "../../core/findLost";
+import { compassWord, coordText, findLost, findReadiness, mapLinks, newerPoint, parseLastGps, RADIO_LAST_GPS, type LostPoint } from "../../core/findLost";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { useCopterBoard, useCopterLink, useCopterLive } from "./common";
@@ -32,7 +33,8 @@ export function FindLostCard() {
 
   async function read(sd: string) {
     const logs = (await api.radioReadLogs(sd)) ?? [];
-    setFound({ sd, point: findLost(logs), logs: logs.length });
+    const file = await api.radioReadLastGps(sd).catch(() => null);
+    setFound({ sd, point: newerPoint(findLost(logs), file ? parseLastGps(file) : null), logs: logs.length });
     setCards(null);
   }
 
@@ -132,7 +134,10 @@ export function FindLostCard() {
         <button className="btn" disabled={busy} onClick={() => void search()}>
           <MapPin size={15} /> {t("Точка из журнала пульта")}
         </button>
-        <span className="sub">{t("Пульт EdgeTX — по USB как накопитель; журнал пишет специальная функция «SD Logs».")}</span>
+        <span className="sub">
+          {t("Пульт EdgeTX — по USB как накопитель; журнал пишет специальная функция «SD Logs».")}{" "}
+          {t("Или скрипт OpenPlane на пульте: экран телеметрии oplan запоминает точку сам.")}
+        </span>
       </div>
       {cards && cards.length === 0 && <p className="hint warn-text">{t("SD-карта пульта не найдена: включите пульт, подключите USB и выберите «USB-накопитель».")}</p>}
       {cards && cards.length > 1 && (
@@ -160,13 +165,15 @@ export function FindLostCard() {
             </button>
           </div>
           <p className="sub">
-            {p.log}, {p.last.time}
+            {p.log === RADIO_LAST_GPS ? t("скрипт OpenPlane на пульте") : p.log}, {p.last.time}
             {p.last.sats !== null && " · " + t("спутников: {n}", { n: p.last.sats })}
             {p.start && p.distanceM >= 5 && " · " + t("{m} м от взлёта на {dir}", { m: Math.round(p.distanceM), dir: t(compassWord(p.bearingDeg)) })}
           </p>
           {p.fixLost && (
             <p className="hint warn-text">
-              {t("После этой точки GPS потерял фикс (ещё {s} с журнала) — коптер, скорее всего, лежит здесь, в пределах 5–10 м.", { s: Math.round(p.silentS) })}
+              {p.silentS > 0
+                ? t("После этой точки GPS потерял фикс (ещё {s} с журнала) — коптер, скорее всего, лежит здесь, в пределах 5–10 м.", { s: Math.round(p.silentS) })
+                : t("После этой точки GPS потерял фикс — коптер, скорее всего, лежит здесь, в пределах 5–10 м.")}
             </p>
           )}
           <div className="find-maps">

@@ -4,6 +4,8 @@
 // Прошивка (plane: copter/GpsHome.h) после потери фикса шлёт в пульт
 // последнюю точку с фиксом, спутники — сколько видно сейчас: строки с
 // малым числом спутников в конце журнала — «фикс пропал».
+// Второй источник — файл скрипта OpenPlane на пульте (plane:
+// tools/edgetx/SCRIPTS/OPLANE/find.lua): точку он пишет сам, без «SD Logs».
 // Без React.
 
 import { N_ } from "../i18n";
@@ -132,6 +134,41 @@ export function findLost(logs: RadioLog[]): LostPoint | null {
     if (p) return p;
   }
   return null;
+}
+
+/** Файл скрипта пульта OpenPlane с последней точкой (от корня SD). */
+export const RADIO_LAST_GPS = "SCRIPTS/OPLANE/lastgps.txt";
+
+function finite(s: string | undefined): number | null {
+  if (s === undefined || s.trim() === "") return null;
+  const v = Number(s);
+  return Number.isFinite(v) ? v : null;
+}
+
+/** Точка из lastgps.txt скрипта пульта (key=value построчно) или null. */
+export function parseLastGps(text: string): LostPoint | null {
+  const v: Record<string, string> = {};
+  for (const line of text.split(/\r?\n/)) {
+    const m = /^(\w+)=(.*)$/.exec(line);
+    if (m) v[m[1]] = m[2];
+  }
+  const lat = finite(v.lat);
+  const lon = finite(v.lon);
+  if (lat === null || lon === null || Math.abs(lat) > 90 || Math.abs(lon) > 180 || (lat === 0 && lon === 0)) return null;
+  const [date = "", time = ""] = (v.time ?? "").trim().split(/\s+/);
+  const sats = finite(v.sats);
+  const last: GpsPoint = { t: seconds(date, time), date, time, lat, lon, sats: sats !== null && sats >= 0 ? sats : null, altM: finite(v.alt) };
+  const slat = finite(v.slat);
+  const slon = finite(v.slon);
+  const start = slat !== null && slon !== null ? { ...last, lat: slat, lon: slon, sats: null, altM: null } : null;
+  const { m, deg } = start ? distanceBearing(start, last) : { m: 0, deg: 0 };
+  return { log: RADIO_LAST_GPS, last, start, distanceM: m, bearingDeg: deg, fixLost: v.fixlost === "1", silentS: 0 };
+}
+
+/** Из точки журнала и точки скрипта — свежая по часам пульта; без времени — журнал. */
+export function newerPoint(log: LostPoint | null, script: LostPoint | null): LostPoint | null {
+  if (!log || !script) return log ?? script;
+  return script.last.t > log.last.t ? script : log;
 }
 
 const DIRS = [N_("север"), N_("северо-восток"), N_("восток"), N_("юго-восток"), N_("юг"), N_("юго-запад"), N_("запад"), N_("северо-запад")];

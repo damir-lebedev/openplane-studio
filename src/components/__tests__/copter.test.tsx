@@ -12,6 +12,8 @@ import { makeProfile } from "../../core/pilot";
 import { dumpedBoard, param } from "../../core/__fixtures__/copterBoard";
 
 const sent: string[] = [];
+/** ответы api по имени метода: тест кладёт и сам удаляет */
+const replies: Record<string, unknown> = {};
 
 vi.mock("../../api", async (orig) => {
   const real = await orig<typeof import("../../api")>();
@@ -22,6 +24,7 @@ vi.mock("../../api", async (orig) => {
       get: (_, prop: string) =>
         (...args: unknown[]) => {
           if (prop === "linkCommand" || prop === "linkSend") sent.push(String(args[0]));
+          if (prop in replies) return Promise.resolve(replies[prop]);
           return Promise.resolve(lists.has(prop) ? [] : undefined);
         },
     },
@@ -459,6 +462,24 @@ describe("вкладки коптера", () => {
     expect([...card.querySelectorAll("button")].filter((b) => b.textContent === "Включить")).toHaveLength(0);
     await act(async () => fireEvent.click(screen.getByRole("button", { name: /Точка из журнала пульта/ })));
     expect(screen.getByText(/SD-карта пульта не найдена/)).toBeTruthy();
+  });
+
+  it("найти упавший: точка из файла скрипта OpenPlane на пульте (188b+ б)", async () => {
+    Object.assign(replies, {
+      radioFindSd: ["E:\\"],
+      radioReadLogs: [],
+      radioReadLastGps: "lat=55.7512345\nlon=37.6100000\nsats=3\nalt=12\ntime=2026-11-19 12:30:05\nfixlost=1\nmodel=Quad7\nslat=55.7500000\nslon=37.6100000\n",
+    });
+    try {
+      render(<CopterView />);
+      tab("Безопасность");
+      await act(async () => fireEvent.click(screen.getByRole("button", { name: /Точка из журнала пульта/ })));
+      expect(screen.getByText("55.751235, 37.610000")).toBeTruthy();
+      expect(screen.getByText(/скрипт OpenPlane на пульте, 12:30:05 · спутников: 3 · 137 м от взлёта на север/)).toBeTruthy();
+      expect(screen.getByText(/После этой точки GPS потерял фикс — коптер/)).toBeTruthy();
+    } finally {
+      for (const k of Object.keys(replies)) delete replies[k];
+    }
   });
 
   it("почему не армится: слово как в очках и кнопки «исправить» (P10)", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compassWord, distanceBearing, findLost, findReadiness, lostPoint, mapLinks, parseLog, type RadioLog } from "./findLost";
+import { compassWord, distanceBearing, findLost, findReadiness, lostPoint, mapLinks, newerPoint, parseLastGps, parseLog, RADIO_LAST_GPS, type RadioLog } from "./findLost";
 
 const HEADER = "Date,Time,1RSS(dB),RQly(%),FM,GPS,GSpd(kmh),Alt(m),Sats,Thr";
 const row = (time: string, gps: string, sats: number | "", date = "2026-11-18") => `${date},${time},-60,100,ANGL,${gps},0,12,${sats},0`;
@@ -63,6 +63,43 @@ describe("find lost: EdgeTX log", () => {
     const p = lostPoint({ name: "x", modified: 1, size: 1, head, tail: "" })!;
     expect(p.last.lat).toBe(55.2);
     expect(p.fixLost).toBe(false);
+  });
+});
+
+describe("find lost: file of the OpenPlane radio script (find.lua)", () => {
+  const file = "lat=55.7512345\nlon=37.61\nsats=3\nalt=12\ntime=2026-11-19 12:30:05\nfixlost=1\nmodel=Quad7\nslat=55.75\nslon=37.61\n";
+
+  it("parses point, start, fix lost", () => {
+    const p = parseLastGps(file.replace(/\n/g, "\r\n"))!;
+    expect(p.log).toBe(RADIO_LAST_GPS);
+    expect([p.last.lat, p.last.lon, p.last.sats, p.last.altM, p.last.date, p.last.time]).toEqual([55.7512345, 37.61, 3, 12, "2026-11-19", "12:30:05"]);
+    expect(p.fixLost).toBe(true);
+    expect(p.distanceM).toBeCloseTo(137.3, 0);
+    expect(p.bearingDeg).toBeCloseTo(0, 3);
+    expect(p.silentS).toBe(0);
+  });
+
+  it("no start, unknown sats, broken or zero point", () => {
+    const p = parseLastGps("lat=-33.5\nlon=151.2\nsats=-1\nfixlost=0\n")!;
+    expect([p.start, p.last.sats, p.last.altM, p.fixLost, p.distanceM]).toEqual([null, null, null, false, 0]);
+    expect(Number.isNaN(p.last.t)).toBe(true);
+    expect(parseLastGps("lat=0\nlon=0\n")).toBeNull();
+    expect(parseLastGps("lat=\nlon=37\n")).toBeNull();
+    expect(parseLastGps("lat=95\nlon=37\n")).toBeNull();
+    expect(parseLastGps("")).toBeNull();
+  });
+
+  it("newer of log and script point by radio clock; no time — log", () => {
+    const script = parseLastGps(file)!;
+    const log = lostPoint({ name: "Quad7.csv", modified: 1, size: 1, head: "Date,Time,GPS\n2026-11-19,12:00:00.000,55.1 37.1\n", tail: "" })!;
+    expect(newerPoint(log, script)).toBe(script);
+    expect(newerPoint(null, script)).toBe(script);
+    expect(newerPoint(log, null)).toBe(log);
+    expect(newerPoint(null, null)).toBeNull();
+    const later = lostPoint({ name: "Quad7.csv", modified: 1, size: 1, head: "Date,Time,GPS\n2026-11-19,13:00:00.000,55.1 37.1\n", tail: "" })!;
+    expect(newerPoint(later, script)).toBe(later);
+    const noTime = parseLastGps("lat=55\nlon=37\n")!;
+    expect(newerPoint(log, noTime)).toBe(log);
   });
 });
 

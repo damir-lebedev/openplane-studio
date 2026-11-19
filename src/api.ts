@@ -340,6 +340,7 @@ export const api = {
   /** Диски, похожие на SD-карту пульта EdgeTX (пульт — USB-накопителем). */
   radioFindSd: () => invoke<string[]>("radio_find_sd"),
   radioReadLogs: (sd: string) => invoke<RadioLog[]>("radio_read_logs", { sd }),
+  radioReadLastGps: (sd: string) => invoke<string | null>("radio_read_last_gps", { sd }),
   openMap: (url: string) => invoke<void>("open_map", { url }),
   /** Lua-скрипты Betaflight (последний выпуск с GitHub) — в SCRIPTS на карте. */
   radioInstallLua: (sd: string) => invoke<{ version: string; files: number }>("radio_install_lua", { sd }),

@@ -2472,5 +2472,8 @@
   "Первый": "First",
   "в деле": "in use",
   "в запасе": "standby",
-  "не отвечает": "not responding"
+  "не отвечает": "not responding",
+  "Или скрипт OpenPlane на пульте: экран телеметрии oplan запоминает точку сам.": "Or the OpenPlane radio script: the oplan telemetry screen keeps the point by itself.",
+  "После этой точки GPS потерял фикс — коптер, скорее всего, лежит здесь, в пределах 5–10 м.": "GPS lost its fix after this point — the quad most likely lies here, within 5–10 m.",
+  "скрипт OpenPlane на пульте": "OpenPlane radio script"
 }
