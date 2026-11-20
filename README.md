@@ -21,7 +21,7 @@ Android-версия весит 7,5 МБ и запускается за 0,4 с �
 приложение и прошивку: [PLAN.md](https://github.com/damir-lebedev/OpenPlaneProject/blob/main/PLAN.md).
 
 **Tauri 2** (Rust) + React + TypeScript + three.js. Windows и macOS; работает
-без интернета. Android (arm64, 7.5 МБ) — настройка платы по кабелю USB-C ⇄ USB-C и
+без интернета. Android (arm64 и 32-битные ARM) — настройка платы по кабелю USB-C ⇄ USB-C и
 прошивка готовым `firmware-<сборка>.bin` из релиза («Скачать и прошить») или файлом с ПК. Самолёт на ESP32 прошивается
 по WiFi через свою точку доступа — с телефона файлом, с ПК кнопкой «По WiFi».
 

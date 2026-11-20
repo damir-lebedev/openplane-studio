@@ -87,7 +87,7 @@ OSD), работает так же, как на ПК. Чего нет и не б
 | память PSS | 225 МБ | 122–130 МБ | ≤ 250 МБ |
 | прокрутка ангара | — | 238 кадров, 0 рывков, p99 12 мс | 60 к/с |
 
-Что сделано: Rust в release (5.8 МБ `.so` вместо ~150), только arm64, без офлайн-пакетов ПК;
+Что сделано: Rust в release (5.8 МБ `.so` вместо ~150), arm64 + armv7 (с v0.6.1; до того только arm64 — на 32-битных телефонах «Не удалось обработать пакет»), без офлайн-пакетов ПК;
 главный JS 2.27 → 0.91 МБ — three.js (чёрный ящик, симулятор) и английский словарь грузятся
 отдельными файлами, когда нужны (`App.tsx` lazy, `i18n.switchLanguage`); живые кадры платы
 на телефоне — не чаще 4 раз в секунду (`core/throttle.ts`, `store.LIVE_PHONE_MS`), на ПК все.
@@ -99,8 +99,8 @@ OSD), работает так же, как на ПК. Чего нет и не б
 Тег `vX.Y.Z` → `.github/workflows/installers.yml` кладёт в выпуск рядом с установщиками ПК:
 
 - `OpenPlane-Studio-Android.apk` — job `android` (ubuntu): JDK 17, SDK + NDK 28.2, Rust
-  `aarch64-linux-android`, свежее описание плат (`opconfig.py describe` из исходников прошивки),
-  `tauri android build --apk --target aarch64`, `zipalign` + `apksigner` **своим ключом** из секретов.
+  `aarch64-linux-android` + `armv7-linux-androideabi`, свежее описание плат (`opconfig.py describe` из исходников прошивки),
+  `tauri android build --apk --target aarch64 --target armv7` (один универсальный APK), `zipalign` + `apksigner` **своим ключом** из секретов.
   Нет секретов — APK собирается, но в выпуск не идёт (предупреждение в журнале Actions);
   упал — выпуск для ПК всё равно выходит (`continue-on-error`).
 - `firmware-<сборка>.bin` — job `firmware`: `pio run` для `stm32h743-devebox`, `stm32h743-devebox-quad`,

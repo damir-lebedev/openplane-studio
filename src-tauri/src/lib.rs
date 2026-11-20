@@ -40,6 +40,8 @@ where
 struct AppInfo {
     version: String,
     platform: String,
+    /// Процессор сборки (aarch64, arm, x86_64…) — в отчёты: 32-битный телефон или нет (PLAN.md P53).
+    arch: String,
     hangar_dir: String,
     cache_dir: String,
     pio: Option<String>,
@@ -64,6 +66,7 @@ fn app_info(app: AppHandle) -> Res<AppInfo> {
     Ok(AppInfo {
         version: env!("CARGO_PKG_VERSION").into(),
         platform: std::env::consts::OS.into(),
+        arch: std::env::consts::ARCH.into(),
         hangar_dir: s(util::hangar_dir(&app)?),
         cache_dir: s(util::cache_dir(&app)?),
         pio: find_pio().map(s),

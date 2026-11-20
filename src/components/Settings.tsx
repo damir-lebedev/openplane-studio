@@ -7,6 +7,34 @@ import { getLanguage, LANGUAGES, t } from "../i18n";
 import { useApp } from "../store";
 import { SetupPanel } from "./Setup";
 import { Section } from "./ui";
+
+// Имена ABI Android — так их показывают CPU-Z и Play (PLAN.md P53: APK не ставится на 32-битном телефоне)
+const ABI: Record<string, string> = { aarch64: "arm64-v8a", arm: "armeabi-v7a", x86_64: "x86_64", x86: "x86" };
+
+/** Строка «что у меня» для отчёта об ошибке: версия, система, процессор, версия Android из User-Agent */
+export function versionLine(info: { version: string; platform: string; arch?: string } | null, ua = navigator.userAgent): string {
+  if (!info) return "OpenPlane Studio";
+  const android = /Android (\d+(?:\.\d+)?)/.exec(ua)?.[1];
+  const arch = info.arch ? (info.platform === "android" ? ABI[info.arch] ?? info.arch : info.arch) : "";
+  return [`OpenPlane Studio ${info.version}`, [info.platform, arch].filter(Boolean).join(" "), android ? `Android ${android}` : ""]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function VersionRow() {
+  const info = useApp((s) => s.info);
+  const [copied, setCopied] = useState(false);
+  const line = versionLine(info);
+  const copy = () => void navigator.clipboard?.writeText(line).then(() => setCopied(true), () => {});
+  return (
+    <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+      <span className="mono" style={{ userSelect: "text" }}>{line}</span>
+      <button className="btn small" onClick={copy}>
+        {copied ? t("Скопировано") : t("Скопировать")}
+      </button>
+    </span>
+  );
+}
 import { UpdateSettings } from "./Update";
 
 function DriverCard() {
@@ -299,7 +327,7 @@ export function Settings() {
           <span>{t("Сборки")}</span>
           <span className="mono">{info?.cache_dir}</span>
           <span>{t("Версия")}</span>
-          <span>OpenPlane Studio {info?.version}</span>
+          <VersionRow />
         </div>
       </Section>
     </div>

@@ -1,7 +1,7 @@
 # Установщики OpenPlane Studio — всё для сборки и прошивки внутри, интернет
 # пользователю не нужен (tools/offline_bundle.py):
 #   macOS Apple Silicon (.dmg), macOS Intel (.dmg), Windows (.exe, NSIS);
-# ещё Android (.apk, arm64) и готовые прошивки firmware-<env>.bin — их шьёт
+# ещё Android (.apk, arm64 + 32-битные armv7) и готовые прошивки firmware-<env>.bin — их шьёт
 # телефон кнопкой «Скачать и прошить» (releases/latest/download/firmware-<env>.bin).
 # Запуск — вручную (Actions → Установщики → Run workflow): файлы — в артефактах;
 # тегом vX.Y.Z — ещё и выпуск на GitHub с постоянными именами файлов, чтобы
@@ -123,12 +123,14 @@ jobs:
           echo "NDK_HOME=$ANDROID_HOME/ndk/${NDK_VERSION}" >> "$GITHUB_ENV"
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android
+          targets: aarch64-linux-android,armv7-linux-androideabi
       - name: Описание прошивки на телефоне (src/assets/firmware-manifest.json)
         run: python firmware/tools/opconfig.py describe --root firmware --out src/assets/firmware-manifest.json
       - run: npm ci
-      - name: Сборка APK (arm64, release)
-        run: npx tauri android build --apk --target aarch64
+      # один «универсальный» APK на arm64 и armv7: дешёвые и старые телефоны 32-битные, на APK только
+      # для arm64 они пишут «Не удалось обработать пакет» (PLAN.md P53); +~6 МБ, зато файл один и выбирать нечего
+      - name: Сборка APK (arm64 + armv7, release)
+        run: npx tauri android build --apk --target aarch64 --target armv7
       - name: Подпись
         if: env.HAS_KEY == 'true'
         env:
@@ -236,7 +238,7 @@ jobs:
           - Windows 10/11 x64 — `OpenPlane-Studio-Windows-Setup.exe` (SmartScreen: «Подробнее» → «Выполнить в любом случае»)
           - macOS Apple Silicon — `OpenPlane-Studio-macOS-AppleSilicon.dmg`
           - macOS Intel — `OpenPlane-Studio-macOS-Intel.dmg` (первый запуск: «Конфиденциальность и безопасность» → «Всё равно открыть»)
-          - Android 7+ (arm64) — `OpenPlane-Studio-Android.apk`: настройка платы по кабелю USB-C ↔ USB-C и прошивка готовым файлом (разрешить «установку из неизвестных источников»)
+          - Android 7+ (arm64 и 32-битные ARM) — `OpenPlane-Studio-Android.apk`: настройка платы по кабелю USB-C ↔ USB-C и прошивка готовым файлом (разрешить «установку из неизвестных источников»)
 
           Готовые прошивки для телефона (Studio скачивает их сама кнопкой «Скачать и прошить»):
           `firmware-<сборка>.bin` — STM32H743 DevEBox и Matek H743 (самолёт и коптер), AocodaRC F405 V3 (коптер).

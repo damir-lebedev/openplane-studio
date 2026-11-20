@@ -16,6 +16,8 @@ import { FirmwareConfig, FlashRecord, PlaneProject } from "./core/project";
 export interface AppInfo {
   version: string;
   platform: string;
+  /** Процессор сборки (Rust `std::env::consts::ARCH`); нет у старых версий */
+  arch?: string;
   hangar_dir: string;
   cache_dir: string;
   pio: string | null;
