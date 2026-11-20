@@ -729,6 +729,30 @@ describe("вкладки коптера", () => {
     expect(screen.getByText(/до 670 °\/с/)).toBeTruthy();
   });
 
+  it("расходы: смена формулы пересчитывает числа, кривая газа", async () => {
+    const r = (name: string, value: number | string, extra: Parameters<typeof param>[1] = {}) =>
+      param(name, { group: "rates", scope: "rate", default: value, value, min: 0, max: 255, ...extra });
+    act(() =>
+      useApp.setState((st) => ({
+        copterBoard: dumpedBoard([
+          ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+          r("rates_type", "ACTUAL", { type: "enum", options: ["BETAFLIGHT", "RACEFLIGHT", "KISS", "ACTUAL", "QUICK"] }),
+          r("roll_rate_limit", 1998, { min: 200, max: 1998 }),
+          r("thr_mid", 50, { max: 100 }),
+          r("thr_expo", 0, { max: 100 }),
+        ]),
+      })),
+    );
+    render(<CopterView />);
+    tab("Расходы");
+    expect(screen.getByText("Потолок")).toBeTruthy();
+    expect(screen.getByTestId("throttle-chart")).toBeTruthy();
+    fireEvent.click(within(screen.getByTestId("rates-type")).getByRole("button", { name: "Betaflight" }));
+    await waitFor(() => expect(sent).toContain("set rates_type BETAFLIGHT"));
+    await waitFor(() => expect(sent.some((c) => c.startsWith("set roll_expo "))).toBe(true));
+    expect(sent.some((c) => c.startsWith("set roll_rc_rate "))).toBe(true);
+  });
+
   it("OSD: галочка показывает элемент, перетаскивание ставит позицию BF", () => {
     act(() =>
       useApp.setState((st) => ({

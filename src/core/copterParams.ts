@@ -289,20 +289,145 @@ export const PID_COLUMNS: { key: string; title: string; name: (a: Axis) => strin
   { key: "f", title: "FF", name: (a) => `f_${a}` },
 ];
 
-export const RATE_COLUMNS: { key: string; title: string; hint: string; name: (a: Axis) => string }[] = [
-  { key: "rc", title: N_("Центр"), hint: N_("°/с у центра стика, ×10"), name: (a) => `${a}_rc_rate` },
-  { key: "srate", title: N_("Максимум"), hint: N_("°/с при стике до упора, ×10"), name: (a) => `${a}_srate` },
-  { key: "expo", title: N_("Экспо"), hint: N_("мягче у центра, %"), name: (a) => `${a}_expo` },
-];
+/** rates_type: порядок как в прошивке и BF. */
+export const RATES_TYPES = ["BETAFLIGHT", "RACEFLIGHT", "KISS", "ACTUAL", "QUICK"] as const;
+export type RatesType = (typeof RATES_TYPES)[number];
 
-/** Кривая расходов прошивки (Presets.h RateCurve): стик −1…1 → °/с. */
-export function rateAt(centerX10: number, maxX10: number, expoPct: number, stick: number): number {
-  const center = centerX10 * 10;
-  const max = Math.max(center, maxX10 * 10);
-  const expo = expoPct / 100;
-  const x = Math.max(-1, Math.min(1, stick));
+/** Как называются три числа в каждой формуле (как в конфигураторе BF). */
+export const RATE_TYPE_LABELS: Record<RatesType, { rc: string; srate: string; expo: string; rcHint: string; srateHint: string }> = {
+  ACTUAL: { rc: N_("Центр"), srate: N_("Максимум"), expo: N_("Экспо"), rcHint: N_("°/с у центра стика, ×10"), srateHint: N_("°/с при стике до упора, ×10") },
+  BETAFLIGHT: { rc: N_("RC Rate"), srate: N_("Super Rate"), expo: N_("Экспо"), rcHint: N_("×0.01: 100 = 1.00"), srateHint: N_("×0.01: 70 = 0.70") },
+  RACEFLIGHT: { rc: N_("Rate"), srate: N_("Acro+"), expo: N_("Экспо"), rcHint: N_("°/с у центра стика, ×10"), srateHint: N_("прибавка к краю, %") },
+  KISS: { rc: N_("RC Rate"), srate: N_("Rate"), expo: N_("RC Curve"), rcHint: N_("×0.01: 100 = 1.00"), srateHint: N_("×0.01: 70 = 0.70") },
+  QUICK: { rc: N_("RC Rate"), srate: N_("Максимум"), expo: N_("Экспо"), rcHint: N_("×0.01: 100 = 200 °/с у центра"), srateHint: N_("°/с при стике до упора, ×10") },
+};
+
+export interface RateSpec {
+  type: RatesType;
+  rc: number;      // roll_rc_rate как в CLI
+  srate: number;   // roll_srate
+  expo: number;    // roll_expo, %
+  limit: number;   // roll_rate_limit, °/с
+  quickRcExpo?: boolean;
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/** Кривая расходов прошивки (Presets.h RateCurve::apply): стик −1…1 → °/с. */
+export function rateCurve(r: RateSpec, stick: number): number {
+  const x = clamp(stick, -1, 1);
   const a = Math.abs(x);
-  return center * x + (max - center) * x * Math.pow(a, 1 + 4 * expo);
+  const e = r.expo / 100;
+  let v = 0;
+  switch (r.type) {
+    case "ACTUAL": {
+      const center = r.rc * 10;
+      const curve = a * (x * a ** 4 * e + x * (1 - e));
+      v = center * x + Math.max(0, r.srate * 10 - center) * curve;
+      break;
+    }
+    case "BETAFLIGHT": {
+      const xe = x * a ** 3 * e + x * (1 - e);
+      let rc = r.rc / 100;
+      if (rc > 2) rc += 14.54 * (rc - 2);
+      v = 200 * rc * xe;
+      if (r.srate > 0) v /= clamp(1 - (a * r.srate) / 100, 0.01, 1);
+      break;
+    }
+    case "RACEFLIGHT":
+      v = 10 * r.rc * (1 + e * (x * x - 1)) * x * (1 + (a * r.srate) / 100);
+      break;
+    case "KISS":
+      v = (2000 / clamp(1 - (a * r.srate) / 100, 0.01, 1)) * (x ** 3 * e + x * (1 - e)) * (r.rc / 1000);
+      break;
+    case "QUICK": {
+      const rc = Math.max(1, 2 * r.rc);
+      const top = Math.max(10 * r.srate, rc);
+      const k = (top / rc - 1) / (top / rc);
+      if (r.quickRcExpo) v = ((x ** 3 * e + x * (1 - e)) * rc) / clamp(1 - a * k, 0.01, 1);
+      else v = (x * rc) / clamp(1 - (a ** 3 * e + a * (1 - e)) * k, 0.01, 1);
+      break;
+    }
+  }
+  const lim = Math.min(1998, r.limit || 1998);
+  return clamp(v, -lim, lim);
+}
+
+/** Прежняя запись ACTUAL (центр ×10, максимум ×10, экспо %). */
+export function rateAt(centerX10: number, maxX10: number, expoPct: number, stick: number): number {
+  return rateCurve({ type: "ACTUAL", rc: centerX10, srate: maxX10, expo: expoPct, limit: 1998 }, stick);
+}
+
+/** Настройки расходов оси с платы. Нет rates_type (старая прошивка) — ACTUAL. */
+export function rateSpec(b: CopterBoard, axis: Axis): RateSpec {
+  const ty = String(b.params.rates_type?.value ?? "ACTUAL").toUpperCase();
+  return {
+    type: (RATES_TYPES as readonly string[]).includes(ty) ? (ty as RatesType) : "ACTUAL",
+    rc: num(b, `${axis}_rc_rate`),
+    srate: num(b, `${axis}_srate`),
+    expo: num(b, `${axis}_expo`),
+    limit: num(b, `${axis}_rate_limit`, 1998),
+    quickRcExpo: String(b.params.quickrates_rc_expo?.value ?? "OFF").toUpperCase() === "ON",
+  };
+}
+
+/** Где искать числа каждой формулы: rc, srate, expo (как в прошивке). */
+const RATE_RANGES = { rc: [1, 255], srate: [0, 255], expo: [0, 100] } as const;
+
+/**
+ * Перевести расходы в другую формулу так, чтобы стик ощущался так же:
+ * подбор rc / srate / expo по 21 точке кривой (грубо, затем точнее).
+ * BETAFLIGHT и KISS: srate не выше 95 — у 1.00 кривая уходит в бесконечность.
+ */
+export function convertRates(from: RateSpec, to: RatesType): { rc: number; srate: number; expo: number } {
+  const pts = Array.from({ length: 21 }, (_, i) => i / 20);
+  const want = pts.map((s) => rateCurve(from, s));
+  const srMax = to === "BETAFLIGHT" || to === "KISS" ? 95 : RATE_RANGES.srate[1];
+  const err = (rc: number, srate: number, expo: number) => {
+    const c: RateSpec = { type: to, rc, srate, expo, limit: from.limit, quickRcExpo: from.quickRcExpo };
+    let sum = 0;
+    for (let i = 0; i < pts.length; i++) {
+      const d = rateCurve(c, pts[i]) - want[i];
+      sum += d * d * (i === pts.length - 1 ? 4 : 1);   // край важнее: максимум должен совпасть
+    }
+    return sum;
+  };
+  let best = { rc: from.rc, srate: from.srate, expo: from.expo, e: Infinity };
+  const scan = (rcs: number[], srs: number[], exs: number[]) => {
+    for (const rc of rcs) for (const sr of srs) for (const ex of exs) {
+      const e = err(rc, sr, ex);
+      if (e < best.e) best = { rc, srate: sr, expo: ex, e };
+    }
+  };
+  const range = (lo: number, hi: number, step: number) => {
+    const out: number[] = [];
+    for (let v = lo; v <= hi; v += step) out.push(v);
+    return out;
+  };
+  scan(range(5, 255, 10), range(0, srMax, 5), range(0, 100, 10));
+  const near = (v: number, lo: number, hi: number, span: number, step: number) => range(Math.max(lo, v - span), Math.min(hi, v + span), step);
+  scan(near(best.rc, 1, 255, 10, 1), near(best.srate, 0, srMax, 5, 1), near(best.expo, 0, 100, 10, 2));
+  scan(near(best.rc, 1, 255, 2, 1), near(best.srate, 0, srMax, 2, 1), near(best.expo, 0, 100, 2, 1));
+  return { rc: best.rc, srate: best.srate, expo: best.expo };
+}
+
+export const THROTTLE_LIMIT_TYPES = ["OFF", "SCALE", "CLIP"] as const;
+
+/** Кривая и предел газа прошивки (Presets.h ThrottleCurve): стик 0…1 → газ 0…1. */
+export function throttleAt(midPct: number, expoPct: number, limitType: string, limitPct: number, stick: number): number {
+  const t = clamp(stick, 0, 1);
+  const e = expoPct / 100;
+  let out = t;
+  if (e > 0) {
+    const m = clamp(midPct / 100, 0, 1);
+    const d = t - m;
+    const span = d > 0 ? 1 - m : m;
+    out = span > 0 ? m + d * (1 - e + (e * d * d) / (span * span)) : t;
+  }
+  const ty = limitType.toUpperCase();
+  if (ty === "SCALE") out *= limitPct / 100;
+  else if (ty === "CLIP") out = Math.min(out, limitPct / 100);
+  return clamp(out, 0, 1);
 }
 
 export function num(b: CopterBoard, name: string, fallback = 0): number {

@@ -2673,5 +2673,13 @@
   "Обороты моторов": "Motor RPM",
   "Радар геозабора": "Geofence radar",
   "Температура регуляторов": "ESC temperature",
-  "Шкалы горизонта": "Horizon sidebars"
+  "Шкалы горизонта": "Horizon sidebars",
+  "thr_mid — на газ висения, thr_expo 20–40 % — висеть и снимать кино точнее. Предел газа — для обучения или мощной батареи на маленьком коптере.": "thr_mid at hover throttle, thr_expo 20–40 % for steadier hovering and smoother cinematic footage. Throttle limit is for training or a punchy battery on a small quad.",
+  "°/с — выше не будет при любой формуле": "°/s — never higher, whatever the formula",
+  "×0.01: 100 = 200 °/с у центра": "×0.01: 100 = 200 °/s at center",
+  "Стик газа → газ": "Throttle stick → throttle",
+  "Числа — как в конфигураторе Betaflight для этой формулы. При смене формулы Studio пересчитывает их, чтобы стик ощущался так же.": "Numbers are the same as in the Betaflight configurator for this formula. When you switch formulas, Studio recalculates them so the sticks feel the same.",
+  "газ 0": "throttle 0",
+  "газ до упора": "full throttle",
+  "прибавка к краю, %": "boost toward the edge, %"
 }

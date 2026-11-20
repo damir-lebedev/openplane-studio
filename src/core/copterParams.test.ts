@@ -11,6 +11,11 @@ import {
   marginLevel,
   parseBfDiff,
   rateAt,
+  rateCurve,
+  RatesType,
+  RATES_TYPES,
+  convertRates,
+  throttleAt,
   rcAutoCutoff,
   rcStepResponse,
   rescuePath,
@@ -71,12 +76,42 @@ describe("настройки коптера с платы", () => {
     expect(checkValue(param("n", { type: "string", maxlen: 4 }), "ABCDE")).toBe("не длиннее 4");
   });
 
+  it("пять формул rates_type — точки как в прошивке (test_rates_types)", () => {
+    const s = (type: RatesType, rc: number, srate: number, expo: number, limit = 1998) => ({ type, rc, srate, expo, limit });
+    expect(rateCurve(s("BETAFLIGHT", 100, 70, 0), 1)).toBeCloseTo(666.67, 1);
+    expect(rateCurve(s("BETAFLIGHT", 100, 70, 0), 0.5)).toBeCloseTo(153.85, 1);
+    expect(rateCurve(s("RACEFLIGHT", 37, 80, 50), 0.5)).toBeCloseTo(161.875, 2);
+    expect(rateCurve(s("KISS", 100, 70, 0), 1)).toBeCloseTo(666.67, 1);
+    expect(rateCurve(s("ACTUAL", 7, 67, 50), 0.5)).toBeCloseTo(114.6875, 3);
+    expect(rateCurve(s("QUICK", 100, 67, 0), 1)).toBeCloseTo(670, 1);
+    expect(rateCurve(s("BETAFLIGHT", 100, 99, 0), 1)).toBe(1998);
+    expect(rateCurve(s("BETAFLIGHT", 100, 99, 0, 800), -1)).toBe(-800);
+  });
+
+  it("смена формулы: стик ощущается так же", () => {
+    const from = { type: "ACTUAL" as RatesType, rc: 20, srate: 67, expo: 50, limit: 1998 };
+    for (const to of RATES_TYPES) {
+      const v = convertRates(from, to);
+      const c = { type: to, ...v, limit: 1998 };
+      expect(Math.abs(rateCurve(c, 1) - 670)).toBeLessThan(25);
+      expect(Math.abs(rateCurve(c, 0.5) - rateCurve(from, 0.5))).toBeLessThan(40);
+    }
+  });
+
+  it("кривая газа thr_mid / thr_expo и предел", () => {
+    expect(throttleAt(50, 0, "OFF", 100, 0.37)).toBeCloseTo(0.37, 6);
+    expect(throttleAt(30, 50, "OFF", 100, 0.5)).toBeCloseTo(0.408163, 5);
+    expect(throttleAt(30, 50, "OFF", 100, 0.3)).toBeCloseTo(0.3, 6);
+    expect(throttleAt(50, 0, "SCALE", 80, 0.5)).toBeCloseTo(0.4, 6);
+    expect(throttleAt(50, 0, "CLIP", 80, 1)).toBeCloseTo(0.8, 6);
+  });
+
   it("кривая расходов как в прошивке (Presets.h RateCurve)", () => {
     expect(rateAt(20, 67, 50, 0)).toBe(0);
     expect(rateAt(20, 67, 50, 1)).toBeCloseTo(670, 6);
     expect(rateAt(20, 67, 50, -1)).toBeCloseTo(-670, 6);
     // у центра наклон — «центр»
-    expect(rateAt(20, 67, 50, 0.01) / 0.01).toBeCloseTo(200, 0);
+    expect(rateAt(20, 67, 50, 0.001) / 0.001).toBeCloseTo(200, 0);
     // максимум меньше центра — прямая
     expect(rateAt(30, 10, 0, 1)).toBeCloseTo(300, 6);
   });

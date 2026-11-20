@@ -1,10 +1,12 @@
 // «PID» и «Расходы»: таблицы по осям как в BF, профили, кривая
 // «стик → °/с»; остальные настройки группы — списками по темам.
 
-import { AXES, AXIS_LABELS, CopterBoard, CopterParam, num, PID_COLUMNS, RATE_COLUMNS, rateAt, tabParams } from "../../core/copterParams";
+import { useState } from "react";
+import { AXES, AXIS_LABELS, CopterBoard, CopterParam, convertRates, num, PID_COLUMNS, RATE_TYPE_LABELS, rateCurve, RATES_TYPES, RatesType, rateSpec, tabParams, throttleAt } from "../../core/copterParams";
+import { useApp } from "../../store";
 import { N_, t } from "../../i18n";
 import { FILTER_PARAMS } from "../../core/filters";
-import { MarginBar, NeedBoard, ParamInput, ParamList, ParamRow, ParamSlider, ProfilePicker, useCopterBoard } from "./common";
+import { MarginBar, NeedBoard, ParamInput, ParamList, ParamRow, ParamSlider, ProfilePicker, useCopterBoard, useCopterLink } from "./common";
 import { FilterChart } from "./FilterChart";
 import { SpectrumChart } from "./SpectrumChart";
 
@@ -202,21 +204,16 @@ export function RatesTab() {
 
 const AXIS_COLORS = { roll: "#39d0ff", pitch: "#3fb950", yaw: "#e3b341" };
 
-/** Кривые «стик → °/с» по осям и сводка под ними. */
+/** Кривые «стик → °/с» по осям (любая формула rates_type) и сводка под ними. */
 export function RateChart({ board }: { board: CopterBoard }) {
-  const curves = AXES.map((a) => ({
-    axis: a,
-    center: num(board, `${a}_rc_rate`),
-    max: num(board, `${a}_srate`),
-    expo: num(board, `${a}_expo`),
-  }));
-  const top = Math.max(200, ...curves.map((c) => rateAt(c.center, c.max, c.expo, 1)));
+  const curves = AXES.map((a) => ({ axis: a, spec: rateSpec(board, a) }));
+  const top = Math.max(200, ...curves.map((c) => rateCurve(c.spec, 1)));
   const w = 360;
   const h = 220;
   const path = (c: (typeof curves)[number]) =>
     Array.from({ length: 51 }, (_, i) => {
       const s = i / 50;
-      return `${i ? "L" : "M"} ${(s * w).toFixed(1)} ${(h - (rateAt(c.center, c.max, c.expo, s) / top) * h).toFixed(1)}`;
+      return `${i ? "L" : "M"} ${(s * w).toFixed(1)} ${(h - (rateCurve(c.spec, s) / top) * h).toFixed(1)}`;
     }).join(" ");
   return (
     <>
@@ -246,7 +243,7 @@ export function RateChart({ board }: { board: CopterBoard }) {
           <span key={c.axis} style={{ display: "contents" }}>
             <span style={{ color: AXIS_COLORS[c.axis] }}>{t(AXIS_LABELS[c.axis])}</span>
             <span className="mono">
-              {t("до {dps} °/с", { dps: Math.round(rateAt(c.center, c.max, c.expo, 1)) })} · {t("у центра {dps} °/с", { dps: Math.round(rateAt(c.center, c.max, c.expo, 0.1) * 10) })}
+              {t("до {dps} °/с", { dps: Math.round(rateCurve(c.spec, 1)) })} · {t("у центра {dps} °/с", { dps: Math.round(rateCurve(c.spec, 0.1) * 10) })}
             </span>
           </span>
         ))}
@@ -255,9 +252,90 @@ export function RateChart({ board }: { board: CopterBoard }) {
   );
 }
 
+/** Кривая газа: стик → газ (thr_mid, thr_expo, throttle_limit_*), висение — точкой. */
+export function ThrottleChart({ board }: { board: CopterBoard }) {
+  const mid = num(board, "thr_mid", 50);
+  const expo = num(board, "thr_expo");
+  const ty = String(board.params.throttle_limit_type?.value ?? "OFF");
+  const lim = num(board, "throttle_limit_percent", 100);
+  const w = 360;
+  const h = 180;
+  const d = Array.from({ length: 51 }, (_, i) => {
+    const s = i / 50;
+    return `${i ? "L" : "M"} ${(s * w).toFixed(1)} ${(h - throttleAt(mid, expo, ty, lim, s) * h).toFixed(1)}`;
+  }).join(" ");
+  const my = h - throttleAt(mid, expo, ty, lim, mid / 100) * h;
+  return (
+    <svg className="rate-svg" viewBox={`-40 -10 ${w + 60} ${h + 34}`} data-testid="throttle-chart">
+      <line x1={0} y1={h} x2={w} y2={h} className="axis" />
+      <line x1={0} y1={0} x2={0} y2={h} className="axis" />
+      <line x1={0} y1={h} x2={w} y2={0} className="grid" />
+      {[0.5, 1].map((f) => (
+        <text key={f} x={-6} y={h - f * h + 4} textAnchor="end" className="tick">
+          {Math.round(f * 100)} %
+        </text>
+      ))}
+      <text x={w} y={h + 18} textAnchor="end" className="tick">
+        {t("газ до упора")}
+      </text>
+      <text x={0} y={h + 18} className="tick">
+        {t("газ 0")}
+      </text>
+      <path d={d} stroke="#39d0ff" className="curve" />
+      <circle cx={(mid / 100) * w} cy={my} r={4} fill="#e3b341" />
+    </svg>
+  );
+}
+
+/** Выбор формулы rates_type: числа пересчитываются, чтобы стик ощущался так же. */
+function RatesTypePicker({ board }: { board: CopterBoard }) {
+  const set = useApp((s) => s.copterSet);
+  const { armed } = useCopterLink();
+  const [busy, setBusy] = useState(false);
+  if (!board.params.rates_type) return null;
+  const current = rateSpec(board, "roll").type;
+  const pick = async (to: RatesType) => {
+    if (to === current) return;
+    setBusy(true);
+    try {
+      const next = AXES.map((a) => ({ a, v: convertRates(rateSpec(board, a), to) }));
+      await set("rates_type", to);
+      for (const { a, v } of next) {
+        await set(`${a}_rc_rate`, v.rc);
+        await set(`${a}_srate`, v.srate);
+        await set(`${a}_expo`, v.expo);
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="seg" data-testid="rates-type">
+      {RATES_TYPES.map((ty) => (
+        <button key={ty} className={ty === current ? "on" : ""} disabled={armed || busy} onClick={() => void pick(ty)}>
+          {ty === "BETAFLIGHT" ? "Betaflight" : ty.charAt(0) + ty.slice(1).toLowerCase()}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+const THROTTLE_PARAMS = ["thr_mid", "thr_expo", "throttle_limit_type", "throttle_limit_percent"];
+
 function RatesBody() {
   const board = useCopterBoard();
-  const inTable = new Set(RATE_COLUMNS.flatMap((c) => AXES.map((a) => c.name(a))));
+  const type = rateSpec(board, "roll").type;
+  const L = RATE_TYPE_LABELS[type];
+  const columns = [
+    { key: "rc", title: L.rc, hint: L.rcHint, name: (a: (typeof AXES)[number]) => `${a}_rc_rate` },
+    { key: "srate", title: L.srate, hint: L.srateHint, name: (a: (typeof AXES)[number]) => `${a}_srate` },
+    { key: "expo", title: L.expo, hint: N_("мягче у центра, %"), name: (a: (typeof AXES)[number]) => `${a}_expo` },
+    ...(board.params.roll_rate_limit
+      ? [{ key: "limit", title: N_("Потолок"), hint: N_("°/с — выше не будет при любой формуле"), name: (a: (typeof AXES)[number]) => `${a}_rate_limit` }]
+      : []),
+  ];
+  const inTable = new Set(columns.flatMap((c) => AXES.map((a) => c.name(a))));
+  const thr = THROTTLE_PARAMS.map((n) => board.params[n]).filter((p): p is CopterParam => !!p);
   return (
     <div className="copter-grid">
       <div className="card">
@@ -267,8 +345,13 @@ function RatesBody() {
           </h3>
           <ProfilePicker kind="rateprofile" />
         </div>
-        <p className="hint">{t("Кривая Actual: «Центр» — чувствительность у центра стика, «Максимум» — скорость вращения при стике до упора, «Экспо» — насколько мягче у центра.")}</p>
-        <AxisTable board={board} columns={RATE_COLUMNS} />
+        <RatesTypePicker board={board} />
+        <p className="hint">
+          {type === "ACTUAL"
+            ? t("Кривая Actual: «Центр» — чувствительность у центра стика, «Максимум» — скорость вращения при стике до упора, «Экспо» — насколько мягче у центра.")
+            : t("Числа — как в конфигураторе Betaflight для этой формулы. При смене формулы Studio пересчитывает их, чтобы стик ощущался так же.")}
+        </p>
+        <AxisTable board={board} columns={columns} />
         {board.params.rateprofile_name && <ParamRow p={board.params.rateprofile_name} />}
       </div>
       <div className="card">
@@ -276,8 +359,18 @@ function RatesBody() {
         <RateChart board={board} />
         <p className="hint">{t("Новичку: 400–500 °/с максимума и экспо 30–50 % — спокойно; фристайл — 700–850.")}</p>
       </div>
+      {thr.length > 0 && (
+        <div className="card">
+          <h3>{t("Стик газа → газ")}</h3>
+          <ThrottleChart board={board} />
+          {thr.map((p) => (
+            <ParamRow key={p.name} p={p} />
+          ))}
+          <p className="hint">{t("thr_mid — на газ висения, thr_expo 20–40 % — висеть и снимать кино точнее. Предел газа — для обучения или мощной батареи на маленьком коптере.")}</p>
+        </div>
+      )}
       <div className="wide">
-        <ParamList title={t("Ещё")} params={tabParams(board, "rates", ["rateprofile_name", ...inTable])} />
+        <ParamList title={t("Ещё")} params={tabParams(board, "rates", ["rateprofile_name", "rates_type", ...THROTTLE_PARAMS, ...inTable])} />
       </div>
     </div>
   );
