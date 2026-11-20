@@ -1,6 +1,7 @@
 // Команды Rust-части приложения (src-tauri/src/lib.rs).
 
 import { invoke } from "@tauri-apps/api/core";
+import type { OtaStatus } from "./core/wifiFlash";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
 import { CopterFirmwareConfig, CopterProject } from "./core/copter";
@@ -397,6 +398,16 @@ export const api = {
   /** Готовый `firmware-<env>.bin` последнего релиза Studio (P49), байтами.
    *  Телефон качает Kotlin-плагином: у github.com нет CORS для fetch из окна. */
   releaseBin: (env: string) => invoke<ArrayBuffer>("firmware_release_bin", { env }),
+  /** Самолёт на ESP32 по WiFi (P50): паспорт и окно прошивки платы (`GET /ota`). */
+  wifiStatus: (host?: string) => invoke<OtaStatus>("firmware_wifi_status", { host: host ?? null }),
+  /** Образ по WiFi: байты (телефон) или путь к firmware.bin сборки (ПК). Прогресс — onFlashProgress ("upload"). */
+  wifiFlash: (image: Uint8Array | null, opts: { path?: string; name?: string; host?: string }) =>
+    invoke<null>("firmware_wifi_flash", image ?? new Uint8Array(0), { headers: { path: opts.path ?? "", name: opts.name ?? "", host: opts.host ?? "" } }),
+  /** Ждать, пока плата после прошивки снова ответит в своей сети. */
+  wifiWait: (timeoutS?: number, host?: string) => invoke<OtaStatus>("firmware_wifi_wait", { host: host ?? null, timeoutS: timeoutS ?? null }),
+  /** Телефон: подключиться к точке платы (окно Android); true — подключено, false — ПК (подключается сам пользователь). */
+  wifiJoin: (ssid: string, password: string) => invoke<boolean>("wifi_join", { ssid, password }),
+  wifiRelease: () => invoke<null>("wifi_release"),
   portHolders: () => invoke<PortHolder[]>("port_holders"),
   portHoldersKill: (pids: number[]) => invoke<number>("port_holders_kill", { pids }),
   dfuDriverStatus: () => invoke<DriverStatus>("dfu_driver_status"),
@@ -430,7 +441,7 @@ export const api = {
 
 /** Этап прошивки с телефона: bootloader → erase → write → verify → done, доля 0..1. */
 export interface FlashProgress {
-  phase: "bootloader" | "erase" | "write" | "verify" | "done";
+  phase: "bootloader" | "erase" | "write" | "verify" | "done" | "upload";
   fraction: number;
 }
 

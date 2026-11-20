@@ -18,12 +18,13 @@ mod update;
 #[cfg(target_os = "android")]
 mod usb_android;
 mod util;
+mod wifi_ota;
 
 use std::path::{Path, PathBuf};
 
 use serde::Serialize;
 use serde_json::Value;
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use util::{find_pio, find_python, home, Res};
 
@@ -290,6 +291,66 @@ async fn firmware_release_bin(env: String) -> Res<tauri::ipc::Response> {
     .await
 }
 
+/// Самолёт на ESP32 по WiFi (P50): паспорт и окно прошивки (`GET /ota`).
+#[tauri::command]
+async fn firmware_wifi_status(host: Option<String>) -> Res<wifi_ota::OtaStatus> {
+    let host = host.unwrap_or_else(|| wifi_ota::DEFAULT_HOST.into());
+    blocking(move || wifi_ota::status(&host, std::time::Duration::from_secs(3))).await
+}
+
+/// Отправить образ по WiFi: тело — байты (телефон, файл) или пусто и заголовок
+/// `path` (ПК, `firmware.bin` сборки); заголовки `host`, `name`.
+/// Прогресс — "flash-progress" (phase "upload"). После "OK" плата перезагружается.
+#[tauri::command]
+async fn firmware_wifi_flash(app: AppHandle, request: tauri::ipc::Request<'_>) -> Res<()> {
+    let header = |k: &str| request.headers().get(k).and_then(|v| v.to_str().ok()).filter(|v| !v.is_empty()).map(str::to_string);
+    let body = match request.body() {
+        tauri::ipc::InvokeBody::Raw(b) => b.clone(),
+        _ => Vec::new(),
+    };
+    let (host, name, path) = (header("host").unwrap_or_else(|| wifi_ota::DEFAULT_HOST.into()), header("name"), header("path"));
+    blocking(move || {
+        let image = match &path {
+            Some(p) if body.is_empty() => std::fs::read(p).map_err(|e| format!("файл {p}: {e}"))?,
+            _ => body,
+        };
+        let name = name.or_else(|| path.as_deref().and_then(|p| Path::new(p).file_name()).map(|n| n.to_string_lossy().into_owned()));
+        wifi_ota::upload(&host, name.as_deref().unwrap_or("firmware.bin"), &image, |fraction| {
+            let _ = app.emit("flash-progress", serde_json::json!({ "phase": "upload", "fraction": fraction }));
+        })
+    })
+    .await
+}
+
+/// Ждать, пока плата после прошивки снова ответит в своей сети.
+#[tauri::command]
+async fn firmware_wifi_wait(host: Option<String>, timeout_s: Option<u64>) -> Res<wifi_ota::OtaStatus> {
+    let host = host.unwrap_or_else(|| wifi_ota::DEFAULT_HOST.into());
+    let timeout = std::time::Duration::from_secs(timeout_s.unwrap_or(30));
+    blocking(move || wifi_ota::wait_back(&host, timeout)).await
+}
+
+/// Телефон: подключиться к точке платы (системное окно Android). ПК — сам пользователь.
+#[tauri::command]
+async fn wifi_join(ssid: String, password: String) -> Res<bool> {
+    #[cfg(target_os = "android")]
+    {
+        blocking(move || usb_android::wifi_join(&ssid, &password).map(|_| true)).await
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        let _ = (ssid, password);
+        Ok(false)
+    }
+}
+
+#[tauri::command]
+async fn wifi_release() -> Res<()> {
+    #[cfg(target_os = "android")]
+    usb_android::wifi_release();
+    Ok(())
+}
+
 #[tauri::command]
 async fn board_bootloader(port: String) -> Res<()> {
     blocking(move || devices::reboot_to_bootloader(&port)).await
@@ -330,7 +391,7 @@ async fn setup_status(app: AppHandle) -> Res<setup::Status> {
 #[tauri::command]
 async fn setup_run(app: AppHandle, options: setup::Options) -> Res<setup::Report> {
     blocking(move || {
-        use tauri::Emitter;
+
         let resources = app.path().resource_dir().ok().map(|d| d.join("resources"));
         let emitter = app.clone();
         let log: setup::Log = std::sync::Arc::new(move |line: &str| {
@@ -493,6 +554,11 @@ pub fn run() {
             board_bootloader,
             firmware_flash_bin,
             firmware_release_bin,
+            firmware_wifi_status,
+            firmware_wifi_flash,
+            firmware_wifi_wait,
+            wifi_join,
+            wifi_release,
             port_holders,
             port_holders_kill,
             dfu_driver_status,

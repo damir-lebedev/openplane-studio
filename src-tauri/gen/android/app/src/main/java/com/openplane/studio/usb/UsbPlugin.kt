@@ -11,6 +11,11 @@ import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
 import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import app.tauri.annotation.Command
 import app.tauri.annotation.TauriPlugin
@@ -28,6 +33,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * USB-OTG для OpenPlane Studio: только «сырой» доступ к USB.
@@ -374,6 +380,82 @@ class UsbPlugin(private val activity: Activity) : Plugin(activity) {
                     conn.disconnect()
                 }
             }
+        }
+    }
+    // ---------- WiFi платы (P50): прошивка самолёта на ESP32 ----------
+
+    private val connectivity by lazy { activity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager }
+    @Volatile private var wifiCallback: ConnectivityManager.NetworkCallback? = null
+
+    private fun releaseWifi() {
+        connectivity.bindProcessToNetwork(null)
+        wifiCallback?.let { cb -> runCatching { connectivity.unregisterNetworkCallback(cb) } }
+        wifiCallback = null
+    }
+
+    /**
+     * Подключиться к точке доступа платы (`WIFI_AP_SSID` из конфига самолёта) и привязать
+     * к ней процесс — сокеты Rust (`wifi_ota.rs`) пойдут на 192.168.4.1 этой сети, а не в
+     * мобильный интернет. Android 10+ сам показывает окно «Подключиться к …?»; сеть без
+     * интернета, общий WiFi телефона не меняется. Ответ — когда сеть поднялась или отказ.
+     */
+    @Command
+    fun wifiJoin(invoke: Invoke) {
+        val args = invoke.getArgs()
+        val ssid = args.getString("ssid", "") ?: ""
+        val password = args.getString("password", "") ?: ""
+        if (ssid.isEmpty()) {
+            invoke.reject("BAD_SSID: нет имени сети")
+            return
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            invoke.reject("OLD_ANDROID: нужен Android 10 — подключитесь к сети «$ssid» вручную")
+            return
+        }
+        guarded(invoke) {
+            releaseWifi()
+            val spec = WifiNetworkSpecifier.Builder().setSsid(ssid).apply {
+                if (password.isNotEmpty()) setWpa2Passphrase(password)
+            }.build()
+            val request = NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_WIFI)
+                .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                .setNetworkSpecifier(spec)
+                .build()
+            val answered = AtomicBoolean(false)
+            val cb = object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    connectivity.bindProcessToNetwork(network)
+                    if (answered.compareAndSet(false, true)) {
+                        val res = JSObject()
+                        res.put("ssid", ssid)
+                        invoke.resolve(res)
+                    }
+                }
+
+                override fun onUnavailable() {
+                    wifiCallback = null
+                    if (answered.compareAndSet(false, true)) {
+                        invoke.reject("NO_NETWORK: сеть «$ssid» не найдена или подключение отменено")
+                    }
+                }
+
+                override fun onLost(network: Network) {
+                    // плата перезагружается в новую прошивку — запрос живой, Android подключится снова
+                    connectivity.bindProcessToNetwork(null)
+                }
+            }
+            wifiCallback = cb
+            connectivity.requestNetwork(request, cb, 60000)
+        }
+    }
+
+    /** Отвязать процесс от сети платы и снять запрос (телефон вернётся в свой WiFi). */
+    @Command
+    fun wifiRelease(invoke: Invoke) {
+        guarded(invoke) {
+            releaseWifi()
+            invoke.resolve()
         }
     }
 }

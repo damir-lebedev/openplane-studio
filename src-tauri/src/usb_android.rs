@@ -345,6 +345,18 @@ pub fn download(url: &str, max: usize) -> Res<Vec<u8>> {
     bytes
 }
 
+/// Подключить телефон к точке доступа платы (P50) и привязать к ней процесс:
+/// сокеты Rust (`wifi_ota`) идут в эту сеть, а не в мобильный интернет.
+/// Android показывает системное окно «Подключиться к …?».
+pub fn wifi_join(ssid: &str, password: &str) -> Res<()> {
+    call::<Value>("wifiJoin", json!({ "ssid": ssid, "password": password })).map(|_| ())
+}
+
+/// Отвязать процесс от сети платы и забыть запрос.
+pub fn wifi_release() {
+    let _ = call::<Value>("wifiRelease", json!({}));
+}
+
 /// Ответ консоли на 'D' при включённом ARM (CopterConsole::refuseArmed).
 pub fn armed_refusal(text: &str) -> bool {
     text.to_lowercase().contains("только без arm")

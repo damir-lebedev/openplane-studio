@@ -9,6 +9,7 @@ import { isFresh } from "./core/live";
 import { fingerprint } from "./core/migrate";
 import { findBoard, Manifest } from "./core/manifest";
 import { configHash, FlashRecord, PlaneProject, toFirmwareConfig } from "./core/project";
+import { checkOtaStatus, checkWifiBin, explainWifiError, OtaStatus, planeWifi } from "./core/wifiFlash";
 import { N_, t } from "./i18n";
 import { FlashAction, FlashState, FlashStep, useApp } from "./store";
 
@@ -259,11 +260,13 @@ let lastCopterMode: "flash" | "export" = "flash";
 
 /** Вызов окна прошивки: самолёт или коптер — по id. */
 export function runAnyFlash(id: string) {
+  if (retryWifiFlash(id)) return;
   if (isMobile() && retryBinFlash(id)) return;
   return useApp.getState().copters.some((c) => c.id === id) ? runCopterFlash(id, lastCopterMode) : runFlash(id);
 }
 
 export async function runFlash(planeId: string) {
+  forgetWifiFlash();
   const app = useApp.getState();
   const plane = app.planes.find((p) => p.id === planeId);
   const manifest = app.manifest;
@@ -827,6 +830,172 @@ export async function runBinFlash(copterId: string, source: BinSource) {
       c.history = [done, ...c.history].slice(0, 50);
     });
   }
+}
+
+// ---------- самолёт на ESP32 по WiFi (P50) ----------
+
+/** Откуда образ: собрать из проекта (ПК), готовый файл (телефон) или только собрать
+ *  и положить `<самолёт>-<env>.bin` в «Загрузки» — для телефона («export»). */
+export type WifiSource = "build" | "export" | File;
+let lastWifi: { planeId: string; source: WifiSource } | null = null;
+
+const wifiFail = (e: unknown, ssid: string) => {
+  const why = explainWifiError(errorText(e), ssid, t);
+  return new FlashError(why.title, why.text, why.retry ? "retry" : undefined);
+};
+
+/**
+ * Прошить самолёт на ESP32 по его точке доступа: (ПК) сборка → подключение к
+ * сети платы (телефон — окно Android; ПК — пользователь сам) → паспорт и окно
+ * (`GET /ota`) → образ (`POST /update`, плата пишет во вторую область и
+ * проверяет) → перезагрузка → плата снова в сети, хэш конфигурации — проекта.
+ */
+export async function runWifiFlash(planeId: string, source: WifiSource) {
+  const app = useApp.getState();
+  const plane = app.planes.find((p) => p.id === planeId);
+  const manifest = app.manifest;
+  if (!plane || !manifest || app.flash?.running) return;
+  lastWifi = { planeId, source };
+  const { ssid, password } = planeWifi(manifest, plane);
+  const building = !(source instanceof File);
+  const steps: FlashStep[] =
+    source === "export"
+      ? [
+          { id: "build", title: t("Сборка прошивки"), status: "wait" },
+          { id: "export", title: t("Файл для телефона"), status: "wait" },
+        ]
+      : [
+          building ? { id: "build", title: t("Сборка прошивки"), status: "wait" } : { id: "build", title: t("Файл прошивки"), status: "wait" },
+          { id: "board", title: t("Сеть самолёта «{ssid}»", { ssid }), status: "wait" },
+          { id: "upload", title: t("Заливка по WiFi"), status: "wait" },
+          { id: "verify", title: t("Перезагрузка и проверка"), status: "wait" },
+        ];
+  app.startFlash({ planeId, running: true, steps, progress: null, activity: building ? t("Готовлю исходники…") : t("Читаю файл…"), log: [] });
+  const unlistenLog = building ? await followLog() : null;
+  let unlisten: (() => void) | null = null;
+  let joined = false;
+  let current = "build";
+  let record: FlashRecord | null = null;
+  try {
+    // 1. образ
+    setStep("build", "run");
+    let image: Uint8Array | null = null;
+    let path: string | undefined;
+    let name: string;
+    let hash: string | null = null;
+    let commit: string | null = null;
+    if (building) {
+      const firmwareSource = app.settings.firmwareSource;
+      if (!firmwareSource) throw new FlashError(t("Нет исходников прошивки"), t("Укажите папку прошивки в настройках."));
+      commit = await api.firmwareCommit(firmwareSource);
+      const config = toFirmwareConfig(manifest, plane);
+      hash = await configHash(config, commit);
+      config.project = { plane: plane.name, configHash: hash, commit, boardEnv: plane.board };
+      const prepared = await api.firmwarePrepare(firmwareSource, plane.id);
+      const applied = await api.firmwareApply(firmwareSource, prepared.dir, config);
+      if (!applied.ok) throw new FlashError(t("Конфигурация не записалась"), (applied.errors ?? []).join("\n"));
+      activity(t("Собираю прошивку…"));
+      const built = await api.firmwareBuild(prepared.dir, plane.board);
+      if (!built.ok || !built.firmware) {
+        const why = explainFailure(built.tail, "build");
+        throw new FlashError(why.title, why.text, why.action);
+      }
+      path = built.firmware;
+      name = exportBinName(plane.name, plane.board);
+      setStep("build", "ok", built.firmware.split(/[\\/]/).pop());
+      if (source === "export") {
+        current = "export";
+        setStep("export", "run");
+        const out = await api.firmwareExportBin(prepared.dir, plane.board, name);
+        setStep("export", "ok", name);
+        const text = t("Файл {name} — в папке «Загрузки» ({path}). Перекиньте его на телефон и нажмите там «Прошить по WiFi» на странице самолёта.", { name, path: out });
+        flash().setFlash((f) => ({ ...f, running: false, progress: null, activity: "", done: { verified: true, text } }));
+        return;
+      }
+    } else {
+      const bad = checkWifiBin({ name: source.name, size: source.size }, plane.board, t);
+      if (bad) throw new FlashError(t("Этот файл не подойдёт"), bad, "retry");
+      image = new Uint8Array(await source.arrayBuffer());
+      name = source.name;
+      setStep("build", "ok", `${source.name} · ${Math.ceil(source.size / 1024)} KB`);
+    }
+
+    // 2. сеть платы и окно
+    current = "board";
+    setStep("board", "run");
+    activity(isMobile() ? t("Подключаюсь к «{ssid}» — подтвердите в окне Android…", { ssid }) : t("Ищу плату в сети «{ssid}»…", { ssid }));
+    joined = await api.wifiJoin(ssid, password).catch((e) => {
+      throw wifiFail(e, ssid);
+    });
+    let status: OtaStatus | null = null;
+    for (let i = 0; i < 4 && !status; i++) {
+      status = await api.wifiStatus().catch((e) => {
+        if (i === 3) throw wifiFail(e, ssid);
+        return null;
+      });
+      if (!status) await sleep(1000);
+    }
+    const blocked = checkOtaStatus(status!, plane.board, t);
+    if (blocked) throw new FlashError(t("Пока нельзя"), blocked, "retry");
+    appendLog(t("Плата {board}, коммит {commit}, окно ещё {s} с", { board: status!.board, commit: status!.commit || "?", s: Math.round(status!.left_ms / 1000) }));
+    setStep("board", "ok", status!.board);
+
+    // 3. образ
+    current = "upload";
+    setStep("upload", "run");
+    activity(t("Отправляю прошивку…"), 0);
+    unlisten = await onFlashProgress((p) => {
+      if (p.phase === "upload") activity(p.fraction < 1 ? t("Отправляю прошивку…") : t("Плата проверяет образ…"), p.fraction);
+    });
+    await api.wifiFlash(image, { path, name }).catch((e) => {
+      throw wifiFail(e, ssid);
+    });
+    setStep("upload", "ok");
+
+    // 4. перезагрузка
+    current = "verify";
+    setStep("verify", "run");
+    activity(t("Плата перезагружается в новую прошивку…"));
+    const back = await api.wifiWait(40).catch((e) => {
+      throw wifiFail(e, ssid);
+    });
+    const ok = hash ? back.config === hash : true;
+    const text = !ok
+      ? t("Плата вернулась, но хэш конфигурации другой: {got} вместо {want}.", { got: back.config || t("пусто"), want: hash ?? "" })
+      : hash
+        ? t("На плате ровно то, что в проекте: «{plane}», хэш {hash}. Прошито по WiFi.", { plane: plane.name, hash })
+        : t("Прошито по WiFi: {env}, коммит {commit}. Настройки и калибровки остались на плате.", { env: back.board, commit: back.commit || "?" });
+    setStep("verify", ok ? "ok" : "fail", ok ? undefined : t("не подтверждено"));
+    record = { at: new Date().toISOString(), board: plane.board, commit: commit ?? (back.commit || null), configHash: back.config ?? "", ok, note: source === "build" ? "wifi" : `wifi · ${name}` };
+    flash().setFlash((f) => ({ ...f, running: false, progress: null, activity: "", done: { verified: ok, text } }));
+  } catch (e) {
+    failFlash(e, current);
+  } finally {
+    unlisten?.();
+    unlistenLog?.();
+    if (joined) void api.wifiRelease().catch(() => undefined);
+  }
+  if (record) {
+    const done = record;
+    useApp.getState().updatePlane((p) => {
+      if (p.id !== planeId) return;
+      p.lastFlash = done;
+      p.history = [done, ...p.history].slice(0, 50);
+    });
+  }
+}
+
+/** «Повторить» после WiFi-прошивки — тем же способом. */
+function retryWifiFlash(planeId: string): boolean {
+  const app = useApp.getState();
+  if (!lastWifi || lastWifi.planeId !== planeId || app.flash?.planeId !== planeId) return false;
+  void runWifiFlash(planeId, lastWifi.source);
+  return true;
+}
+
+/** Обычная прошивка самолёта — WiFi больше не повторять. */
+export function forgetWifiFlash() {
+  lastWifi = null;
 }
 
 /** «Повторить» в окне прошивки на телефоне — тот же файл. */

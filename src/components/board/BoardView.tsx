@@ -13,6 +13,7 @@ import { PlaneView } from "../PlaneView";
 import { Modal, Seg } from "../ui";
 import { FlashDialog } from "./FlashDialog";
 import { HistoryDialog } from "./HistoryDialog";
+import { WifiFlashButton } from "./WifiFlashButton";
 import { ParamsTable } from "./ParamsTable";
 import { AirframeStep } from "./steps/AirframeStep";
 import { BoardBadges, BoardStep } from "./steps/BoardStep";
@@ -265,6 +266,7 @@ export function BoardView() {
           <Zap size={16} />
           {t("Прошить")}
         </button>
+        <WifiFlashButton plane={plane} disabled={!!flash?.running} blocker={blocker} />
       </div>
 
       <Stepper issues={issues} />
