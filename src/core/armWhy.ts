@@ -64,6 +64,7 @@ const WHY: Record<string, Omit<ArmWhy, "code" | "what" | "bench">> = {
   BATTERY: { word: "LOW BATT", how: N_("Батарея разряжена — поставьте заряженную. Полная, а не пускает — проверьте напряжение банки в «Питании»."), icon: "battery", fixes: [tab("power", N_("Открыть «Питание»"))] },
   MOTOR_TEST: { word: "MOTOR TEST", how: N_("Идёт проверка моторов — остановите её."), icon: "motor", fixes: [tab("motors", N_("Открыть «Моторы»"))] },
   NO_ARM_AUX: { word: "NO ARM SW", how: N_("Назначьте ARM на тумблер пульта."), icon: "switch", fixes: [tab("modes", N_("Открыть «Режимы»"))] },
+  FENCE: { word: "FENCE", how: N_("Коптер вне поля геозабора или в запретной зоне — перенесите его внутрь поля (карточка «Геозабор»)."), icon: "gps", fixes: [tab("failsafe", N_("Открыть «Безопасность»"))] },
   CONFIG: { word: "CONFIG", how: N_("Описание коптера не сходится с платой — что именно, пишет `status` в CLI."), icon: "cli", fixes: [tab("cli", N_("Открыть CLI"))] },
 };
 

@@ -21,6 +21,8 @@ export interface GeofenceView {
   /** радар и расстояние в очках включены (бит «показан» osd_*_pos) */
   mapShown: boolean;
   distShown: boolean;
+  /** годных многоугольников на плате (поле и запретные зоны, P44 б) */
+  zones: number;
 }
 
 const OSD_PROFILE_MASK = 0x3800;
@@ -36,6 +38,7 @@ export function geofenceOf(b: CopterBoard): GeofenceView | null {
     noGps: ng === "WARN" || ng === "LAND" ? ng : "RETURN",
     mapShown: (num(b, "osd_fence_map_pos", 2164) & OSD_PROFILE_MASK) !== 0,
     distShown: (num(b, "osd_fence_pos", 2326) & OSD_PROFILE_MASK) !== 0,
+    zones: (b.fence ?? []).filter((z) => z.type !== "NONE" && !z.problem).length,
   };
 }
 
@@ -83,12 +86,14 @@ export interface GeofenceNote {
 export function geofenceNotes(v: GeofenceView, b: CopterBoard, live: CopterLive | null): GeofenceNote[] {
   const notes: GeofenceNote[] = [];
   if (!v.on) return notes;
-  if (v.radius > 0 && live && !live.gps) notes.push({ text: N_("GPS не виден — с забором коптер не заармится."), warn: true });
+  const area = v.radius > 0 || v.zones > 0;
+  if (area && live && !live.gps) notes.push({ text: N_("GPS не виден — с забором коптер не заармится."), warn: true });
   if (v.radius > 0) notes.push({ text: N_("Дом — точка ARM: армиться в середине площадки, а не у её края."), warn: false });
+  if (v.radius > 0 && v.zones > 0) notes.push({ text: N_("Круг и поле вместе: действует то, что ближе. Только поле — поставьте радиус 0."), warn: false });
   const minStart = num(b, "gps_rescue_min_start_dist", 15);
   if (v.radius > 0 && v.radius < 2 * minStart) notes.push({ text: N_("Круг меньше двух gps_rescue_min_start_dist — у края коптер будет садиться, а не разворачивать."), warn: true });
-  if (v.radius > 0 && v.noGps === "WARN") notes.push({ text: N_("WARN: без GPS забор не держит — коптер может вылететь. Для игры и соревнований — RETURN или LAND."), warn: true });
-  if (v.radius > 0 && (!v.mapShown || !v.distShown)) notes.push({ text: N_("Радар забора в очках выключен — включите кнопкой ниже."), warn: false });
+  if (area && v.noGps === "WARN") notes.push({ text: N_("WARN: без GPS забор не держит — коптер может вылететь. Для игры и соревнований — RETURN или LAND."), warn: true });
+  if (area && (!v.mapShown || !v.distShown)) notes.push({ text: N_("Радар забора в очках выключен — включите кнопкой ниже."), warn: false });
   return notes;
 }
 

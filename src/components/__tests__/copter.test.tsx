@@ -337,6 +337,31 @@ describe("геозабор (P44)", () => {
     expect(screen.getByText("FENCE RETURN")).toBeTruthy();
     expect(screen.getByText(/до края 4 м/)).toBeTruthy();
   });
+
+  it("поле многоугольником (P44 б): вставить координаты — строки geozone; дрон внутри — запас до края", async () => {
+    withGeofence("ON");
+    render(<CopterView />);
+    tab("Безопасность");
+    const card = within(screen.getByTestId("geozones"));
+    fireEvent.click(card.getByRole("button", { name: "+ поле" }));
+    fireEvent.click(card.getByRole("button", { name: "Вставить координаты" }));
+    fireEvent.change(card.getByRole("textbox", { name: "Координаты точек" }), { target: { value: "56.0000000, 44.0000000\n56.0018000, 44.0000000\n56.0018000, 44.0048000\n56.0000000, 44.0048000" } });
+    fireEvent.click(card.getByRole("button", { name: "Взять точки" }));
+    expect(card.getByText(/4 точек/)).toBeTruthy();
+    fireEvent.click(card.getByRole("button", { name: "Записать на плату" }));
+    await waitFor(() => expect(sent).toHaveLength(6));
+    expect(sent.slice(0, 3)).toEqual(["geozone 0 clear", "geozone 0 FIELD", "geozone 0 0 56.0000000 44.0000000"]);
+    // плата ответила @fence — зона на схеме, дрон в 20 м от южного края
+    act(() =>
+      useApp.setState((st) => ({
+        copterBoard: { ...st.copterBoard, fence: [{ zone: 0, type: "FIELD", pts: [[560000000, 440000000], [560018000, 440000000], [560018000, 440048000], [560000000, 440048000]], problem: null }] },
+        clive: live({ gps: { fix: true, sats: 12, lat: 56.00018, lon: 44.0024, spd: 0 } }),
+      })),
+    );
+    expect(screen.getByRole("button", { name: "Поле 1" })).toBeTruthy();
+    expect(screen.getByTestId("geozones-margin").textContent).toMatch(/до ближнего края 20 м/);
+    expect(screen.getByTestId("geozones-osd").textContent).toContain("^");
+  });
 });
 
 describe("вкладки коптера", () => {

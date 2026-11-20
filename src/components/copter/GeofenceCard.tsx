@@ -9,6 +9,7 @@ import { fenceMap, GEOFENCE_PRESETS, geofenceCommands, geofenceNotes, geofenceNo
 import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
 import { ParamInput, useCopterBoard, useCopterLink, useCopterLive } from "./common";
+import { GeoZonesEditor } from "./GeoZones";
 
 const PARAMS: [string, string][] = [
   ["geofence_radius", N_("Радиус от дома")],
@@ -77,6 +78,7 @@ export function GeofenceCard() {
               {t(n.text)}
             </p>
           ))}
+          <GeoZonesEditor />
           {osdFix.length > 0 && (
             <button className="btn small" disabled={armed} onClick={() => send(osdFix)}>
               {t("Показать радар в очках")}

@@ -4,6 +4,7 @@
 // BF), ответы "@set", "@save", "@revert", "@profile", "@error", "@motor".
 // Всё здесь — без React и без связи: разбор, вкладки, кривые, импорт diff BF.
 
+import { applyFence, FenceZone } from "./geozones";
 import { N_ } from "../i18n";
 
 export type ParamValue = number | string;
@@ -101,10 +102,12 @@ export interface CopterBoard {
   unsaved: boolean;
   /** ползунки проверки моторов, % (ответ "@motor") */
   motorTest: number[];
+  /** поле и запретные зоны геозабора (ответы "@fence", core/geozones.ts) */
+  fence: FenceZone[];
 }
 
 export function emptyBoard(): CopterBoard {
-  return { header: null, params: {}, order: [], rc: null, modes: [], loading: false, loadedAt: 0, pending: {}, errors: {}, unsaved: false, motorTest: [] };
+  return { header: null, params: {}, order: [], rc: null, modes: [], loading: false, loadedAt: 0, pending: {}, errors: {}, unsaved: false, motorTest: [], fence: [] };
 }
 
 /** Ответ платы → новое состояние (без мутаций). */
@@ -122,6 +125,8 @@ export function applyMessage(b: CopterBoard, kind: string, data: unknown, now = 
     }
     case "rc":
       return { ...b, rc: data as RcState, unsaved: b.loading ? b.unsaved : true };
+    case "fence":
+      return { ...b, fence: applyFence(b.fence, data as FenceZone), unsaved: b.loading ? b.unsaved : true };
     case "modes":
       return { ...b, modes: data as ModeInfo[], loading: false, loadedAt: now };
     case "set": {
@@ -682,6 +687,7 @@ export const ARM_TEXT: Record<string, string> = {
   MOTOR_TEST: N_("идёт проверка моторов"),
   NO_ARM_AUX: N_("ARM не назначен ни на один тумблер — «Режимы»"),
   CONFIG: N_("описание коптера не сходится с платой (см. CLI → status)"),
+  FENCE: N_("вне поля геозабора или в запретной зоне"),
 };
 
 /** Причины, которые на столе без пульта и батареи — нормальны: не мешают проверять. */

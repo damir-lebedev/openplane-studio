@@ -22,7 +22,7 @@ const live = (patch: Partial<CopterLive> = {}) => ({ alt: 0, hdg: 0, ...patch })
 
 describe("геозабор", () => {
   it("с платы: включён ли, числа, радар в очках; старая прошивка — null", () => {
-    expect(geofenceOf(board("ON"))).toEqual({ on: true, radius: 200, alt: 120, noGps: "RETURN", mapShown: true, distShown: true });
+    expect(geofenceOf(board("ON"))).toEqual({ on: true, radius: 200, alt: 120, noGps: "RETURN", mapShown: true, distShown: true, zones: 0 });
     expect(geofenceOf(board("OFF", 50, 30, "LAND", 116))).toMatchObject({ on: false, noGps: "LAND", mapShown: false });
     expect(geofenceOf(dumpedBoard([param("p_roll")]))).toBeNull();
   });
