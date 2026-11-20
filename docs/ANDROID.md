@@ -124,20 +124,21 @@ Studio нет (скачивание из релиза не работает). П
 
 ### Ключ подписи (один раз, делает владелец)
 
+**Создан 2026-11-20**: `openplane-release.jks` (RSA 4096, alias `openplane`, до 2054, SHA-256 сертификата
+`4D:07:E1:87:B7:28:CA:A1:D3:66:CD:DA:33:E8:66:47:10:27:BD:3D:CA:AF:FF:8C:39:D9:69:FA:B2:BB:7E:9A`), лежит у
+владельца вне репозитория вместе с паролем; секреты заданы. Новый ключ НЕ создавать.
+
 Ключ — навсегда: обновление APK ставится поверх только с той же подписью. Потеряли ключ — все
 переустанавливают приложение с потерей данных. Хранить `.jks` и пароль вне репозитория, в двух местах.
 
-```powershell
-$jdk = "$env:LOCALAPPDATA\Programs\Microsoft\jdk-17.0.10.7-hotspot\bin"
-& "$jdk\keytool.exe" -genkeypair -v -keystore openplane-release.jks -alias openplane `
-  -keyalg RSA -keysize 4096 -validity 10000 -storetype PKCS12
-# пароль спросит; «Имя и фамилия» — OpenPlane, остальное можно пропустить
+Если секреты придётся задать заново — из **Git Bash**, байт в байт (PowerShell 5.1 дописывает `\r\n`
+к тому, что передаёт в `gh` по конвейеру, и `base64 -d` в CI падает с «invalid input»):
 
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("openplane-release.jks")) | Out-File -Encoding ascii ks.b64
-Get-Content ks.b64 -Raw | gh secret set ANDROID_KEYSTORE -R damir-lebedev/openplane-studio
-gh secret set ANDROID_KEY_PASSWORD -R damir-lebedev/openplane-studio   # спросит — тот же пароль
-gh secret set ANDROID_KEY_ALIAS    -R damir-lebedev/openplane-studio -b openplane
-Remove-Item ks.b64
+```bash
+R=damir-lebedev/openplane-studio
+base64 -w0 openplane-release.jks | gh secret set ANDROID_KEYSTORE -R $R
+gh secret set ANDROID_KEY_PASSWORD -R $R        # спросит пароль
+printf %s openplane | gh secret set ANDROID_KEY_ALIAS -R $R
 ```
 
 (Или GitHub → Settings → Secrets and variables → Actions → New repository secret, те же три имени.)

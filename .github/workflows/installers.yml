@@ -138,7 +138,10 @@ jobs:
         run: |
           BT="$ANDROID_HOME/build-tools/36.0.0"
           APK=src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
-          echo "$ANDROID_KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.jks"
+          # секрет, заданный из PowerShell 5.1, приходит с хвостом \r — base64 его не берёт
+          printf %s "$ANDROID_KEYSTORE" | tr -d '\r\n ' | base64 -d > "$RUNNER_TEMP/release.jks"
+          export ANDROID_KEY_PASSWORD="$(printf %s "$ANDROID_KEY_PASSWORD" | tr -d '\r\n')"
+          ANDROID_KEY_ALIAS="$(printf %s "$ANDROID_KEY_ALIAS" | tr -d '\r\n')"
           mkdir -p out
           "$BT/zipalign" -p -f 4 "$APK" "$RUNNER_TEMP/aligned.apk"
           "$BT/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-key-alias "$ANDROID_KEY_ALIAS" \
