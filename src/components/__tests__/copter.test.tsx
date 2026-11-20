@@ -1046,6 +1046,7 @@ describe("автопилот: POS HOLD, ALT HOLD и компас (128, 130–132
     magNum("mag_scale_z", 1000, 500, 2000),
     param("align_mag", { group: "gps", scope: "master", type: "enum", options: ["DEFAULT", "CW0", "CW90", "CW180", "CW270", "CW0FLIP", "CW90FLIP", "CW180FLIP", "CW270FLIP"], default: "DEFAULT", value: "DEFAULT", from: "table" }),
     param("mag_declination", { group: "gps", scope: "master", default: 0, value: 0, min: -1800, max: 1800, units: "0.1°", from: "table" }),
+    param("mag_declination_auto", { group: "gps", scope: "master", type: "enum", options: ["OFF", "ON"], default: "ON", value: "ON", from: "table" }),
   ];
   const withAutopilot = () =>
     act(() =>
@@ -1152,6 +1153,17 @@ describe("автопилот: POS HOLD, ALT HOLD и компас (128, 130–132
     expect(sent).toEqual(expect.arrayContaining(["set mag_zero_x 120", "set mag_zero_y -70", "set mag_zero_z 40", "set mag_scale_x 1000", "set align_mag CW90"]));
     expect(screen.getByText("Записано")).toBeTruthy();
   }, 30000);   // 432 кадра с отрисовкой: на macOS Intel в CI — 8–9 с
+
+  it("«Компас»: склонение по GPS — значение из живого кадра, ручное — запасное", () => {
+    withAutopilot();
+    act(() => useApp.setState({ clive: live({ t: 5, hdg: 90, mag: { raw: [20, 0, -45], f: 49, cal: true, ok: true, bad: false, decl: 13.8, dgps: true } }), cliveAt: Date.now() }));
+    render(<CopterView />);
+    tab("Подготовка");
+    expect(screen.getByTestId("compass-decl").textContent).toBe("+13.8° по GPS");
+    expect(screen.getByText(/берётся, пока у коптера нет GPS/)).toBeTruthy();
+    act(() => useApp.setState({ clive: live({ t: 6, hdg: 90, mag: { raw: [20, 0, -45], f: 49, cal: true, ok: true, bad: false, decl: -2, dgps: false } }), cliveAt: Date.now() }));
+    expect(screen.getByTestId("compass-decl").textContent).toBe("-2.0° вручную");
+  });
 
   it("компаса нет — карточка говорит, что делать", () => {
     withAutopilot();

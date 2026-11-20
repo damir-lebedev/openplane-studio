@@ -75,6 +75,8 @@ export function CompassCard() {
 
   const verdict = result?.fit ? magVerdict(result.fit) : null;
   const declination = board.params.mag_declination;
+  const declAuto = board.params.mag_declination_auto;
+  const autoOn = !!declAuto && String(declAuto.value) !== "OFF" && declAuto.value !== 0;
 
   return (
     <div className="card wide compass-card" data-testid="compass-card">
@@ -180,11 +182,29 @@ export function CompassCard() {
         </div>
       )}
 
+      {declAuto && (
+        <label className="training-param" data-param="mag_declination_auto" style={{ marginTop: 10 }}>
+          <span className="grow">
+            {t("Склонение по GPS")}
+            <span className="hint"> — {t("коптер сам считает склонение по своим координатам (модель WMM-2025), вводить руками не нужно")}</span>
+          </span>
+          <ParamInput p={declAuto} width={90} />
+          {mag?.decl !== undefined && (
+            <span className="mono" data-testid="compass-decl">
+              {mag.decl > 0 ? "+" : ""}
+              {mag.decl.toFixed(1)}° {mag.dgps ? t("по GPS") : t("вручную")}
+            </span>
+          )}
+        </label>
+      )}
       {declination && (
         <label className="training-param" data-param="mag_declination" style={{ marginTop: 10 }}>
           <span className="grow">
             {t("Магнитное склонение")}
-            <span className="hint"> — {t("на сколько магнитный север восточнее истинного в ваших местах (в Москве около +12°, это 120)")}</span>
+            <span className="hint">
+              {" "}
+              — {autoOn ? t("берётся, пока у коптера нет GPS (или GPS нет вовсе)") : t("на сколько магнитный север восточнее истинного в ваших местах (в Москве около +12°, это 120)")}
+            </span>
           </span>
           <ParamInput p={declination} width={90} />
           <span className="hint">{t(declination.units ?? "")}</span>

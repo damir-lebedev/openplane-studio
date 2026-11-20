@@ -2706,5 +2706,10 @@
   "нос": "nose",
   "трясут > {dps} °/с — заново": "shaken > {dps} °/s — restart",
   "коптер неподвижен (gyro_calib_duration, 1.25 с); делается и сама при каждом включении": "keep the copter still (gyro_calib_duration, 1.25 s); also runs by itself at every power-up",
-  "коптер стоит ровно на столе ~0.5 с → acc_calibration; то же стиками: газ верх + рысканье влево + тангаж на себя": "copter sits level on the table ~0.5 s → acc_calibration; same with sticks: throttle high + yaw left + pitch back"
+  "коптер стоит ровно на столе ~0.5 с → acc_calibration; то же стиками: газ верх + рысканье влево + тангаж на себя": "copter sits level on the table ~0.5 s → acc_calibration; same with sticks: throttle high + yaw left + pitch back",
+  "Склонение по GPS": "Declination from GPS",
+  "берётся, пока у коптера нет GPS (или GPS нет вовсе)": "used until the copter has a GPS fix (or if there is no GPS at all)",
+  "вручную": "manual",
+  "коптер сам считает склонение по своим координатам (модель WMM-2025), вводить руками не нужно": "the copter works it out from its own position (WMM-2025 model), no need to type it in",
+  "по GPS": "from GPS"
 }

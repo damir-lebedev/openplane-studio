@@ -228,7 +228,7 @@ export interface CopterLive {
   /** откуда курс: MAG — компас, GPS — выучен по полёту, NONE — только гироскоп */
   hsrc?: "MAG" | "GPS" | "NONE";
   /** компас: сырое поле (мкТл, оси датчика), модуль после калибровки, откалиброван, верим ли, расходится ли с полётом */
-  mag?: { raw: [number, number, number]; f: number; cal: boolean; ok: boolean; bad: boolean };
+  mag?: { raw: [number, number, number]; f: number; cal: boolean; ok: boolean; bad: boolean; decl?: number; dgps?: boolean };
   /** оценка положения (от дома, м) и скорости; удержание позиции: этап (HOLD, BRAKE, MOVE) и точка */
   pos?: { n: number; e: number; vn: number; ve: number; hold?: string; tn?: number; te?: number };
   /** POS HOLD включён, но не держит: NO_GPS, NO_HEADING, DRIFT */
