@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, errorText } from "../../api";
 import { VTX_BANDS, vtxFrequency } from "../../core/copter";
 import { CopterParam, CopterTab, num, tabParams, yawSpinThreshold } from "../../core/copterParams";
+import { BOARD_ALIGN_PARAMS } from "../../core/imuAlign";
 import { OVERLOAD_TEXT } from "../../core/parts";
 import { isGeofenceParam } from "../../core/geofence";
 import { isTrainingParam } from "../../core/training";
@@ -277,7 +278,7 @@ export function OtherTab() {
 
 function OtherBody() {
   const board = useCopterBoard();
-  const all = tabParams(board, "other", ["props_out"]);
+  const all = tabParams(board, "other", ["props_out", ...BOARD_ALIGN_PARAMS]);
   const model = all.filter((p: CopterParam) => p.group === "copter");
   const rest = all.filter((p: CopterParam) => p.group !== "copter");
   return (

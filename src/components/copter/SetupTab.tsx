@@ -1,13 +1,14 @@
 // «Подготовка»: как стоит коптер (горизонт), можно ли армить и почему нет,
-// калибровки (клавиши консоли платы: i, o) и ответ платы на них, компас —
-// мастером со сферой точек (CompassCard).
+// калибровки (клавиши консоли платы: i, a, o) и ответ платы на них, плата на
+// раме (align_board_*, нули — BoardAlignCard), компас — мастером со сферой точек (CompassCard).
 
-import { CircleCheck, Crosshair, Gauge } from "lucide-react";
+import { CircleCheck, Crosshair, Gauge, Ruler } from "lucide-react";
 import { Fragment } from "react";
 
 import { api, errorText } from "../../api";
 import { ARM_BENCH_OK } from "../../core/copterParams";
 import { gyroReport } from "../../core/gyros";
+import { accZeroTiltDeg, boardRotated, dragText, gyroCalibration, mahonyActive, parseAccCalibration } from "../../core/imuAlign";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Horizon } from "../live/LiveWidgets";
@@ -18,7 +19,13 @@ import { PreflightCard } from "./Preflight";
 import { GoTo } from "./Search";
 
 const CALIBRATIONS: { key: string; title: string; hint: string; icon: typeof Gauge }[] = [
-  { key: "i", title: "Гироскоп", hint: "коптер неподвижен ~2 с; делается и сама при каждом включении", icon: Gauge },
+  { key: "i", title: "Гироскоп", hint: "коптер неподвижен (gyro_calib_duration, 1.25 с); делается и сама при каждом включении", icon: Gauge },
+  {
+    key: "a",
+    title: "Нуль акселерометра",
+    hint: "коптер стоит ровно на столе ~0.5 с → acc_calibration; то же стиками: газ верх + рысканье влево + тангаж на себя",
+    icon: Ruler,
+  },
   {
     key: "o",
     title: "Установка платы",
@@ -64,6 +71,18 @@ function SetupBody({ onGo }: { onGo?: GoTo }) {
                 </span>
                 <span title={t("Насколько фильтр ориентации сейчас верит акселерометру: на манёвре — почти нет, в спокойном висении и на земле — полностью.")}>{t("Вера акселерометру")}</span>
                 <span className="mono">{live.atrust ?? 0}%</span>
+              </>
+            )}
+            {live?.kdrag && (
+              <>
+                <span title={t("Сопротивление винтов: фильтр ориентации меряет его в полёте по GPS и после посадки записывает в attitude_drag. Чем точнее, тем ровнее горизонт в разгоне.")}>{t("Сопротивление винтов")}</span>
+                <span className="mono">{dragText(live.kdrag, t("1/с"))}</span>
+              </>
+            )}
+            {live?.amag !== undefined && (
+              <>
+                <span title={t("Компас поправляет курс в фильтре ориентации. Нет — курс держит гироскоп и GPS в движении.")}>{t("Компас в фильтре")}</span>
+                <span className="mono">{live.amag ? t("да") : t("нет")}</span>
               </>
             )}
           </div>
@@ -113,6 +132,7 @@ function SetupBody({ onGo }: { onGo?: GoTo }) {
 
       <GyrosCard />
       <Calibrations />
+      <BoardAlignCard />
       <CompassCard />
     </div>
   );
@@ -146,6 +166,91 @@ function GyrosCard() {
       )}
       {p && <ParamRow p={p} title={t("Какой гироскоп брать")} />}
     </div>
+  );
+}
+
+/** Плата на раме: поворот align_board_* с картинкой (сверху и сбоку), нуль акселерометра, калибровка гироскопа. */
+function BoardAlignCard() {
+  const board = useCopterBoard();
+  const p = board.params;
+  if (!p.align_board_yaw) return null;
+  const roll = Number(p.align_board_roll?.value ?? 0);
+  const pitch = Number(p.align_board_pitch?.value ?? 0);
+  const yaw = Number(p.align_board_yaw?.value ?? 0);
+  const acc = parseAccCalibration(p.acc_calibration?.value);
+  const gyro = gyroCalibration(board);
+  const rows = (names: string[]) => names.map((n) => p[n] && <ParamRow key={n} p={p[n]} />);
+  return (
+    <div className="card wide" data-card="board-align">
+      <h3>{t("Плата на раме")}</h3>
+      <p className="sub">{t("Полётник стоит развёрнутым или наклонённым — скажите это числами, перепаивать и переставлять не нужно. Поверх калибровки установки (три позы).")}</p>
+      <div className="row" style={{ gap: 18, alignItems: "center", flexWrap: "wrap" }}>
+        <BoardTopView yaw={yaw} />
+        <BoardSideView pitch={pitch} roll={roll} />
+        <div className="kv">
+          <span>{t("Поворот")}</span>
+          <span className="mono">{boardRotated(board) ? `${roll}° / ${pitch}° / ${yaw}°` : t("нет")}</span>
+          <span title={t("Нуль акселерометра в осях платы, 1/2048 g (как у Betaflight). Пишет калибровка «Нуль акселерометра».")}>{t("Нуль акселерометра")}</span>
+          <span className="mono">
+            {acc === null
+              ? t("записан не так")
+              : acc.done
+                ? t("{x} / {y} / {z} · горизонт ±{deg}°", { x: acc.zero[0], y: acc.zero[1], z: acc.zero[2], deg: accZeroTiltDeg(acc).toFixed(1) })
+                : t("не калиброван")}
+          </span>
+          <span>{t("Калибровка гироскопа")}</span>
+          <span className="mono">
+            {gyro.seconds.toFixed(2)} {t("с")}
+            {gyro.noiseDps !== null ? ` · ${t("трясут > {dps} °/с — заново", { dps: gyro.noiseDps.toFixed(1) })}` : ` · ${t("без проверки тряски")}`}
+          </span>
+        </div>
+      </div>
+      {rows(["align_board_yaw", "align_board_pitch", "align_board_roll", "acc_calibration", "gyro_calib_duration", "gyro_calib_noise_limit", "gyro_offset_yaw"])}
+      {mahonyActive(board) && rows(["imu_dcm_kp", "imu_dcm_ki"])}
+    </div>
+  );
+}
+
+/** Вид сверху: рама крестом, плата со стрелкой, повёрнутая на align_board_yaw (по часовой). */
+function BoardTopView({ yaw }: { yaw: number }) {
+  return (
+    <svg width={130} height={130} viewBox="-65 -65 130 130" role="img" aria-label={t("Вид сверху")}>
+      <g stroke="currentColor" strokeOpacity={0.35} strokeWidth={5} strokeLinecap="round">
+        <line x1={-42} y1={-42} x2={42} y2={42} />
+        <line x1={42} y1={-42} x2={-42} y2={42} />
+      </g>
+      {[[-42, -42], [42, -42], [-42, 42], [42, 42]].map(([x, y]) => (
+        <circle key={`${x}${y}`} cx={x} cy={y} r={14} fill="none" stroke="currentColor" strokeOpacity={0.3} />
+      ))}
+      <text x={0} y={-52} textAnchor="middle" fontSize={10} fill="currentColor" stroke="none" opacity={0.6}>
+        {t("нос")}
+      </text>
+      <g transform={`rotate(${yaw})`}>
+        <rect x={-18} y={-18} width={36} height={36} rx={4} fill="var(--accent)" fillOpacity={0.18} stroke="var(--accent)" />
+        <path d="M0 10 V-12 M-6 -6 L0 -13 L6 -6" fill="none" stroke="var(--accent)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+      </g>
+    </svg>
+  );
+}
+
+/** Вид сбоку (нос вправо): плата с наклоном align_board_pitch; крен — подписью. */
+function BoardSideView({ pitch, roll }: { pitch: number; roll: number }) {
+  return (
+    <svg width={150} height={90} viewBox="-75 -45 150 90" role="img" aria-label={t("Вид сбоку")}>
+      <line x1={-60} y1={18} x2={60} y2={18} stroke="currentColor" strokeOpacity={0.35} strokeWidth={4} strokeLinecap="round" />
+      <text x={62} y={34} textAnchor="end" fontSize={10} fill="currentColor" stroke="none" opacity={0.6}>
+        {t("нос")} →
+      </text>
+      <g transform={`rotate(${-pitch})`}>
+        <rect x={-26} y={-5} width={52} height={10} rx={2} fill="var(--accent)" fillOpacity={0.18} stroke="var(--accent)" />
+        <path d="M20 -12 L30 0 L20 12" fill="none" stroke="var(--accent)" strokeWidth={2} strokeLinecap="round" />
+      </g>
+      {roll % 360 !== 0 && (
+        <text x={-70} y={-32} fontSize={10} fill="currentColor" stroke="none" opacity={0.75}>
+          {t("крен {deg}°", { deg: roll })}
+        </text>
+      )}
+    </svg>
   );
 }
 

@@ -538,6 +538,45 @@ describe("вкладки коптера", () => {
     expect(card.querySelector("[data-param=gyro_to_use]")).toBeTruthy();
   });
 
+  it("плата на раме: поворот с картинкой, нуль акселерометра, kdrag/amag из кадра, клавиша a (066/068/070)", () => {
+    render(<CopterView />);
+    tab("Подготовка");
+    expect(document.querySelector("[data-card=board-align]")).toBeNull();
+    const st = useApp.getState();
+    const int = (name: string, value: number, min: number, max: number) =>
+      param(name, { type: "int", group: "other", scope: "master", min, max, default: 0, value, from: "table" });
+    act(() =>
+      useApp.setState({
+        copterBoard: dumpedBoard([
+          ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+          int("align_board_roll", 0, -180, 360),
+          int("align_board_pitch", 0, -180, 360),
+          int("align_board_yaw", 90, -180, 360),
+          param("acc_calibration", { type: "string", group: "other", scope: "master", maxlen: 16, default: "0,0,0,0", value: "179,0,0,1", from: "table" }),
+          int("gyro_calib_duration", 125, 50, 3000),
+          int("gyro_calib_noise_limit", 48, 0, 200),
+          int("gyro_offset_yaw", 0, -1000, 1000),
+          int("imu_dcm_kp", 5000, 0, 32000),
+          int("imu_dcm_ki", 0, 0, 32000),
+        ]),
+        clive: live({ kdrag: [0.312, 8], amag: 1 }),
+      }),
+    );
+    const card = document.querySelector("[data-card=board-align]") as HTMLElement;
+    expect(within(card).getByText("0° / 0° / 90°")).toBeTruthy();
+    expect(within(card).getByText(/179 \/ 0 \/ 0 · горизонт ±5.0°/)).toBeTruthy();
+    expect(within(card).getByText(/1.25 с · трясут > 2.9 °\/с — заново/)).toBeTruthy();
+    expect(card.querySelector("svg g[transform='rotate(90)']")).toBeTruthy();
+    expect(card.querySelector("[data-param=align_board_yaw]")).toBeTruthy();
+    expect(card.querySelector("[data-param=imu_dcm_kp]")).toBeNull();   // EKF — Махони не показываем
+    expect(screen.getByText("0.312 1/с ±8%")).toBeTruthy();
+    expect(screen.getByText("Компас в фильтре")).toBeTruthy();
+    fireEvent.click(screen.getAllByRole("button", { name: "Начать" })[1]);
+    expect(sent).toContain("a");
+    tab("Прочее");
+    expect(document.querySelector("[data-param=align_board_yaw]")).toBeNull();   // во «Прочем» не дублируется
+  });
+
   it("тренировка failsafe: шаги по живым кадрам, отметка в проекте (P12)", () => {
     useApp.setState({ clive: live({ arm: false }) });
     render(<CopterView />);
