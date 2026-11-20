@@ -5,7 +5,11 @@
 [![Скачать для macOS Intel](https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-macOS%20Intel-555555?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/damir-lebedev/openplane-studio/releases/latest/download/OpenPlane-Studio-macOS-Intel.dmg)
 [![Скачать для Android](https://img.shields.io/badge/%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C-Android%207%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/damir-lebedev/openplane-studio/releases/latest/download/OpenPlane-Studio-Android.apk)
 
-Установщик работает **без интернета**: внутри всё, чтобы собрать и прошить
+**Ноутбук в поле больше не нужен.** Телефон, кабель USB-C — и коптер или самолёт
+настроен и прошит прямо на поле. Самолёт на ESP32 — вообще без провода, по WiFi.
+Android-версия весит 7,5 МБ и запускается за 0,4 с даже на бюджетном Redmi 14C.
+
+Установщик для компьютера работает **без интернета**: внутри всё, чтобы собрать и прошить
 плату (Python, PlatformIO, компилятор и пакеты STM32, библиотеки и исходники
 прошивки, WebView2, драйвер режима прошивки). Все версии —
 [выпуски](https://github.com/damir-lebedev/openplane-studio/releases).
