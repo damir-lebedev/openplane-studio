@@ -756,6 +756,31 @@ describe("вкладки коптера", () => {
     expect(sent).toContain("set osd_vbat_pos 2090");
   });
 
+  it("OSD: горизонт — 9 знаков вокруг середины, у края не выезжает за экран", () => {
+    act(() =>
+      useApp.setState((st) => ({
+        copterBoard: dumpedBoard([
+          ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+          param("osd_ah_pos", { group: "osd", scope: "master", default: 206, value: 206 | 0x0800, min: 0, max: 16383 }),
+          param("osd_esc_rpm_pos", { group: "osd", scope: "master", default: 161, value: 161 | 0x0800, min: 0, max: 16383 }),
+        ]),
+      })),
+    );
+    render(<CopterView />);
+    tab("OSD");
+    const ah = screen.getByTitle("Искусственный горизонт");
+    expect(ah.querySelectorAll("span.ah")).toHaveLength(9);
+    expect(ah.style.left).toBe(`${(10 / 30) * 100}%`);   // середина 14 → левый край 10
+    expect(screen.getByTitle("Обороты моторов").style.gridTemplateRows).toBe("repeat(4, 1fr)");
+    // тащим середину к левому краю — встаёт на x4 (линия целиком на экране)
+    const scr = document.querySelector(".osd-screen") as HTMLElement;
+    scr.getBoundingClientRect = () => ({ left: 0, top: 0, width: 300, height: 160, right: 300, bottom: 160, x: 0, y: 0, toJSON: () => ({}) });
+    fireEvent.pointerDown(ah, { clientX: 145, clientY: 65, pointerId: 1 });
+    fireEvent.pointerMove(scr, { clientX: 5, clientY: 65, pointerId: 1 });
+    fireEvent.pointerUp(scr, { clientX: 5, clientY: 65, pointerId: 1 });
+    expect(sent).toContain(`set osd_ah_pos ${4 + 32 * 6 + 0x0800}`);
+  });
+
   it("OSD: видеосистема шлёт настройки, экран очков 53 × 20 и «Разложить по экрану»", async () => {
     act(() =>
       useApp.setState((st) => ({

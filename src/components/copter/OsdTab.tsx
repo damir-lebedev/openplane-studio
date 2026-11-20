@@ -9,7 +9,8 @@ import { Check, RotateCcw, Wand2 } from "lucide-react";
 import { PointerEvent as ReactPointerEvent, useRef, useState } from "react";
 
 import { CopterLive } from "../../api";
-import { osdElements, OsdElementParam, osdMove, osdToggle, osdVisible, osdX, osdY, tabParams } from "../../core/copterParams";
+import { CopterBoard, osdElements, OsdElementParam, osdMove, osdToggle, osdVisible, osdX, osdY, tabParams } from "../../core/copterParams";
+import { AH_HALF, AH_ROWS, AH_SIDEBAR_H, AH_SIDEBAR_X, horizonCells } from "../../core/osdHorizon";
 import { OSD_SYSTEMS, osdCanvasNow, OsdLinkNote, osdLinkNotes, osdOutputSupported, osdOutside, osdRemapAll, osdRemapOffer, osdSystemOf, osdSystemSettings } from "../../core/osdCanvas";
 import { preflightOsd } from "../../core/preflight";
 import { N_, t } from "../../i18n";
@@ -49,11 +50,18 @@ const TITLES: Record<string, string> = {
   gps_lon: N_("Долгота"),
   rssi_value: N_("Сила сигнала (RSSI)"),
   preflight: N_("Перед полётом (до ARM)"),
+  fence: N_("До края геозабора"),
+  fence_map: N_("Радар геозабора"),
+  ah: N_("Искусственный горизонт"),
+  ah_sbar: N_("Шкалы горизонта"),
+  tim_1: N_("Время с включения"),
+  esc_tmp: N_("Температура регуляторов"),
+  esc_rpm: N_("Обороты моторов"),
 };
 
 // Значки шрифта BF — похожими знаками (клетка — один символ, как в чипе); U+0001 в начале — значок, рисуется цветом.
 const S = "\u0001";
-const SYM = { rssi: S + "ʀ", lq: S + "ℓ", satL: S + "◂", satR: S + "▸", volt: S + "V", amp: S + "A", mah: S + "ᵐ", metre: S + "M", alt: S + "▴", fly: S + "◷", thr: S + "▮", speed: S + "»", kph: S + "ᵏ", mps: S + "ˢ", watt: S + "W", lat: S + "φ", lon: S + "λ", home: S + "↑", cross: S + "✛" };
+const SYM = { rssi: S + "ʀ", lq: S + "ℓ", satL: S + "◂", satR: S + "▸", volt: S + "V", amp: S + "A", mah: S + "ᵐ", metre: S + "M", alt: S + "▴", fly: S + "◷", thr: S + "▮", speed: S + "»", kph: S + "ᵏ", mps: S + "ˢ", watt: S + "W", lat: S + "φ", lon: S + "λ", home: S + "↑", cross: S + "✛", on: S + "⏻", tempC: S + "°", rpm: S + "ʳ", ahDeco: S + "–", ahLeft: S + "▸", ahRight: S + "◂" };
 
 /** Клетки элемента: живые значения, если плата на связи, иначе пример. */
 function cells(key: string, live: CopterLive | null, craft: string): string[] {
@@ -89,8 +97,6 @@ function cells(key: string, live: CopterLive | null, craft: string): string[] {
       return [...ch((live?.v ?? 25.2).toFixed(1)), SYM.volt];
     case "avg_cell_voltage":
       return [...ch((live?.cell ?? 4.2).toFixed(2)), SYM.volt];
-    case "tim_2":
-      return [SYM.fly, ...ch("02:13")];
     case "throttle":
       return [SYM.thr, ...ch(String(Math.round((live?.thr ?? 0.42) * 100)))];
     case "gps_speed":
@@ -109,9 +115,67 @@ function cells(key: string, live: CopterLive | null, craft: string): string[] {
       return [SYM.rssi, ...ch(String(live?.rssi ?? 99))];
     case "preflight":
       return live?.arm ? [] : ch(preflightOsd(live));
+    case "tim_1":
+      return [SYM.on, ...ch(clock((live?.t ?? 342000) / 1000))];
+    case "tim_2":
+      return [SYM.fly, ...ch("02:13")];
+    case "esc_tmp": {
+      const temps = (live?.esc ?? []).map((e) => e?.[0]).filter((v): v is number => typeof v === "number");
+      return [...ch(String(temps.length ? Math.max(...temps) : 45)), SYM.tempC];
+    }
     default:
       return ch(key.toUpperCase().slice(0, 6));
   }
+}
+
+/** Элемент целиком: клетки со сдвигом от позиции (горизонт и шкалы — вокруг середины, обороты — столбиком). */
+interface Glyph {
+  x: number;
+  y: number;
+  ch: string;
+  /** линия горизонта: высота в знаке 0…8 */
+  lvl?: number;
+}
+interface Block {
+  ox: number;
+  oy: number;
+  w: number;
+  h: number;
+  glyphs: Glyph[];
+}
+
+const num = (b: CopterBoard, name: string, def: number) => Number(b.pending[name] ?? b.params[name]?.value ?? def);
+
+function block(key: string, live: CopterLive | null, craft: string, board: CopterBoard): Block {
+  if (key === "ah") {
+    const att = live?.att ?? [12, 4, 0];
+    const set = { maxPitch: num(board, "osd_ah_max_pit", 20), maxRoll: num(board, "osd_ah_max_rol", 40), invert: num(board, "osd_ah_invert", 0) > 0.5 };
+    const glyphs = horizonCells(att[0], att[1], set).map((c) => ({ x: c.dx + AH_HALF, y: c.dy + AH_ROWS, ch: "", lvl: c.level }));
+    return { ox: -AH_HALF, oy: -AH_ROWS, w: 2 * AH_HALF + 1, h: 2 * AH_ROWS + 1, glyphs };
+  }
+  if (key === "ah_sbar") {
+    const glyphs: Glyph[] = [];
+    for (let r = 0; r <= 2 * AH_SIDEBAR_H; r++) {
+      const mid = r === AH_SIDEBAR_H;
+      glyphs.push({ x: 0, y: r, ch: mid ? SYM.ahLeft : SYM.ahDeco }, { x: 2 * AH_SIDEBAR_X, y: r, ch: mid ? SYM.ahRight : SYM.ahDeco });
+    }
+    return { ox: -AH_SIDEBAR_X, oy: -AH_SIDEBAR_H, w: 2 * AH_SIDEBAR_X + 1, h: 2 * AH_SIDEBAR_H + 1, glyphs };
+  }
+  if (key === "esc_rpm") {
+    const n = Math.max(1, Math.min(8, live?.esc?.length || 4));
+    const rows = Array.from({ length: n }, (_, i) => [...String(11800 + i * 230)].concat(SYM.rpm));
+    return { ox: 0, oy: 0, w: Math.max(...rows.map((r) => r.length)), h: n, glyphs: rows.flatMap((r, y) => r.map((ch, x) => ({ x, y, ch }))) };
+  }
+  const c = cells(key, live, craft);
+  return { ox: 0, oy: 0, w: Math.max(1, c.length), h: 1, glyphs: c.map((ch, x) => ({ x, y: 0, ch })) };
+}
+
+/** Под горизонтом: эти рисуются первыми, прицел и цифры — поверх (как в прошивке). */
+const UNDER = new Set(["ah", "ah_sbar"]);
+
+function clock(seconds: number): string {
+  const s = Math.max(0, Math.floor(seconds));
+  return `${String(Math.floor(s / 60) % 100).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 }
 
 function arrow(dir: number | undefined): string {
@@ -261,7 +325,12 @@ function OsdBody() {
   const stats = all.filter((p) => p.name.startsWith("osd_stat_"));
   const warns = all.filter((p) => p.name.startsWith("osd_warn_") || p.name.endsWith("_alarm"));
   const output = all.filter((p) => ["osd_displayport_device", "vcd_video_system", "osd_canvas_width", "osd_canvas_height", "displayport_msp_col_adjust", "displayport_msp_row_adjust", "osd_framerate_hz"].includes(p.name));
-  const width = (key: string) => cells(key, live, craft).length;
+  const blockOf = (key: string) => block(key, live, craft, board);
+  // сколько клеток вправо от позиции (у горизонта позиция — середина)
+  const width = (key: string) => {
+    const b = blockOf(key);
+    return b.ox + b.w;
+  };
 
   const cellAt = (e: ReactPointerEvent) => {
     const r = screen.current!.getBoundingClientRect();
@@ -277,8 +346,9 @@ function OsdBody() {
   const move = (e: ReactPointerEvent) => {
     if (!drag) return;
     const { cx, cy } = cellAt(e);
-    const x = Math.max(0, Math.min(cols - width(drag.key), cx - drag.dx));
-    const y = Math.max(0, Math.min(rows - 1, cy - drag.dy));
+    const b = blockOf(drag.key);
+    const x = Math.max(-b.ox, Math.min(cols - b.ox - b.w, cx - drag.dx));
+    const y = Math.max(-b.oy, Math.min(rows - b.oy - b.h, cy - drag.dy));
     if (x !== drag.x || y !== drag.y) setDrag({ ...drag, x, y });
   };
   const end = () => {
@@ -354,23 +424,36 @@ function OsdBody() {
           >
             {elements
               .filter((el) => osdVisible(el.pos))
+              .sort((a, b) => Number(UNDER.has(b.key)) - Number(UNDER.has(a.key)))
               .map((el) => {
                 const dragging = drag?.key === el.key;
                 const x = dragging ? drag.x : osdX(el.pos);
                 const y = dragging ? drag.y : osdY(el.pos);
                 if (y >= rows || x >= cols) return null;
-                const c = cells(el.key, live, craft);
+                const b = blockOf(el.key);
                 return (
                   <div
                     key={el.key}
+                    data-el={el.key}
                     className={`osd-el${dragging ? " dragging" : ""}${selected === el.key ? " sel" : ""}`}
-                    style={{ left: `${(x / cols) * 100}%`, top: `${(y / rows) * 100}%`, width: `${(c.length / cols) * 100}%`, height: `${100 / rows}%` }}
+                    style={{
+                      left: `${((x + b.ox) / cols) * 100}%`,
+                      top: `${((y + b.oy) / rows) * 100}%`,
+                      width: `${(b.w / cols) * 100}%`,
+                      height: `${(b.h / rows) * 100}%`,
+                      gridTemplateColumns: `repeat(${b.w}, 1fr)`,
+                      gridTemplateRows: `repeat(${b.h}, 1fr)`,
+                    }}
                     title={t(TITLES[el.key] ?? el.key)}
                     onPointerDown={(e) => start(el, e)}
                   >
-                    {c.map((ch, i) => (
-                      <span key={i} className={ch.startsWith(S) ? "sym" : undefined}>
-                        {ch.startsWith(S) ? ch.slice(1) : ch}
+                    {b.glyphs.map((g, i) => (
+                      <span
+                        key={i}
+                        className={g.lvl !== undefined ? "ah" : g.ch.startsWith(S) ? "sym" : undefined}
+                        style={{ gridColumn: g.x + 1, gridRow: g.y + 1, ...(g.lvl !== undefined ? { ["--lvl" as string]: g.lvl } : {}) }}
+                      >
+                        {g.ch.startsWith(S) ? g.ch.slice(1) : g.ch}
                       </span>
                     ))}
                   </div>
