@@ -371,6 +371,19 @@ export function rateSpec(b: CopterBoard, axis: Axis): RateSpec {
   };
 }
 
+/**
+ * Порог yaw spin recovery (прошивка: CopterController::yawSpinThreshold), °/с;
+ * null — защита выключена. AUTO — рейт рысканья на полном стике × 1.25 + 200
+ * в пределах 500…1950, ON — yaw_spin_threshold.
+ */
+export function yawSpinThreshold(b: CopterBoard): number | null {
+  const mode = String(b.params.yaw_spin_recovery?.value ?? "AUTO").toUpperCase();
+  if (mode === "OFF") return null;
+  if (mode === "ON") return num(b, "yaw_spin_threshold", 1950);
+  const top = Math.abs(rateCurve(rateSpec(b, "yaw"), 1));
+  return Math.round(clamp(1.25 * top + 200, 500, 1950));
+}
+
 /** Где искать числа каждой формулы: rc, srate, expo (как в прошивке). */
 const RATE_RANGES = { rc: [1, 255], srate: [0, 255], expo: [0, 100] } as const;
 

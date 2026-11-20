@@ -2681,5 +2681,9 @@
   "Числа — как в конфигураторе Betaflight для этой формулы. При смене формулы Studio пересчитывает их, чтобы стик ощущался так же.": "Numbers are the same as in the Betaflight configurator for this formula. When you switch formulas, Studio recalculates them so the sticks feel the same.",
   "газ 0": "throttle 0",
   "газ до упора": "full throttle",
-  "прибавка к краю, %": "boost toward the edge, %"
+  "прибавка к краю, %": "boost toward the edge, %",
+  "Выключено: раскрутку до упора гироскопа (удар винтом, ветер в пропы) коптер сам не гасит.": "Off: a spin up to the gyro limit (prop strike, gust in the props) is not stopped by the quad.",
+  "Порог AUTO — от ваших рейтов: пируэт полным стиком защиту не включает.": "AUTO threshold follows your rates: a full-stick pirouette never triggers it.",
+  "Раскрутка по рысканью (yaw spin recovery)": "Yaw spin recovery",
+  "Рысканье быстрее {n} °/с — коптер гасит вращение: крен и тангаж отпускает, рысканье тормозит всем ходом; на {m} °/с ниже порога — управление снова ваше.": "Yaw faster than {n} °/s — the quad stops the spin: roll and pitch are released, yaw brakes with full authority; below {m} °/s control is yours again."
 }

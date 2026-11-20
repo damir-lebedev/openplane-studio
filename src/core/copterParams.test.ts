@@ -23,6 +23,7 @@ import {
   sliderText,
   sliderValue,
   tabParams,
+  yawSpinThreshold,
 } from "./copterParams";
 
 describe("настройки коптера с платы", () => {
@@ -241,5 +242,26 @@ describe("ползунки «Настройки полёта» и запас у�
     b = applyMessage(b, "save", { ok: true, stored: true, margin: { gm: 12, pm: 50, hz: 20, min: 6 } });
     expect(marginLevel(b.header!.margin!)).toBe("ok");
     expect(marginLevel({ gm: 5.9, pm: 30, hz: 30, min: 6 })).toBe("bad");
+  });
+});
+
+describe("yaw spin recovery", () => {
+  const board = (mode: string, extra: Record<string, number> = {}) =>
+    dumpedBoard([
+      param("rates_type", { type: "enum", scope: "rate", value: "ACTUAL" }),
+      param("yaw_rc_rate", { scope: "rate", value: 20 }),
+      param("yaw_srate", { scope: "rate", value: extra.srate ?? 67 }),
+      param("yaw_expo", { scope: "rate", value: 0 }),
+      param("yaw_spin_recovery", { type: "enum", scope: "master", value: mode }),
+      param("yaw_spin_threshold", { scope: "master", value: extra.threshold ?? 1950 }),
+    ]);
+  it("AUTO — рейт рысканья ×1.25 + 200, в пределах 500…1950", () => {
+    expect(yawSpinThreshold(board("AUTO"))).toBe(1038);
+    expect(yawSpinThreshold(board("AUTO", { srate: 180 }))).toBe(1950);
+    expect(yawSpinThreshold(board("AUTO", { srate: 20 }))).toBe(500);
+  });
+  it("ON — своё число, OFF — нет защиты", () => {
+    expect(yawSpinThreshold(board("ON", { threshold: 1200 }))).toBe(1200);
+    expect(yawSpinThreshold(board("OFF"))).toBeNull();
   });
 });

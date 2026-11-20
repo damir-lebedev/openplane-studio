@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { api, errorText } from "../../api";
 import { VTX_BANDS, vtxFrequency } from "../../core/copter";
-import { CopterParam, CopterTab, num, tabParams } from "../../core/copterParams";
+import { CopterParam, CopterTab, num, tabParams, yawSpinThreshold } from "../../core/copterParams";
 import { OVERLOAD_TEXT } from "../../core/parts";
 import { isGeofenceParam } from "../../core/geofence";
 import { isTrainingParam } from "../../core/training";
@@ -63,7 +63,11 @@ function FailsafeBody() {
   const all = tabParams(board, "failsafe");
   const fs = all.filter((p) => p.name.startsWith("failsafe"));
   const crash = all.filter((p) => p.name.startsWith("crash_"));
-  const arm = all.filter((p) => !p.name.startsWith("failsafe") && !p.name.startsWith("crash_") && !isTrainingParam(p.name) && !isGeofenceParam(p.name));
+  const spin = all.filter((p) => p.name.startsWith("yaw_spin_"));
+  const arm = all.filter(
+    (p) => !p.name.startsWith("failsafe") && !p.name.startsWith("crash_") && !p.name.startsWith("yaw_spin_") && !isTrainingParam(p.name) && !isGeofenceParam(p.name),
+  );
+  const spinAt = yawSpinThreshold(board);
   const crashMode = String(board.params.crash_recovery?.value ?? "OFF");
   const delay = num(board, "failsafe_delay", 15) / 10;
   const landing = num(board, "failsafe_landing_time", 60);
@@ -114,6 +118,23 @@ function FailsafeBody() {
                 : t("Включено: удар в ACRO/HORIZON — коптер сам выравнивается и возвращает управление, как только ровно.")
           }
           params={crash}
+        />
+      )}
+      {spin.length > 0 && (
+        <ParamList
+          title={t("Раскрутка по рысканью (yaw spin recovery)")}
+          sub={
+            spinAt === null
+              ? t("Выключено: раскрутку до упора гироскопа (удар винтом, ветер в пропы) коптер сам не гасит.")
+              : t("Рысканье быстрее {n} °/с — коптер гасит вращение: крен и тангаж отпускает, рысканье тормозит всем ходом; на {m} °/с ниже порога — управление снова ваше.", {
+                  n: spinAt,
+                  m: Math.max(0, spinAt - 100),
+                }) +
+                (String(board.params.yaw_spin_recovery?.value ?? "AUTO").toUpperCase() === "AUTO"
+                  ? " " + t("Порог AUTO — от ваших рейтов: пируэт полным стиком защиту не включает.")
+                  : "")
+          }
+          params={spin}
         />
       )}
     </div>
