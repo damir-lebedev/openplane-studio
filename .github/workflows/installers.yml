@@ -189,7 +189,7 @@ jobs:
       - name: Сборка
         run: |
           mkdir -p out
-          for env in stm32h743-devebox stm32h743-devebox-quad matek-h743 matek-h743-quad aocodarc-f405v3-quad speedybee-f405v4-quad; do
+          for env in stm32h743-devebox stm32h743-devebox-quad matek-h743 matek-h743-quad aocodarc-f405v3-quad speedybee-f405v4-quad hakrc-f405-quad; do
             pio run -e "$env"
             cp ".pio/build/$env/firmware.bin" "out/firmware-$env.bin"
           done

@@ -36,6 +36,7 @@ const STM32_ENVS: &[&str] = &[
     "getfun-f405v3-quad",
     "aocodarc-f405v3-quad",
     "speedybee-f405v4-quad",
+    "hakrc-f405-quad",
     "matek-h743-quad",
     "stm32h743-devebox-quad",
 ];
