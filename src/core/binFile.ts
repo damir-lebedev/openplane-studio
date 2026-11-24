@@ -12,6 +12,7 @@ export const PHONE_ENVS = [
   "matek-h743",
   "matek-h743-quad",
   "aocodarc-f405v3-quad",
+  "speedybee-f405v4-quad",
   "getfun-f405v3-quad",
   "stm32h743",
 ] as const;
@@ -24,6 +25,7 @@ export const RELEASE_ENVS = [
   "matek-h743",
   "matek-h743-quad",
   "aocodarc-f405v3-quad",
+  "speedybee-f405v4-quad",
 ] as const;
 
 /** Сборка для «Скачать прошивку»: плата на связи, иначе выбранная у коптера; null — в релизе нет. */

@@ -35,6 +35,7 @@ const STM32_ENVS: &[&str] = &[
     // коптеры: F405 из-под Betaflight и H743
     "getfun-f405v3-quad",
     "aocodarc-f405v3-quad",
+    "speedybee-f405v4-quad",
     "matek-h743-quad",
     "stm32h743-devebox-quad",
 ];

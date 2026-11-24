@@ -23,12 +23,13 @@ pub const REPO: &str = "damir-lebedev/openplane-studio";
 
 /// Сборки, чьи `firmware-<env>.bin` кладёт в релиз job `firmware` (installers.yml).
 /// getfun-f405v3-quad нет: `#error` до дампа платы.
-pub const RELEASE_ENVS: [&str; 5] = [
+pub const RELEASE_ENVS: [&str; 6] = [
     "stm32h743-devebox",
     "stm32h743-devebox-quad",
     "matek-h743",
     "matek-h743-quad",
     "aocodarc-f405v3-quad",
+    "speedybee-f405v4-quad",
 ];
 
 /// Больше этого готовый .bin не бывает (H743 до сектора настроек — 1.875 МБ).
