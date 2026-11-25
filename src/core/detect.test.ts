@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Device, Identity } from "../api";
 import type { CopterEnv } from "./copter";
-import { detectFcs, matchCopterEnv, mavVehicle, notMoved, parseBoardDump } from "./detect";
+import { boardMismatch, detectFcs, matchCopterEnv, mavVehicle, notMoved, parseBoardDump } from "./detect";
 
 const env = (name: string, boardFile: string | null = null): CopterEnv => ({
   env: name,
@@ -56,6 +56,18 @@ describe("что за полётник", () => {
     expect(matchCopterEnv(ENVS, "aocodarc-f405v3-quad")?.env).toBe("aocodarc-f405v3-quad");
     expect(matchCopterEnv(ENVS, "SPEEDYBEEF405V4")).toBeUndefined();
     expect(matchCopterEnv(ENVS, undefined)).toBeUndefined();
+  });
+
+  it("плата BF и выбранная сборка: другая плата из базы, незнакомая плата, заглушка", () => {
+    const [matek, aocodarc] = ENVS;
+    expect(boardMismatch(ENVS, aocodarc, "AOCODARCF405V3")).toBeNull();
+    expect(boardMismatch(ENVS, aocodarc, "GETFUNF405V3")).toBe("other");
+    // старые исходники без SpeedyBee V4 — сборка по умолчанию aocodarc: нельзя
+    expect(boardMismatch(ENVS, aocodarc, "SPEEDYBEEF405V4")).toBe("unknown");
+    expect(boardMismatch(ENVS, matek, "MATEKH743SLIM")).toBeNull();
+    expect(boardMismatch(ENVS, matek, "GETFUNF405V3")).toBe("other");
+    expect(boardMismatch(ENVS, { ...aocodarc, needsBoardDump: true }, "JXFPVF405V3")).toBeNull();
+    expect(boardMismatch(ENVS, aocodarc, undefined)).toBeNull();
   });
 
   it("наш паспорт главнее MSP; BF, INAV, ArduPilot, DFU и молчащий порт", () => {

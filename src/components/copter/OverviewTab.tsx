@@ -28,7 +28,7 @@ import {
   vtxFrequency,
 } from "../../core/copter";
 import { IMPORT_SKIP_GROUPS, ImportLine, parseBfDiff } from "../../core/copterParams";
-import { notMoved, OnBoard, parseBoardDump } from "../../core/detect";
+import { matchCopterEnv, notMoved, OnBoard, parseBoardDump } from "../../core/detect";
 import { Choice } from "../ui";
 import { OnBoardList } from "../FcCards";
 import { betaflightPort, nativeName, readBoardDump, restoreOriginal, runCopterFlash } from "../../flash";
@@ -392,7 +392,10 @@ export function BoardChoices({ copter }: { copter: CopterProject }) {
   const manifest = useApp((s) => s.manifest);
   const updateCopter = useApp((s) => s.updateCopter);
   const { identity } = useCopterLink();
+  const fc = useApp((s) => s.fc);
   const envs = copterEnvs(manifest);
+  // плата под Betaflight/INAV на USB — по её board_name
+  const native = new Set(Object.values(fc).map((f) => matchCopterEnv(envs, f.board)?.env).filter(Boolean));
   return (
     <div className="choices wide">
       {envs.map((e) => {
@@ -408,7 +411,7 @@ export function BoardChoices({ copter }: { copter: CopterProject }) {
             badge={
               <div className="row" style={{ gap: 6, flexWrap: "wrap", marginTop: 8 }}>
                 {e.needsBoardDump && <span className="badge warn">{t("распиновку снимем с платы")}</span>}
-                {identity?.board === e.env && (
+                {(identity?.board === e.env || native.has(e.env)) && (
                   <span className="badge accent">
                     <Usb size={12} /> {t("подключена")}
                   </span>

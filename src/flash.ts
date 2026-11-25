@@ -3,8 +3,8 @@
 
 import { api, CalibFlags, Device, errorText, Identity, isMobile, onFlashProgress, onTaskLog } from "./api";
 import { checkBin, exportBinName, releaseEnv } from "./core/binFile";
-import { BoardDump, copterConfig, copterHash, findCopterEnv } from "./core/copter";
-import { CLI_FIRMWARES, FIRMWARE_NAMES, firmwareOf } from "./core/detect";
+import { BoardDump, copterConfig, copterEnvs, copterHash, findCopterEnv } from "./core/copter";
+import { boardMismatch, CLI_FIRMWARES, FIRMWARE_NAMES, firmwareOf } from "./core/detect";
 import { isFresh } from "./core/live";
 import { fingerprint } from "./core/migrate";
 import { findBoard, Manifest } from "./core/manifest";
@@ -487,6 +487,17 @@ export async function runCopterFlash(copterId: string, mode: "flash" | "export" 
 
     // 1. сборка
     setStep("build", "run");
+    // плата под BF сейчас на USB (или из дампа) — та ли сборка выбрана
+    const bfBoard = (bfPort ? useApp.getState().fc[bfPort]?.board : undefined) ?? copter.boardDump?.bfBoard;
+    const mismatch = boardMismatch(copterEnvs(manifest), env, bfBoard);
+    if (mismatch) {
+      throw new FlashError(
+        t("Не та плата: {board}", { board: bfBoard ?? "?" }),
+        mismatch === "other"
+          ? t("На USB — {board}, а в проекте выбрана сборка {env}. Выберите плату {board} на странице коптера.", { board: bfBoard ?? "?", env: env.env })
+          : t("На USB — {board}, а в проекте выбрана сборка {env} для другой платы: с чужой распиновкой моторы и датчики не заработают. Платы {board} в ваших исходниках нет — обновите их («Настройки → Взять с GitHub») и выберите её на странице коптера.", { board: bfBoard ?? "?", env: env.env }),
+      );
+    }
     if (env.needsBoardDump && !copter.boardDump) {
       throw new FlashError(
         t("Распиновка платы ещё не снята"),

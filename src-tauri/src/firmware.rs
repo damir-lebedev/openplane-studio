@@ -244,12 +244,39 @@ pub fn bf_board(app: &AppHandle, source: &Path, args: &[String]) -> Res<TaskResu
 
 /// Имя файла экспорта годится: `.bin`, без папок и запрещённых в Windows символов.
 pub fn export_name_ok(name: &str) -> bool {
-    name.len() > 4
+    file_name_ok(name, ".bin")
+}
+
+/// Имя файла с расширением `ext` (".bin", ".txt"): без папок и запрещённых в Windows символов.
+pub fn file_name_ok(name: &str, ext: &str) -> bool {
+    name.len() > ext.len()
         && name.len() <= 120
-        && name.to_lowercase().ends_with(".bin")
+        && name.to_lowercase().ends_with(ext)
         && !name.starts_with('.')
         && !name.chars().any(|c| matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control())
         && name != ".."
+}
+
+/// Текст CLI (diff all / dump) в «Загрузки»/<name>.txt — чтобы залить в другой
+/// полётник; файл с таким именем есть — «<name> (2).txt» и дальше, старый не трогаем.
+pub fn export_text(name: &str, text: &str, dest: Option<&Path>) -> Res<String> {
+    if !file_name_ok(name, ".txt") {
+        return Err(format!("имя файла «{name}» не подходит"));
+    }
+    let target_dir = match dest {
+        Some(d) => d.to_path_buf(),
+        None => downloads_dir().ok_or_else(|| "нет папки «Загрузки»".to_string())?,
+    };
+    fs::create_dir_all(&target_dir).map_err(err("папка для файла"))?;
+    let stem = &name[..name.len() - 4];
+    let mut out = target_dir.join(name);
+    let mut n = 2;
+    while out.exists() {
+        out = target_dir.join(format!("{stem} ({n}).txt"));
+        n += 1;
+    }
+    fs::write(&out, text).map_err(err("запись файла"))?;
+    Ok(out.to_string_lossy().into_owned())
 }
 
 /// Папка «Загрузки» пользователя; нет — None (тогда папка рядом с проектом).
@@ -313,6 +340,21 @@ mod export_tests {
         assert!(!export_name_ok("firmware.hex"));
         assert!(!export_name_ok(".bin"));
         assert!(!export_name_ok("con:.bin"));
+        assert!(file_name_ok("cli-speedybee.txt", ".txt"));
+        assert!(!file_name_ok("cli.bin", ".txt"));
+        assert!(!file_name_ok("../cli.txt", ".txt"));
+    }
+
+    #[test]
+    fn text_export_never_overwrites() {
+        let dest = std::env::temp_dir().join(format!("op-text-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dest);
+        let a = export_text("diff.txt", "set a = 1\n", Some(&dest)).unwrap();
+        let b = export_text("diff.txt", "set a = 2\n", Some(&dest)).unwrap();
+        assert!(a.ends_with("diff.txt") && b.ends_with("diff (2).txt"));
+        assert_eq!(fs::read_to_string(&a).unwrap(), "set a = 1\n");
+        assert!(export_text("x/../y.txt", "", Some(&dest)).is_err());
+        let _ = fs::remove_dir_all(&dest);
     }
 
     #[test]

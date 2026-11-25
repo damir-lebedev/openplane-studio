@@ -2,7 +2,7 @@
 // по мультиметру), видео (частота по полосе и каналу), GPS, чёрный ящик,
 // прочее (описание коптера — из него считается настройка) и CLI.
 
-import { Send, Terminal } from "lucide-react";
+import { Download, Send, Terminal, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { api, errorText } from "../../api";
@@ -320,6 +320,27 @@ export function FlashCard({ flash }: { flash?: [number, number] }) {
 
 // ---------------- CLI ----------------
 
+/** Что сохранить «В файл»: вывод последнего diff / dump (с его строки «# diff…»), без хвоста
+ *  «# exit»/«Выход из CLI»; ни того ни другого не было — пусто. */
+export function cliCapture(lines: string[]): string[] {
+  let from = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    if (/^#\s*(diff|dump)\b/.test(lines[i].trim())) {
+      from = i;
+      break;
+    }
+  }
+  if (from < 0) return [];
+  const out: string[] = [];
+  for (const l of lines.slice(from)) {
+    const s = l.replace(/\r$/, "");
+    if (s.startsWith("@")) continue;   // кадры приложения посреди вывода
+    if (out.length && /^#\s*(exit|save|diff|dump)\b|^Выход из CLI/.test(s.trim())) break;
+    out.push(s);
+  }
+  return out;
+}
+
 export function CliTab() {
   const lines = useApp((s) => s.consoleLines);
   const { open, armed } = useCopterLink();
@@ -339,6 +360,27 @@ export function CliTab() {
     } catch (e) {
       toast("err", errorText(e));
     }
+  };
+  const file = useRef<HTMLInputElement>(null);
+  const copter = useApp((s) => s.copters.find((c) => c.id === s.copterId));
+  const saveFile = async () => {
+    const out = cliCapture(lines);
+    if (!out.length) {
+      toast("info", t("Сначала diff all или dump — сохранится их вывод."));
+      return;
+    }
+    const name = `${(copter?.name ?? "copter").replace(/[\\/:*?"<>|]+/g, "_").slice(0, 60)}-${new Date().toISOString().slice(0, 10)}.txt`;
+    try {
+      const path = await api.textExport(name, out.join("\n") + "\n");
+      toast("ok", t("Сохранено: {path}", { path }));
+    } catch (e) {
+      toast("err", errorText(e));
+    }
+  };
+  const loadFile = async (f: File | undefined) => {
+    if (!f) return;
+    setPaste(await f.text());
+    toast("info", t("Файл «{name}» — в поле ниже: проверьте и нажмите «Отправить».", { name: f.name }));
   };
   const sendPaste = async () => {
     // как вставка в CLI BF: строка за строкой; батч сам скажет, что не перенеслось
@@ -370,10 +412,26 @@ export function CliTab() {
           <button className="btn small" disabled={!open} onClick={() => void send("exit")}>
             exit
           </button>
+          <button className="btn small" title={t("Вывод последнего diff / dump — файлом в «Загрузки»")} onClick={() => void saveFile()}>
+            <Download size={14} /> {t("В файл")}
+          </button>
+          <button className="btn small" title={t("diff из файла (наш или Betaflight) — в поле вставки")} onClick={() => file.current?.click()}>
+            <Upload size={14} /> {t("Из файла")}
+          </button>
+          <input
+            ref={file}
+            type="file"
+            accept=".txt,text/plain"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              void loadFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
         </div>
         <p className="hint">{t("Пока CLI открыт, ARM запрещён и вкладки не меняют настройки; exit — выйти без сохранения, save — сохранить и выйти.")}</p>
         <div className="cli console">
-          {lines.slice(-400).map((l, i) => (
+          {lines.map((l, i) => (
             <div key={i} className="mono">
               {l}
             </div>

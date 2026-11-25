@@ -67,6 +67,20 @@ export function matchCopterEnv(envs: CopterEnv[], board: string | undefined): Co
 }
 
 /**
+ * Плата под Betaflight/INAV (board_name) и выбранная сборка не сходятся — прошивать нельзя:
+ * чужая распиновка (у тестера SpeedyBee F405 V4 прошилась как aocodarc-f405v3-quad).
+ * "other" — плата есть в базе, но выбрана другая; "unknown" — платы в базе нет, а выбрана
+ * сборка с заголовком другой платы из-под BF. Сборка-заглушка (распиновку снимем с платы)
+ * и сборка без заголовка BF при незнакомом имени — можно.
+ */
+export function boardMismatch(envs: CopterEnv[], env: CopterEnv, bfBoard: string | undefined): "other" | "unknown" | null {
+  if (!bfBoard || env.needsBoardDump) return null;
+  const match = matchCopterEnv(envs, bfBoard);
+  if (match) return match.env === env.env ? null : "other";
+  return env.boardFile ? "unknown" : null;
+}
+
+/**
  * Всё, что на USB, — карточками «что за полётник». Наш паспорт главнее MSP
  * (наша прошивка тоже отвечает на MSP); порт без ответа — «не узнали».
  */

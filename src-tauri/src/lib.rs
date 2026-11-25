@@ -225,6 +225,17 @@ fn path_exists(path: String) -> bool {
     Path::new(&path).exists()
 }
 
+/// Текст CLI (diff all / dump) — файлом в «Загрузки», папка открывается.
+#[tauri::command]
+async fn text_export(name: String, text: String) -> Res<String> {
+    blocking(move || {
+        let out = firmware::export_text(&name, &text, None)?;
+        let _ = firmware::reveal(Path::new(&out));
+        Ok(out)
+    })
+    .await
+}
+
 /// Текстовый файл платы (дамп CLI Betaflight, .txt) — для переноса настроек.
 #[tauri::command]
 fn text_read(path: String) -> Res<String> {
@@ -552,6 +563,7 @@ pub fn run() {
             bf_board,
             path_exists,
             text_read,
+            text_export,
             devices_list,
             board_identity,
             board_bootloader,

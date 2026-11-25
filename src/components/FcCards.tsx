@@ -67,7 +67,8 @@ function FcRow({ f, onNewPlane }: { f: FcDetected; onNewPlane: () => void }) {
 
   const newCopter = () => {
     const c = createCopter("blank", f.board ? t("Коптер на {board}", { board: f.board }) : t("Новый коптер"));
-    if (f.env) updateCopter(c.id, (x) => (x.board = f.env!.env));
+    // платы нет в базе — не подставлять первую сборку из списка (чужая распиновка): пусть выберут
+    updateCopter(c.id, (x) => (x.board = f.env ? f.env.env : f.board ? "" : x.board));
   };
   const open = (id: string) => {
     selectCopter(id);
@@ -81,7 +82,7 @@ function FcRow({ f, onNewPlane }: { f: FcDetected; onNewPlane: () => void }) {
   } else if (f.firmware === "betaflight" || f.firmware === "inav") {
     text = f.env
       ? t("Эта плата есть в нашей базе. При переходе приложение сохранит родную прошивку и её настройки, перенесёт то, что понимает, и покажет, что настроить заново.")
-      : t("Этой платы в базе пока нет: распиновку приложение снимет с самой платы, если процессор F405 или H743.");
+      : t("Этой платы в ваших исходниках прошивки нет. Обновите их («Настройки → Взять с GitHub») — новые платы появляются там раньше, чем в релизе приложения. Не помогло — пришлите нам diff all из Betaflight.");
     action = existing ? { label: t("Открыть «{name}»", { name: existing.name }), run: () => open(existing.id) } : { label: t("Коптер с этой платой"), run: newCopter };
   } else if (f.firmware === "ardupilot" || f.firmware === "px4") {
     text = t("Перенос параметров {fw} — позже; пока нашу прошивку можно залить из проекта, а настройки сделать в мастере. Родную прошивку перед заливкой сохраните сами.", { fw: f.name });

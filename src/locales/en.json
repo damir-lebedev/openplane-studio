@@ -2716,5 +2716,16 @@
   "гироскоп в упоре": "gyro saturated",
   "от дома": "from home",
   "точка В": "target E",
-  "точка С": "target N"
+  "точка С": "target N",
+  "diff из файла (наш или Betaflight) — в поле вставки": "diff from a file (ours or Betaflight) — into the paste box",
+  "В файл": "To file",
+  "Вывод последнего diff / dump — файлом в «Загрузки»": "Output of the last diff / dump — as a file in Downloads",
+  "Из файла": "From file",
+  "На USB — {board}, а в проекте выбрана сборка {env} для другой платы: с чужой распиновкой моторы и датчики не заработают. Платы {board} в ваших исходниках нет — обновите их («Настройки → Взять с GitHub») и выберите её на странице коптера.": "{board} is on USB, but the project has build {env} for another board selected: with someone else's pinout the motors and sensors won't work. Your firmware sources don't have {board} yet — update them (“Settings → Get from GitHub”) and pick it on the copter page.",
+  "На USB — {board}, а в проекте выбрана сборка {env}. Выберите плату {board} на странице коптера.": "{board} is on USB, but the project has build {env} selected. Pick the {board} board on the copter page.",
+  "Не та плата: {board}": "Wrong board: {board}",
+  "Сначала diff all или dump — сохранится их вывод.": "Run diff all or dump first — their output gets saved.",
+  "Сохранено: {path}": "Saved: {path}",
+  "Файл «{name}» — в поле ниже: проверьте и нажмите «Отправить».": "File “{name}” is in the box below: check it and press “Send”.",
+  "Этой платы в ваших исходниках прошивки нет. Обновите их («Настройки → Взять с GitHub») — новые платы появляются там раньше, чем в релизе приложения. Не помогло — пришлите нам diff all из Betaflight.": "Your firmware sources don't have this board. Update them (“Settings → Get from GitHub”) — new boards land there before the app release. Didn't help — send us diff all from Betaflight."
 }

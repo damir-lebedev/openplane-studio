@@ -393,6 +393,8 @@ export const api = {
   bfBoard: (source: string, args: string[]) => invoke<TaskResult>("bf_board", { source, args }),
   pathExists: (path: string) => invoke<boolean>("path_exists", { path }),
   textRead: (path: string) => invoke<string>("text_read", { path }),
+  /** текст в «Загрузки»/<name>.txt (занято — «name (2).txt»); путь файла */
+  textExport: (name: string, text: string) => invoke<string>("text_export", { name, text }),
   devicesList: () => invoke<Device[]>("devices_list"),
   boardIdentity: (port: string, stm32: boolean) => invoke<Identity | null>("board_identity", { port, stm32 }),
   boardBootloader: (port: string) => invoke<void>("board_bootloader", { port }),

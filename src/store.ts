@@ -182,6 +182,8 @@ const saveTimers = new Map<string, ReturnType<typeof setTimeout>>();
 // Отмена правок: по стопке на самолёт. Правки подряд быстрее UNDO_MERGE_MS
 // (набор числа в поле) — один шаг.
 const UNDO_LIMIT = 100;
+/** Строк консоли в памяти: dump коптера (~2 тыс. строк) должен влезать целиком — для «В файл». */
+export const CONSOLE_KEEP = 5000;
 const UNDO_MERGE_MS = 700;
 const undoStacks = new Map<string, PlaneProject[]>();
 const redoStacks = new Map<string, PlaneProject[]>();
@@ -304,7 +306,7 @@ export const useApp = create<AppState>((set, get) => ({
         scan: (_port, data) => set({ scan: data, scanAt: Date.now() }),
         line: (_port, line) =>
           set((s) => {
-            const lines = s.consoleLines.length > 600 ? s.consoleLines.slice(-500) : s.consoleLines.slice();
+            const lines = s.consoleLines.length > CONSOLE_KEEP + 500 ? s.consoleLines.slice(-CONSOLE_KEEP) : s.consoleLines.slice();
             lines.push(line);
             let proc = s.proc;
             // Калибровку на земле запустили с пульта (SwB 3 раза) — мастер тоже её покажет.
