@@ -145,6 +145,7 @@ const TAB_PACKS: Record<CopterTab, (Pack | "guided")[]> = {
   failsafe: ["base"],
   power: ["base"],
   beeper: ["base"],
+  ports: ["base"],
   pid: ["freestyle", "race", "geek"],
   rates: ["freestyle", "race", "longrange"],
   filters: ["freestyle", "race", "geek"],

@@ -50,6 +50,8 @@ export interface ParamsHeader {
   margin?: LoopMargin;
   /** флеш настроек: занято и всего, байт (обновляется и ответом на save) */
   flash?: [number, number];
+  /** P63: UART платы — [номер, есть RX (1/0), есть TX (1/0)]; нет — порты заданы сборкой */
+  uarts?: [number, number, number][];
 }
 
 /** Запасы устойчивости контура угловой скорости (copter/Presets.h checkLoop). */
@@ -222,6 +224,7 @@ export type CopterTab =
   | "autopilot"
   | "blackbox"
   | "beeper"
+  | "ports"
   | "other"
   | "cli";
 
@@ -246,6 +249,7 @@ export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "autopilot", title: N_("Автопилот"), board: true },
   { id: "blackbox", title: N_("Чёрный ящик"), board: true },
   { id: "beeper", title: N_("Пищалка"), board: true },
+  { id: "ports", title: N_("Порты"), board: true },
   { id: "other", title: N_("Прочее"), board: true },
   { id: "cli", title: N_("CLI"), board: true },
 ];
@@ -274,6 +278,7 @@ export const GROUP_TAB: Record<string, CopterTab> = {
   blackbox: "blackbox",
   other: "other",
   beeper: "beeper",
+  ports: "ports",
 };
 
 /** Настройки вкладки в порядке прошивки; skip — те, что вкладка рисует сама. */

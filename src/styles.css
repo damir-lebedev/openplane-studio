@@ -2567,6 +2567,55 @@ textarea {
   border-top: 0;
 }
 
+/* Порты (P63): UART карточками — ножки RX/TX и роль */
+.ports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  margin: 6px 0 10px;
+}
+.port-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+.port-card.used {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.port-card .hint {
+  margin: 0;
+}
+.port-pins {
+  display: flex;
+  gap: 4px;
+}
+.port-pin {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.port-pin.off {
+  background: transparent;
+  color: var(--text-2);
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.port-lines {
+  margin: 6px 0 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--bg-2);
+  white-space: pre;
+  overflow-x: auto;
+}
+
 /* Пищалка: условия BF строками, команды стиками — две ручки пульта */
 .beeper-list {
   display: grid;

@@ -53,15 +53,15 @@ describe("что видно", () => {
 
   it("летает: «Основа» без мастера; профи — всё, кроме вкладок новичка", () => {
     const flying = ids(makeProfile(answers({ experience: "flying" })));
-    expect(flying).toEqual(["overview", "parts", "frombf", "setup", "sensors", "receiver", "modes", "motors", "failsafe", "power", "beeper"]);
+    expect(flying).toEqual(["overview", "parts", "frombf", "setup", "sensors", "receiver", "modes", "motors", "failsafe", "power", "beeper", "ports"]);
     const pro = ids(makeProfile(answers({ experience: "pro" })));
     expect(pro).toContain("cli");
     expect(pro).not.toContain("wizard");
   });
 
-  it("«Показать всё» — все 24 вкладки, мастер первым", () => {
+  it("«Показать всё» — все 25 вкладок, мастер первым", () => {
     const all = ids({ ...makeProfile(answers()), showAll: true });
-    expect(all).toHaveLength(24);
+    expect(all).toHaveLength(25);
     expect(all[0]).toBe("wizard");
   });
 

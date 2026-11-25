@@ -1224,3 +1224,54 @@ describe("автопилот: POS HOLD, ALT HOLD и компас (128, 130–132
     expect(screen.queryByText("Калибровать")).toBeNull();
   });
 });
+
+describe("порты (P63)", () => {
+  beforeEach(() => {
+    sent.length = 0;
+    connect();
+  });
+  afterEach(cleanup);
+
+  function withPorts(uarts?: [number, number, number][]) {
+    const port = (name: string, def: number) => param(name, { group: "ports", scope: "master", min: 0, max: 8, default: def, value: def, from: "table", profiles: undefined });
+    act(() =>
+      useApp.setState((st) => {
+        const b = dumpedBoard([
+          ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+          port("serial_rx_uart", 2),
+          port("serial_gps_uart", 0),
+          port("serial_msp_uart", 4),
+          port("serial_esc_uart", 5),
+          port("serial_vtx_uart", 0),
+        ]);
+        return { copterBoard: { ...b, header: { ...b.header!, uarts } } };
+      }),
+    );
+  }
+
+  it("UART карточками; GPS на занятый MSP-порт — сначала освободить, потом занять; строки serial как в BF", async () => {
+    withPorts([
+      [1, 1, 1],
+      [2, 1, 1],
+      [4, 1, 1],
+      [5, 1, 0],
+    ]);
+    render(<CopterView />);
+    tab("Порты");
+    const selects = screen.getAllByRole("combobox") as HTMLSelectElement[];
+    expect(selects.map((s) => s.value)).toEqual(["", "rx", "msp", "esc"]);
+    // у UART5 нет TX: SmartAudio не выбрать
+    const vtxOnU5 = within(selects[3]).getByRole("option", { name: /SmartAudio/ }) as HTMLOptionElement;
+    expect(vtxOnU5.disabled).toBe(true);
+    expect(screen.getByText(/serial 1 64 115200 57600 0 115200/)).toBeTruthy();
+    fireEvent.change(selects[2], { target: { value: "gps" } });
+    await waitFor(() => expect(sent).toEqual(["set serial_msp_uart 0", "set serial_gps_uart 4"]));
+  });
+
+  it("старая прошивка без списка UART — просит обновить", () => {
+    withPorts(undefined);
+    render(<CopterView />);
+    tab("Порты");
+    expect(screen.getByText(/не сообщает свои UART/)).toBeTruthy();
+  });
+});

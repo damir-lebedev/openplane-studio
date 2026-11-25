@@ -24,6 +24,7 @@ import { FlashDialog } from "./board/FlashDialog";
 import { BinFlashButton } from "./copter/BinFlashButton";
 import { UnsavedBar, useCopterLink, useCopterLive } from "./copter/common";
 import { BeeperTab } from "./copter/BeeperTab";
+import { PortsTab } from "./copter/PortsTab";
 import { SensorsTab } from "./copter/SensorsTab";
 import { FlightTab } from "./copter/FlightTab";
 import { AutopilotTab } from "./copter/AutopilotTab";
@@ -210,6 +211,7 @@ export function CopterView() {
           {tab === "autopilot" && <AutopilotTab />}
           {tab === "blackbox" && <ListTab tab="blackbox" />}
           {tab === "beeper" && <BeeperTab />}
+          {tab === "ports" && <PortsTab />}
           {tab === "other" && <OtherTab />}
           {tab === "cli" && <CliTab />}
         </div>
