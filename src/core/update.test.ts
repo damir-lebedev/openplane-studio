@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { bytesText, checkOnStart, etaSeconds, fraction, notesLines, shouldOffer, UpdateInfo } from "./update";
+import { bytesText, checkOnStart, checkSourceOnStart, etaSeconds, fraction, notesLines, shouldOffer, shouldOfferSource, UpdateInfo } from "./update";
 
 const info: UpdateInfo = { version: "0.3.0", current: "0.2.0", newer: true, notes: "", page: "", published: "", asset: null };
 
@@ -40,5 +40,25 @@ describe("обновление приложения", () => {
     expect(n.lines).toEqual(["- Автообновление", "- Анкета", "- a", "- b"]);
     expect(n.more).toBe(true);
     expect(notesLines("").lines).toEqual([]);
+  });
+});
+
+describe("исходники прошивки (P60)", () => {
+  const fresh = { reference: "main", local: "a".repeat(40), remote: "b".repeat(40), newer: true, ahead: 3, notes: [] };
+
+  it("сверяет при запуске, только если есть папка, не телефон и версия не закреплена", () => {
+    expect(checkSourceOnStart({ firmwareSource: "C:/src" }, false)).toBe(true);
+    expect(checkSourceOnStart({}, false)).toBe(false);
+    expect(checkSourceOnStart({ firmwareSource: "C:/src" }, true)).toBe(false);
+    expect(checkSourceOnStart({ firmwareSource: "C:/src", updateCheck: false }, false)).toBe(false);
+    expect(checkSourceOnStart({ firmwareSource: "C:/src", firmwareVersion: "v0.6.0" }, false)).toBe(false);
+  });
+
+  it("предлагает новый коммит, пока его не пропустили", () => {
+    expect(shouldOfferSource(fresh, {})).toBe(true);
+    expect(shouldOfferSource({ ...fresh, newer: false }, {})).toBe(false);
+    expect(shouldOfferSource(fresh, { sourceSkip: fresh.remote })).toBe(false);
+    expect(shouldOfferSource(fresh, { sourceSkip: "c".repeat(40) })).toBe(true);
+    expect(shouldOfferSource(null, {})).toBe(false);
   });
 });

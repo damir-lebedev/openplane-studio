@@ -5,10 +5,12 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { SourceFreshness } from "../../api";
 import type { UpdateInfo } from "../../core/update";
 
 const calls: { name: string; args: unknown[] }[] = [];
 let release: UpdateInfo | null;
+let freshness: SourceFreshness | null | "offline";
 
 vi.mock("../../api", async (orig) => {
   const real = await orig<typeof import("../../api")>();
@@ -21,6 +23,8 @@ vi.mock("../../api", async (orig) => {
           if (prop === "updateCheck") return release ? Promise.resolve(release) : Promise.reject("нет ответа от api.github.com");
           if (prop === "updateDownload") return Promise.resolve("C:/cache/updates/OpenPlane-Studio-Windows-Setup.exe");
           if (prop === "updateInstall") return Promise.resolve(true);
+          if (prop === "firmwareSourceCheck") return freshness === "offline" ? Promise.reject("нет ответа от api.github.com") : Promise.resolve(freshness);
+          if (prop === "firmwareFetchGithub") return Promise.resolve({ dir: "C:/app/source/OpenPlaneProject", reference: "main", commit: "b".repeat(40), fresh: true });
           return Promise.resolve(undefined);
         },
     },
@@ -29,15 +33,17 @@ vi.mock("../../api", async (orig) => {
 });
 
 const { useApp } = await import("../../store");
-const { UpdateCard, UpdateSettings } = await import("../Update");
+const { SourceCard, UpdateCard, UpdateSettings } = await import("../Update");
 
 const asset = { name: "OpenPlane-Studio-Windows-Setup.exe", url: "https://github.com/x/w.exe", size: 210 * 1024 * 1024, sha256: "ab" };
 
 beforeEach(() => {
   calls.length = 0;
   release = { version: "0.3.0", current: "0.2.0", newer: true, notes: "- Автообновление\n- Анкета", page: "https://github.com/x", published: "", asset };
+  freshness = { reference: "main", local: "a".repeat(40), remote: "b".repeat(40), newer: true, ahead: 12, notes: ["copter: SpeedyBee F405 V4 board", "copter CLI: dump fix"] };
   useApp.setState({
     update: { phase: "idle" },
+    sourceUpdate: { phase: "idle" },
     settings: {},
     flash: null,
     toasts: [],
@@ -134,5 +140,61 @@ describe("обновление приложения", () => {
     expect(screen.queryByText(/нет ответа/)).toBeNull();
     await act(async () => fireEvent.click(screen.getByText("Проверить сейчас")));
     expect(screen.getByText(/нет ответа от api.github.com/)).toBeTruthy();
+  });
+});
+
+describe("исходники прошивки при запуске (P60)", () => {
+  it("отстали от main: карточка → «Обновить исходники» качает ту же ссылку и сохраняет папку", async () => {
+    useApp.setState({ settings: { firmwareSource: "C:/app/source/OpenPlaneProject" } });
+    render(<SourceCard />);
+    await act(() => useApp.getState().checkSource());
+    expect(calls.find((c) => c.name === "firmwareSourceCheck")!.args[0]).toBe("C:/app/source/OpenPlaneProject");
+    expect(screen.getByText("Есть свежие исходники прошивки")).toBeTruthy();
+    expect(screen.getByText(/новых изменений — 12/)).toBeTruthy();
+    fireEvent.click(screen.getByText("Что нового"));
+    expect(screen.getByText("copter: SpeedyBee F405 V4 board")).toBeTruthy();
+    await act(async () => fireEvent.click(screen.getByText("Обновить исходники")));
+    expect(calls.find((c) => c.name === "firmwareFetchGithub")!.args[0]).toBe("main");
+    expect(useApp.getState().settings.firmwareSource).toBe("C:/app/source/OpenPlaneProject");
+    expect(useApp.getState().sourceUpdate.phase).toBe("done");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(useApp.getState().toasts.some((x) => /обновлены: main · bbbbbbb/.test(x.text))).toBe(true);
+  });
+
+  it("«Пропустить» запоминает коммит: при следующей проверке карточки нет", async () => {
+    useApp.setState({ settings: { firmwareSource: "C:/src" } });
+    render(<SourceCard />);
+    await act(() => useApp.getState().checkSource());
+    await act(async () => fireEvent.click(screen.getByText("Пропустить")));
+    expect(useApp.getState().settings.sourceSkip).toBe("b".repeat(40));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    await act(() => useApp.getState().checkSource());
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("своя git-копия, свежие исходники или нет сети — карточки нет", async () => {
+    useApp.setState({ settings: { firmwareSource: "C:/src" } });
+    render(<SourceCard />);
+    for (const f of [null, { ...(freshness as SourceFreshness), newer: false, ahead: 0, notes: [] } as SourceFreshness, "offline" as const]) {
+      freshness = f;
+      await act(() => useApp.getState().checkSource());
+      expect(screen.queryByRole("dialog")).toBeNull();
+    }
+  });
+
+  it("пока видна карточка нового приложения — карточка исходников ждёт", async () => {
+    useApp.setState({ settings: { firmwareSource: "C:/src" } });
+    render(
+      <>
+        <UpdateCard />
+        <SourceCard />
+      </>,
+    );
+    await act(() => useApp.getState().checkUpdate(false));
+    await act(() => useApp.getState().checkSource());
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    expect(screen.getByText("Вышла OpenPlane Studio 0.3.0")).toBeTruthy();
+    await act(async () => fireEvent.click(screen.getAllByLabelText("Позже")[0]));
+    expect(screen.getByText("Есть свежие исходники прошивки")).toBeTruthy();
   });
 });

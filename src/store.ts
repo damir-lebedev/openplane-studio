@@ -10,7 +10,7 @@ import { Manifest } from "./core/manifest";
 import { switchLanguage, t } from "./i18n";
 import { throttleLatest } from "./core/throttle";
 import { findTemplate, fromTemplate } from "./core/templates";
-import { checkOnStart, shouldOffer, UpdateState } from "./core/update";
+import { checkOnStart, checkSourceOnStart, shouldOffer, shouldOfferSource, SourceState, UpdateState } from "./core/update";
 import {
   blankProject,
   FULL_STEPS,
@@ -116,6 +116,8 @@ interface AppState {
   onboarding: boolean;
   /** обновление приложения: проверка, загрузка, установка */
   update: UpdateState;
+  /** исходники прошивки против GitHub (P60) */
+  sourceUpdate: SourceState;
 
   init(): Promise<void>;
   setOnboarding(open: boolean): void;
@@ -126,6 +128,12 @@ interface AppState {
   /** «Позже» (до следующего запуска) или «Пропустить эту версию» */
   dismissUpdate(skip: boolean): Promise<void>;
   showUpdate(): void;
+  /** P60: исходники прошивки отстали от GitHub? — при запуске, молча без сети */
+  checkSource(): Promise<void>;
+  /** скачать свежие исходники той же ссылки и перечитать описание прошивки */
+  fetchSource(): Promise<void>;
+  /** «Позже» (до следующего запуска) или «Пропустить» (этот коммит) */
+  dismissSource(skip: boolean): Promise<void>;
   setSection(section: Section): void;
   saveSettings(patch: Partial<Settings>): Promise<void>;
   refreshInfo(): Promise<void>;
@@ -240,6 +248,7 @@ export const useApp = create<AppState>((set, get) => ({
   boardPanel: false,
   onboarding: false,
   update: { phase: "idle" },
+  sourceUpdate: { phase: "idle" },
 
   async init() {
     if (!inTauri()) {
@@ -273,6 +282,8 @@ export const useApp = create<AppState>((set, get) => ({
       await get().reloadManifest();
       // Обновления — чуть погодя, чтобы не мешать запуску; без сети — молча.
       if (checkOnStart(get().settings)) setTimeout(() => void get().checkUpdate(false), 4000);
+      // P60: новые платы и исправления появляются в main раньше выпуска приложения
+      if (checkSourceOnStart(get().settings, isMobile())) setTimeout(() => void get().checkSource(), 6000);
     } catch (e) {
       set({ ready: true, manifestError: errorText(e) });
     }
@@ -401,6 +412,48 @@ export const useApp = create<AppState>((set, get) => ({
 
   showUpdate() {
     set((s) => ({ update: { ...s.update, hidden: false } }));
+  },
+
+  async checkSource() {
+    const source = get().settings.firmwareSource;
+    if (!source || get().sourceUpdate.phase === "checking" || get().sourceUpdate.phase === "fetching") return;
+    set({ sourceUpdate: { phase: "checking" } });
+    try {
+      const info = await api.firmwareSourceCheck(source);
+      if (!info) {
+        set({ sourceUpdate: { phase: "none" } });
+        return;
+      }
+      const offer = shouldOfferSource(info, get().settings);
+      set({ sourceUpdate: { phase: info.newer ? "available" : "none", info, hidden: !offer } });
+    } catch (e) {
+      // без сети или лимит API GitHub — не мешаем, есть кнопка в «Настройках»
+      set({ sourceUpdate: { phase: "error", error: errorText(e), hidden: true } });
+    }
+  },
+
+  async fetchSource() {
+    const info = get().sourceUpdate.info;
+    if (!info || get().sourceUpdate.phase === "fetching") return;
+    if (get().flash?.running) {
+      get().toast("warn", t("Сначала дождитесь конца прошивки — потом обновление"));
+      return;
+    }
+    set({ sourceUpdate: { phase: "fetching", info } });
+    try {
+      const got = await api.firmwareFetchGithub(info.reference);
+      await get().saveSettings({ firmwareSource: got.dir }); // перечитает описание прошивки
+      set({ sourceUpdate: { phase: "done", info } });
+      get().toast("info", t("Исходники прошивки обновлены: {v}", { v: `${got.reference} · ${got.commit.slice(0, 7)}` }));
+    } catch (e) {
+      set({ sourceUpdate: { phase: "error", info, error: errorText(e) } });
+    }
+  },
+
+  async dismissSource(skip) {
+    const info = get().sourceUpdate.info;
+    set((s) => ({ sourceUpdate: { ...s.sourceUpdate, hidden: true } }));
+    if (skip && info) await get().saveSettings({ sourceSkip: info.remote });
   },
 
   async saveSettings(patch) {

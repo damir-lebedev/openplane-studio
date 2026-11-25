@@ -44,6 +44,19 @@ export interface SetupReport {
   warnings: string[];
 }
 
+/** Скачанные исходники прошивки против GitHub (P60, src-tauri/src/source.rs: check). */
+export interface SourceFreshness {
+  /** что взял бы «Взять с GitHub»: последний выпуск или main */
+  reference: string;
+  local: string;
+  remote: string;
+  newer: boolean;
+  /** на сколько коммитов GitHub впереди; null — сравнить не вышло */
+  ahead: number | null;
+  /** заголовки новых коммитов, свежие первыми */
+  notes: string[];
+}
+
 export interface Settings {
   /** коптер, открытый последним */
   currentCopter?: string;
@@ -62,6 +75,8 @@ export interface Settings {
   updateCheck?: boolean;
   /** версия, которую попросили пропустить: при запуске не предлагается */
   updateSkip?: string;
+  /** коммит исходников прошивки на GitHub, который попросили пропустить (P60) */
+  sourceSkip?: string;
   /** заметки об открытых журналах и убранные подсказки (P06, core/tips.ts) */
   learn?: PilotLearn;
 }
@@ -380,6 +395,8 @@ export const api = {
   firmwareFetchGithub: (version?: string) =>
     invoke<{ dir: string; reference: string; commit: string; fresh: boolean }>("firmware_fetch_github", { version: version ?? null }),
   firmwareVersions: () => invoke<string[]>("firmware_versions"),
+  /** P60: скачанные приложением исходники отстали от GitHub? Своя git-копия — null. */
+  firmwareSourceCheck: (source: string) => invoke<SourceFreshness | null>("firmware_source_check", { source }),
   firmwarePrepare: (source: string, planeId: string) =>
     invoke<{ dir: string; copied: number; removed: number }>("firmware_prepare", { source, planeId }),
   firmwareApply: (source: string, dir: string, config: FirmwareConfig | CopterFirmwareConfig) =>

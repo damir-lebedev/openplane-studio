@@ -179,6 +179,12 @@ async fn firmware_fetch_github(app: AppHandle, version: Option<String>) -> Res<f
     blocking(move || firmware::fetch_github(&app, version.as_deref())).await
 }
 
+/// P60: скачанные приложением исходники отстали от GitHub? Своя git-копия — null.
+#[tauri::command]
+async fn firmware_source_check(source: String) -> Res<Option<source::Freshness>> {
+    blocking(move || source::check(Path::new(&source))).await
+}
+
 #[tauri::command]
 async fn firmware_versions() -> Res<Vec<String>> {
     blocking(firmware::versions).await
@@ -555,6 +561,7 @@ pub fn run() {
             firmware_commit,
             firmware_fetch_github,
             firmware_versions,
+            firmware_source_check,
             firmware_prepare,
             firmware_apply,
             firmware_build,

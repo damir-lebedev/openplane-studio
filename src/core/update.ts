@@ -1,7 +1,7 @@
 // Обновление приложения: что проверять при запуске, что предлагать и как
 // показать ход загрузки. Сеть, файлы и установщик — в Rust (src-tauri/src/update.rs).
 
-import type { Settings } from "../api";
+import type { Settings, SourceFreshness } from "../api";
 
 export interface UpdateAsset {
   name: string;
@@ -47,6 +47,28 @@ export function checkOnStart(settings: Settings): boolean {
 /** Показать ли карточку: версия новее и её не пропускали (по кнопке — всегда). */
 export function shouldOffer(info: UpdateInfo, settings: Settings, manual: boolean): boolean {
   return info.newer && (manual || settings.updateSkip !== info.version);
+}
+
+/** Исходники прошивки (P60): проверка при запуске → карточка → «Обновить исходники». */
+export type SourcePhase = "idle" | "checking" | "none" | "available" | "fetching" | "done" | "error";
+
+export interface SourceState {
+  phase: SourcePhase;
+  info?: SourceFreshness;
+  error?: string;
+  /** карточку закрыли — до следующего запуска */
+  hidden?: boolean;
+}
+
+/** Сверять ли исходники при запуске: есть папка, не телефон, проверки не выключены и версия не закреплена
+ *  (выбранный в «Настройках» выпуск — сознательно старый, его не трогаем). */
+export function checkSourceOnStart(settings: Settings, mobile: boolean): boolean {
+  return !mobile && !!settings.firmwareSource && checkOnStart(settings) && !settings.firmwareVersion;
+}
+
+/** Предложить ли обновить: на GitHub новее и этот коммит не пропускали. */
+export function shouldOfferSource(info: SourceFreshness | null | undefined, settings: Settings): boolean {
+  return !!info?.newer && settings.sourceSkip !== info.remote;
 }
 
 /** Размер по-человечески: 212 МБ, 840 КБ. */

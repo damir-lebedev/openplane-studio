@@ -11,7 +11,7 @@ import { Rail } from "./components/Rail";
 import { Settings } from "./components/Settings";
 import { SetupDialog } from "./components/Setup";
 import { Toasts } from "./components/Toasts";
-import { UpdateCard } from "./components/Update";
+import { SourceCard, UpdateCard } from "./components/Update";
 import { isMobile } from "./api";
 import { needsOnboarding } from "./core/pilot";
 import { getLanguage } from "./i18n";
@@ -85,6 +85,7 @@ export default function App() {
       {!isMobile() && <SetupDialog />}
       {onboarding && <Onboarding />}
       {!isMobile() && <UpdateCard />}
+      {!isMobile() && <SourceCard />}
       <Toasts />
     </div>
   );

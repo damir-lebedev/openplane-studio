@@ -2732,5 +2732,11 @@
   "Не сохранено": "Not saved",
   "Не сохранено: {list}": "Not saved: {list}",
   "Сохранено в плату: настройка останется и после перезагрузки.": "Saved to the board: the setting stays after a reboot.",
-  "и ещё {n}": "and {n} more"
+  "и ещё {n}": "and {n} more",
+  "{ref}: на GitHub новее. Новые платы и исправления — до выпуска приложения.": "{ref}: GitHub has a newer version. New boards and fixes arrive before the app release.",
+  "{ref}: новых изменений — {n}. Новые платы и исправления — до выпуска приложения.": "{ref}: {n} new changes. New boards and fixes arrive before the app release.",
+  "Есть свежие исходники прошивки": "Newer firmware sources available",
+  "Исходники прошивки обновлены: {v}": "Firmware sources updated: {v}",
+  "Обновить исходники": "Update sources",
+  "…и ещё": "…and more"
 }

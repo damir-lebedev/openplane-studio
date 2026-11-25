@@ -10,6 +10,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use serde::Serialize;
 use serde_json::Value;
 
 use crate::util::{command, err, run_capture, system_tool, Res};
@@ -267,9 +268,77 @@ fn download_archive(root: &Path, tmp: &Path, commit: &str) -> Res<()> {
     Ok(())
 }
 
+/// Свежесть скачанного снимка (P60): что сейчас на GitHub под той ссылкой,
+/// которую взял бы `fetch` без версии (последний выпуск, а без выпусков — main).
+#[derive(Debug, Serialize)]
+pub struct Freshness {
+    pub reference: String,
+    /// коммит снимка в папке
+    pub local: String,
+    /// коммит на GitHub
+    pub remote: String,
+    pub newer: bool,
+    /// на сколько коммитов GitHub впереди; None — сравнить не вышло
+    pub ahead: Option<u64>,
+    /// заголовки новых коммитов, свежие первыми (без служебных PLAN:)
+    pub notes: Vec<String>,
+}
+
+/// Сколько заголовков коммитов показывать в «Что нового».
+const NOTES_MAX: usize = 8;
+
+/// Сверить снимок с GitHub. Папка не скачана приложением (своя git-копия) — None.
+pub fn check(dir: &Path) -> Res<Option<Freshness>> {
+    let Some((_, local)) = marker(dir) else { return Ok(None) };
+    let reference = versions().ok().and_then(|v| v.into_iter().next()).unwrap_or_else(|| "main".into());
+    let remote = resolve_commit(&reference)?;
+    let newer = remote != local;
+    let (ahead, notes) = if newer {
+        match api(&format!("compare/{local}...{remote}")) {
+            Ok(cmp) => (cmp["ahead_by"].as_u64(), commit_titles(&cmp, NOTES_MAX)),
+            Err(_) => (None, Vec::new()),
+        }
+    } else {
+        (Some(0), Vec::new())
+    };
+    Ok(Some(Freshness { reference, local, remote, newer, ahead, notes }))
+}
+
+/// Первые строки сообщений из ответа compare (там старые первыми) — свежие первыми.
+fn commit_titles(cmp: &Value, max: usize) -> Vec<String> {
+    let Some(list) = cmp["commits"].as_array() else { return Vec::new() };
+    list.iter()
+        .rev()
+        .filter_map(|c| c["commit"]["message"].as_str())
+        .map(|m| m.lines().next().unwrap_or("").trim().to_string())
+        .filter(|m| !m.is_empty() && !m.starts_with("PLAN") && !m.starts_with("Merge "))
+        .take(max)
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn freshness_notes_newest_first_without_plan() {
+        let cmp = serde_json::json!({ "ahead_by": 3, "commits": [
+            { "commit": { "message": "copter: SpeedyBee F405 V4 board\n\nlong body" } },
+            { "commit": { "message": "PLAN: P57a done" } },
+            { "commit": { "message": "copter CLI: dump fix" } }
+        ]});
+        assert_eq!(commit_titles(&cmp, 8), vec!["copter CLI: dump fix", "copter: SpeedyBee F405 V4 board"]);
+        assert_eq!(commit_titles(&cmp, 1), vec!["copter CLI: dump fix"]);
+        assert!(commit_titles(&serde_json::json!({}), 8).is_empty());
+    }
+
+    #[test]
+    fn own_git_copy_is_not_checked() {
+        let dir = std::env::temp_dir().join("openplane-freshness-test");
+        let _ = fs::create_dir_all(&dir);
+        let _ = fs::remove_file(dir.join(MARKER));
+        assert!(check(&dir).unwrap().is_none());
+    }
 
     #[test]
     fn only_what_the_firmware_is_built_from() {

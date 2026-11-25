@@ -1,4 +1,4 @@
-import { CircleCheck, Download, LoaderCircle, RefreshCw, RotateCw, X } from "lucide-react";
+import { CircleCheck, Download, GitBranch, LoaderCircle, RefreshCw, RotateCw, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { bytesText, checkOnStart, etaSeconds, fraction, notesLines, UpdateState } from "../core/update";
@@ -120,6 +120,73 @@ export function UpdateCard() {
             <span className="hint">{platform === "windows" ? t("Проекты и настройки останутся") : t("Перетащите в «Программы»")}</span>
           </>
         ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** P60: карточка «Есть свежие исходники прошивки» — новые платы и исправления приходят в main
+ *  раньше выпуска приложения. Карточка обновления приложения важнее: пока она видна, эта ждёт. */
+export function SourceCard() {
+  const s = useApp((st) => st.sourceUpdate);
+  const appCard = useApp((st) => !st.update.hidden && !!st.update.info?.newer && st.update.phase !== "none");
+  const fetchSource = useApp((st) => st.fetchSource);
+  const dismiss = useApp((st) => st.dismissSource);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const shown = !s.hidden && !appCard && !!s.info?.newer && ["available", "fetching", "error"].includes(s.phase);
+  if (!shown || !s.info) return null;
+  const info = s.info;
+
+  return (
+    <div className="update-card" role="dialog" aria-label={t("Исходники прошивки")}>
+      <div className="row" style={{ alignItems: "flex-start" }}>
+        <GitBranch size={18} style={{ color: "var(--accent)", marginTop: 2 }} />
+        <div className="grow">
+          <div style={{ fontWeight: 600 }}>{t("Есть свежие исходники прошивки")}</div>
+          <div className="hint">
+            {info.ahead
+              ? t("{ref}: новых изменений — {n}. Новые платы и исправления — до выпуска приложения.", { ref: info.reference, n: info.ahead })
+              : t("{ref}: на GitHub новее. Новые платы и исправления — до выпуска приложения.", { ref: info.reference })}
+          </div>
+          <div className="hint mono">
+            {info.local.slice(0, 7)} → {info.remote.slice(0, 7)}
+          </div>
+        </div>
+        {s.phase !== "fetching" && (
+          <button className="btn ghost small" title={t("Позже")} aria-label={t("Позже")} onClick={() => void dismiss(false)}>
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {info.notes.length > 0 && (
+        <div>
+          <button className="link" onClick={() => setNotesOpen(!notesOpen)}>
+            {notesOpen ? t("Скрыть, что нового") : t("Что нового")}
+          </button>
+          {notesOpen && (
+            <ul className="update-notes">
+              {info.notes.map((l, i) => (
+                <li key={i} className="mono">{l}</li>
+              ))}
+              {info.ahead !== null && info.ahead > info.notes.length && <li className="hint">{t("…и ещё")}</li>}
+            </ul>
+          )}
+        </div>
+      )}
+
+      {s.phase === "error" && <p className="locked-note">{s.error}</p>}
+
+      <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+        <button className="btn primary small" disabled={s.phase === "fetching"} onClick={() => void fetchSource()}>
+          {s.phase === "fetching" ? <LoaderCircle size={13} className="spin" /> : <RefreshCw size={13} />}
+          {s.phase === "fetching" ? t("Скачиваю…") : s.phase === "error" ? t("Скачать ещё раз") : t("Обновить исходники")}
+        </button>
+        {s.phase !== "fetching" && (
+          <button className="btn small" onClick={() => void dismiss(true)}>
+            {t("Пропустить")}
+          </button>
+        )}
       </div>
     </div>
   );
