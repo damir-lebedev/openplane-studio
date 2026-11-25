@@ -146,6 +146,27 @@ export const COPTER_PANELS = (flight: Flight | null, axis: number): PanelDef[] =
     ],
   },
   {
+    id: "position",
+    title: N_("Положение"),
+    unit: N_("м"),
+    traces: [
+      { series: "QNAV", field: "tgt_n", label: N_("точка С"), color: COLORS.motors[0], width: 1, dash: [4, 4] },
+      { series: "QNAV", field: "tgt_e", label: N_("точка В"), color: COLORS.motors[3], width: 1, dash: [4, 4] },
+      { series: "QNAV", field: "pos_n", label: N_("север"), color: COLORS.motors[0], width: 1.5 },
+      { series: "QNAV", field: "pos_e", label: N_("восток"), color: COLORS.motors[3], width: 1.5 },
+    ],
+  },
+  {
+    id: "velocity",
+    title: N_("Скорость"),
+    unit: N_("м/с"),
+    symmetric: true,
+    traces: [
+      { series: "QNAV", field: "vel_n", label: N_("север"), color: COLORS.motors[0], width: 1.4 },
+      { series: "QNAV", field: "vel_e", label: N_("восток"), color: COLORS.motors[3], width: 1.4 },
+    ],
+  },
+  {
     id: "battery",
     title: N_("Батарея"),
     unit: N_("В"),

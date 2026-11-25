@@ -25,7 +25,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 
 import { api, BoardFlights, errorText, inTauri, LogFile, onBlackboxProgress } from "../../api";
 import { decodeFlight, extractFlight, Flight, looksLikeRing, RingFlight, ringFlights, valueAt } from "../../core/blackbox";
-import { FLAG, names } from "../../core/bbanalysis";
+import { FLAG, NAV_FLAG, names } from "../../core/bbanalysis";
 import { addNote, EMPTY_LEARN, noteFromFlight } from "../../core/tips";
 import type { WorkerReply } from "../../core/bbworker";
 import { locale, t } from "../../i18n";
@@ -319,6 +319,11 @@ function Readout({ flight }: { flight: Flight }) {
   const modes = names(flight, "names.mode", ["ACRO", "HORIZON", "ANGLE", "ALT_HOLD", "POS_HOLD"]);
   const states = names(flight, "names.state", ["DISARMED", "ARMED", "FAILSAFE"]);
   const flags = v(q, "flags") ?? 0;
+  const nav = flight.series.QNAV;
+  const navFlags = v(nav, "flags") ?? 0;
+  const hsrc = names(flight, "names.hsrc", ["NONE", "GPS", "MAG"])[v(nav, "hsrc") ?? -1];
+  const hold = names(flight, "names.hold", ["OFF", "MOVE", "BRAKE", "HOLD"])[v(nav, "hold") ?? -1];
+  const holdFail = names(flight, "names.hold_fail", ["NONE", "NO_GPS", "NO_HEADING", "DRIFT"])[v(nav, "hold_fail") ?? -1];
   const mode = modes[v(q, "mode") ?? -1] ?? "—";
   const state = states[v(q, "state") ?? -1] ?? "—";
   const AX = ["roll", "pitch", "yaw"];
@@ -346,6 +351,9 @@ function Readout({ flight }: { flight: Flight }) {
         </span>
         {flags & FLAG.failsafe ? <span className="badge warn">FAILSAFE</span> : null}
         {flags & FLAG.rxLost ? <span className="badge err">{t("нет связи")}</span> : null}
+        {navFlags & NAV_FLAG.crashRecovery ? <span className="badge err">CRASH RECOVERY</span> : null}
+        {navFlags & NAV_FLAG.yawSpin ? <span className="badge err">YAW SPIN</span> : null}
+        {navFlags & NAV_FLAG.gyroSaturated ? <span className="badge warn">{t("гироскоп в упоре")}</span> : null}
       </div>
       <table>
         <tbody>
@@ -397,6 +405,33 @@ function Readout({ flight }: { flight: Flight }) {
         <b>{num(v(q, "amps"), 1)} {t("А")}</b>
         <span>{t("обороты")}</span>
         <b>{num(v(q, "rot_hz"))} {t("Гц")}</b>
+        {nav ? (
+          <>
+            <span>{t("курс")}</span>
+            <b>
+              {num(v(nav, "heading"))}° {hsrc && hsrc !== "NONE" ? hsrc : t("нет")}
+            </b>
+            {navFlags & NAV_FLAG.posValid ? (
+              <>
+                <span>{t("от дома")}</span>
+                <b>
+                  {num(v(nav, "pos_n"), 1)} / {num(v(nav, "pos_e"), 1)} {t("м")}
+                </b>
+              </>
+            ) : null}
+            {hold && hold !== "OFF" ? (
+              <>
+                <span>POS HOLD</span>
+                <b>{hold}</b>
+              </>
+            ) : holdFail && holdFail !== "NONE" ? (
+              <>
+                <span>POS HOLD</span>
+                <b className="warn">{holdFail}</b>
+              </>
+            ) : null}
+          </>
+        ) : null}
       </div>
     </div>
   );

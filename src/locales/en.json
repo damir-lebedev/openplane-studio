@@ -2711,5 +2711,10 @@
   "берётся, пока у коптера нет GPS (или GPS нет вовсе)": "used until the copter has a GPS fix (or if there is no GPS at all)",
   "вручную": "manual",
   "коптер сам считает склонение по своим координатам (модель WMM-2025), вводить руками не нужно": "the copter works it out from its own position (WMM-2025 model), no need to type it in",
-  "по GPS": "from GPS"
+  "по GPS": "from GPS",
+  "Положение": "Position",
+  "гироскоп в упоре": "gyro saturated",
+  "от дома": "from home",
+  "точка В": "target E",
+  "точка С": "target N"
 }

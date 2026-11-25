@@ -50,6 +50,62 @@ export function modeSpans(flight: Flight): Span[] {
   return out;
 }
 
+/** Биты QNAV flags (прошивка: BlackBoxFormat::CopterNavFlag, имена — INFO bits.nav_flags). */
+export const NAV_FLAG = {
+  posValid: 1,
+  crashRecovery: 2,
+  yawSpin: 4,
+  gyroSaturated: 8,
+  magDisagrees: 16,
+  gpsSpoof: 32,
+  runawayCheck: 64,
+  turtle: 128,
+};
+
+export type NavSpanKind = "crash" | "yawspin" | "gyrosat" | "hold" | "brake" | "move";
+
+export interface NavSpan {
+  t0: number;
+  t1: number;
+  kind: NavSpanKind;
+}
+
+/**
+ * Полосы по записи QNAV: когда работали защиты (crash recovery, yaw spin,
+ * гироскоп в упоре) и что делало удержание позиции (MOVE / BRAKE / HOLD).
+ * Нет QNAV (старый журнал, самолёт) — пусто.
+ */
+export function navSpans(flight: Flight): NavSpan[] {
+  const n = flight.series.QNAV;
+  if (!n || !n.count) return [];
+  const holds = names(flight, "names.hold", ["OFF", "MOVE", "BRAKE", "HOLD"]);
+  const out: NavSpan[] = [];
+  const open: Partial<Record<NavSpanKind, NavSpan>> = {};
+  const step = (t: number, kind: NavSpanKind, on: boolean) => {
+    const s = open[kind];
+    if (on && !s) {
+      const fresh = { t0: t, t1: t, kind };
+      open[kind] = fresh;
+      out.push(fresh);
+    } else if (s) {
+      s.t1 = t;
+      if (!on) delete open[kind];
+    }
+  };
+  for (let i = 0; i < n.count; i++) {
+    const t = n.t[i];
+    const f = n.cols.flags?.[i] ?? 0;
+    step(t, "crash", (f & NAV_FLAG.crashRecovery) !== 0);
+    step(t, "yawspin", (f & NAV_FLAG.yawSpin) !== 0);
+    step(t, "gyrosat", (f & NAV_FLAG.gyroSaturated) !== 0);
+    const phase = holds[n.cols.hold?.[i] ?? 0] ?? "OFF";
+    step(t, "hold", phase === "HOLD");
+    step(t, "brake", phase === "BRAKE");
+    step(t, "move", phase === "MOVE");
+  }
+  return out.sort((a, b) => a.t0 - b.t0);
+}
+
 export interface AxisStats {
   maxRate: number;
   rmsError: number;

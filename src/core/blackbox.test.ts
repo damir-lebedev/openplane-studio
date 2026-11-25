@@ -9,8 +9,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
-import { meanRotation, modeSpans, spectrum, summarize } from "./bbanalysis";
-import { decodeFlight, extractFlight, parseFields, readHeader, ringFlights, SECTOR, valueAt } from "./blackbox";
+import { meanRotation, modeSpans, NAV_FLAG, navSpans, spectrum, summarize } from "./bbanalysis";
+import { decodeFlight, extractFlight, Flight, parseFields, readHeader, ringFlights, SECTOR, valueAt } from "./blackbox";
 
 const bytes = new Uint8Array(readFileSync(fileURLToPath(new URL("./__fixtures__/copter_flight_head.bbl", import.meta.url))));
 
@@ -84,5 +84,50 @@ describe("журнал ящика", () => {
     const one = extractFlight(ring, flights[0]);
     expect(readHeader(one, 0)?.flight).toBe(1);
     expect(decodeFlight(one).series.QGYRO.count).toBe(decodeFlight(bytes).series.QGYRO.count);
+  });
+});
+
+// P39 (б), P56: запись QNAV — защиты и удержание позиции полосами на шкале
+describe("навигация в журнале (QNAV)", () => {
+  const nav = (rows: [number, number, number][]): Flight => {
+    const n = rows.length;
+    return {
+      info: { "names.hold": "OFF MOVE BRAKE HOLD" },
+      series: {
+        QNAV: {
+          name: "QNAV",
+          count: n,
+          t: Float64Array.from(rows.map((r) => r[0])),
+          cols: { flags: Float32Array.from(rows.map((r) => r[1])), hold: Float32Array.from(rows.map((r) => r[2])) },
+          fields: ["t_us", "flags", "hold"],
+        },
+      },
+    } as unknown as Flight;
+  };
+
+  it("защиты и этапы POS HOLD — отрезками", () => {
+    const P = NAV_FLAG.posValid;
+    const f = nav([
+      [0, P, 0],
+      [0.1, P, 1],
+      [0.2, P | NAV_FLAG.yawSpin | NAV_FLAG.gyroSaturated, 2],
+      [0.3, P | NAV_FLAG.gyroSaturated, 3],
+      [0.4, P, 3],
+      [0.5, P | NAV_FLAG.crashRecovery, 0],
+      [0.6, P, 0],
+    ]);
+    const s = navSpans(f);
+    const of = (k: string) => s.filter((x) => x.kind === k).map((x) => [x.t0, x.t1]);
+    expect(of("move")).toEqual([[0.1, 0.2]]);
+    expect(of("brake")).toEqual([[0.2, 0.3]]);
+    expect(of("hold")).toEqual([[0.3, 0.5]]);
+    expect(of("yawspin")).toEqual([[0.2, 0.3]]);
+    expect(of("gyrosat")).toEqual([[0.2, 0.4]]);
+    expect(of("crash")).toEqual([[0.5, 0.6]]);
+    expect(s.map((x) => x.t0)).toEqual([...s.map((x) => x.t0)].sort((a, b) => a - b));
+  });
+
+  it("старый журнал без QNAV — пусто", () => {
+    expect(navSpans(decodeFlight(bytes))).toEqual([]);
   });
 });

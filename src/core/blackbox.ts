@@ -39,7 +39,7 @@ export interface Series {
   fields: string[];
 }
 
-export type EventKind = "arm" | "disarm" | "mode" | "failsafe" | "crash" | "link" | "battery" | "refused" | "gps" | "record" | "warn" | "other";
+export type EventKind = "arm" | "disarm" | "mode" | "failsafe" | "crash" | "guard" | "link" | "battery" | "refused" | "gps" | "record" | "warn" | "other";
 
 export interface FlightEvent {
   t: number;
@@ -114,10 +114,11 @@ function classify(text: string): EventKind {
   if (text.startsWith("режим")) return "mode";
   if (text.startsWith("FAILSAFE") || text.includes("failsafe")) return "failsafe";
   if (text.startsWith("авария") || text.includes("CRASH")) return "crash";
+  if (text.startsWith("crash recovery") || text.startsWith("yaw spin") || text.startsWith("гироскоп в упоре")) return "guard";
   if (text.startsWith("связь")) return "link";
   if (text.startsWith("батарея")) return "battery";
   if (text.startsWith("ARM отклонён")) return "refused";
-  if (text.startsWith("GPS") || text.startsWith("дом")) return "gps";
+  if (text.startsWith("GPS") || text.startsWith("дом") || text.startsWith("POS HOLD") || text.startsWith("курс")) return "gps";
   if (text.startsWith("запись")) return "record";
   if (text.startsWith("очередь") || text.startsWith("носитель") || text.startsWith("флеш")) return "warn";
   return "other";

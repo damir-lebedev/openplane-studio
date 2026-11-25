@@ -5,7 +5,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Flight, FlightEvent, lowerBound } from "../../core/blackbox";
-import { modeSpans } from "../../core/bbanalysis";
+import { modeSpans, navSpans, NavSpanKind } from "../../core/bbanalysis";
 import { t } from "../../i18n";
 import { useBb } from "./bbstore";
 import { fitCanvas, formatTime, Frame, THEME, ticks, tOf, xOf } from "./draw";
@@ -24,6 +24,7 @@ export const EVENT_COLORS: Record<string, string> = {
   mode: "#39d0ff",
   failsafe: "#e3b341",
   crash: "#f85149",
+  guard: "#ff7b72",
   link: "#e3b341",
   battery: "#ffa657",
   refused: "#f85149",
@@ -31,6 +32,16 @@ export const EVENT_COLORS: Record<string, string> = {
   record: "#6f8296",
   warn: "#ff7b72",
   other: "#a3b3c4",
+};
+
+/** Полоски QNAV на таймлайне: защиты — красным сверху, удержание позиции — зелёным снизу полосы режимов. */
+export const NAV_COLORS: Record<NavSpanKind, string> = {
+  crash: "#f85149",
+  yawspin: "#d2a8ff",
+  gyrosat: "#ffa657",
+  hold: "#7ee787",
+  brake: "#e3b341",
+  move: "#39d0ff",
 };
 
 export function Timeline({ flight }: { flight: Flight }) {
@@ -42,6 +53,7 @@ export function Timeline({ flight }: { flight: Flight }) {
   const t1 = useBb((s) => s.t1);
   const cursor = useBb((s) => s.cursor);
   const spans = useMemo(() => modeSpans(flight), [flight]);
+  const nav = useMemo(() => navSpans(flight), [flight]);
   const [hover, setHover] = useState<{ x: number; e: FlightEvent } | null>(null);
   const drag = useRef<{ kind: "move" | "left" | "right"; x: number; t0: number; t1: number } | null>(null);
 
@@ -93,6 +105,17 @@ export function Timeline({ flight }: { flight: Flight }) {
         ctx.textAlign = "left";
         ctx.fillText(s.label, x + 6, BAND_Y + BAND_H / 2 + 0.5);
       }
+    }
+
+    // защиты и удержание позиции (QNAV): тонкие полоски по краям полосы режимов
+    for (const s of nav) {
+      const x = xOf(f, s.t0);
+      const w = Math.max(2, xOf(f, s.t1) - x);
+      const guard = s.kind === "crash" || s.kind === "yawspin" || s.kind === "gyrosat";
+      ctx.fillStyle = NAV_COLORS[s.kind];
+      ctx.globalAlpha = 0.95;
+      ctx.fillRect(x, guard ? BAND_Y - 4 : BAND_Y + BAND_H, w, 3);
+      ctx.globalAlpha = 1;
     }
 
     // огибающая гироскопа
