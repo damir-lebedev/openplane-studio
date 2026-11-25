@@ -57,7 +57,7 @@ const WHY: Record<string, Omit<ArmWhy, "code" | "what" | "bench">> = {
   RPMFILTER: { word: "NO RPM", how: N_("Регуляторы не шлют обороты: включите dshot_bidir и прошивку регуляторов, которая его умеет."), icon: "motor", fixes: [tab("motors", N_("Открыть «Моторы»"))] },
   REBOOT_REQD: { word: "REBOOT", how: N_("Сменились рама или выходы — перезагрузите плату (отключите и подключите питание)."), icon: "reboot", fixes: [] },
   DSHOT_BBANG: { word: "DSHOT FAIL", how: N_("DShot не запустился: выберите другой протокол или пины моторов."), icon: "motor", fixes: [tab("motors", N_("Открыть «Моторы»"))] },
-  NO_ACC_CAL: { word: "CALIBRATE", how: N_("Покажите, как плата стоит в раме: три позы по подсказкам."), icon: "level", fixes: [{ kind: "key", key: "o", label: N_("Откалибровать установку") }] },
+  NO_ACC_CAL: { word: "CALIBRATE", how: N_("Покажите, как плата стоит в раме: три позы по подсказкам. Плате из Betaflight хватит нуля акселерометра: коптер ровно на столе."), icon: "level", fixes: [{ kind: "key", key: "o", label: N_("Откалибровать установку") }, { kind: "key", key: "a", label: N_("Нуль на ровном") }] },
   MOTOR_PROTO: { word: "MOTOR PROTO", how: N_("Выберите протокол моторов, который понимают регуляторы."), icon: "motor", fixes: [tab("motors", N_("Открыть «Моторы»"))] },
   ARMSWITCH: { word: "ARM SW OFF", how: N_("ARM был включён до связи — выключите тумблер и включите снова."), icon: "switch", fixes: [] },
   MOVING: { word: "MOVING", how: N_("Коптер качают — поставьте на землю и не трогайте."), icon: "level", fixes: [] },

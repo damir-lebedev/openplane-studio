@@ -21,7 +21,10 @@ describe("почему не армится (P10)", () => {
   });
 
   it("кнопки: калибровка, закрыть CLI, сохранить/отменить, вкладка", () => {
-    expect(armWhy("NO_ACC_CAL").fixes).toEqual([{ kind: "key", key: "o", label: "Откалибровать установку" }]);
+    expect(armWhy("NO_ACC_CAL").fixes).toEqual([
+      { kind: "key", key: "o", label: "Откалибровать установку" },
+      { kind: "key", key: "a", label: "Нуль на ровном" },
+    ]);
     expect(armWhy("CLI").fixes[0]).toMatchObject({ kind: "command", cmd: "exit" });
     expect(armWhy("MSP").fixes.map((f) => f.kind)).toEqual(["save", "revert"]);
     expect(armWhy("NO_ARM_AUX").fixes[0]).toMatchObject({ kind: "tab", tab: "modes" });

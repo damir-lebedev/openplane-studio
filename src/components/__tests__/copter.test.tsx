@@ -687,7 +687,8 @@ describe("вкладки коптера", () => {
     expect(words).toEqual(["CLI OPEN", "CALIBRATE", "NO RADIO", "THR DOWN"]);
     fireEvent.click(screen.getByRole("button", { name: "Закрыть CLI" }));
     fireEvent.click(screen.getByRole("button", { name: "Откалибровать установку" }));
-    expect(sent).toEqual(expect.arrayContaining(["exit", "o"]));
+    fireEvent.click(screen.getByRole("button", { name: "Нуль на ровном" }));
+    expect(sent).toEqual(expect.arrayContaining(["exit", "o", "a"]));
     fireEvent.click(screen.getAllByRole("button", { name: "Открыть «Приёмник»" })[0]);
     expect(document.querySelector(".copter-tab.on")?.textContent).toMatch(/Приёмник/);
   });

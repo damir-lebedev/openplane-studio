@@ -1265,7 +1265,6 @@
   "не отвечает (SPI): проверьте CS, SCK, MISO, MOSI": "not responding (SPI): check CS, SCK, MISO, MOSI",
   "не отвечает на {a}: проверьте питание 3,3 В, провода SDA и SCL": "not responding at {a}: check the 3.3 V supply and the SDA and SCL wires",
   "не отвечает — нажмите «Опросить шину»": "not responding — press “Scan the bus”",
-  "не откалибрована установка платы — «Подготовка» → «Установка платы»": "board alignment not calibrated — Setup → Board alignment",
   "не подтверждено": "not confirmed",
   "не поставлен": "not set",
   "не приближается к дому": "not getting closer to home",
@@ -2060,7 +2059,6 @@
   "Открыть «Фильтры»": "Open «Filters»",
   "Пара секунд после включения — подождите.": "A couple of seconds after power-up — wait.",
   "Подождите пару секунд с включённым пультом — после failsafe связь должна продержаться.": "Wait a couple of seconds with the radio on — after a failsafe the link has to hold.",
-  "Покажите, как плата стоит в раме: три позы по подсказкам.": "Show how the board sits in the frame: three poses following the prompts.",
   "Поставьте коптер ровно. Стоит ровно, а не пускает — откалибруйте установку платы.": "Put the copter level. Level but still blocked — calibrate the board alignment.",
   "Проверить моторы": "Check motors",
   "Процессор не успевает: снизьте частоту цикла или выключите лишнее (фильтры, ящик).": "The CPU can't keep up: lower the loop rate or turn off extras (filters, blackbox).",
@@ -2805,5 +2803,8 @@
   "провод управления видеопередатчиком — на TX порта": "video transmitter control wire to the port's TX",
   "у этого UART не разведён RX": "this UART has no RX pin",
   "у этого UART не разведён TX": "this UART has no TX pin",
-  "— свободен —": "— free —"
+  "— свободен —": "— free —",
+  "Нуль на ровном": "Zero on level",
+  "Покажите, как плата стоит в раме: три позы по подсказкам. Плате из Betaflight хватит нуля акселерометра: коптер ровно на столе.": "Show how the board sits in the frame: three poses following the prompts. A board from Betaflight only needs an accelerometer zero: the copter level on the table.",
+  "не откалибрована установка платы — «Подготовка» → «Установка платы» (плата из BF — нуль на ровном)": "board alignment not calibrated — Setup → Board alignment (BF board — zero on level)"
 }
