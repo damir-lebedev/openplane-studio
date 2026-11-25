@@ -509,6 +509,31 @@ describe("вкладки коптера", () => {
     expect(sent).toContain("i");
   });
 
+  it("калибровка установки мастером: шаги, поза, ответ платы в окне (P62)", () => {
+    render(<CopterView />);
+    tab("Подготовка");
+    fireEvent.click(screen.getAllByRole("button", { name: "Начать" })[2]);
+    expect(sent).toContain("o");
+    const modal = document.querySelector(".modal") as HTMLElement;
+    expect(within(modal).getByText("Жду ответа платы…")).toBeTruthy();
+    const push = (...l: string[]) =>
+      act(() => useApp.setState((s) => ({ consoleLines: [...s.consoleLines, ...l], consoleSeq: s.consoleSeq + l.length })));
+    push("ICM42688: калибровка установки — плата может стоять в самолёте как угодно.", "  Шаг 1/3: поставьте самолёт ровно, как в горизонтальном полёте.", "    засчитано", "  Шаг 2/3: поднимите НОС на 30-60° (крылья ровно) и держите.");
+    expect(modal.querySelector("svg[data-pose=noseUp]")).toBeTruthy();
+    expect([...modal.querySelectorAll(".calib-steps li")].map((e) => e.className)).toEqual(["done", "active", ""]);
+    push("    засчитано", "  Шаг 3/3: нос обратно, опустите ПРАВОЕ крыло на 30-60° и держите.");
+    expect(modal.querySelector("svg[data-pose=rightDown]")).toBeTruthy();
+    push("ICM42688: поза не дождалась за 30 с — калибровка установки отменена");
+    expect(within(modal).getByText(/поза не дождалась/, { selector: ".calib-state" })).toBeTruthy();
+    fireEvent.click(within(modal).getByRole("button", { name: "Ещё раз" }));
+    expect(sent.filter((k) => k === "o").length).toBe(2);
+    expect(within(modal).getByText("Жду ответа платы…")).toBeTruthy();
+    push("ICM42688: установка сохранена: X+ Y+ Z+");
+    expect(within(modal).getByText(/установка сохранена/, { selector: ".calib-state" })).toBeTruthy();
+    fireEvent.click(within(modal).getByRole("button", { name: "Готово" }));
+    expect(document.querySelector(".modal")).toBeNull();
+  });
+
   it("перед полётом: список и строка из очков, винты — галочкой (P08)", () => {
     useApp.setState({ clive: live({ full: false, block: ["THROTTLE"] }) });
     render(<CopterView />);

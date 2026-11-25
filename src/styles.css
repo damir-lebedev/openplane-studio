@@ -1550,6 +1550,65 @@ textarea {
   border: 1px solid var(--line);
   background: var(--panel-2);
 }
+.calib-wizard {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin: 8px 0 12px;
+}
+.pose-pic {
+  flex: none;
+  color: var(--text-2);
+}
+.calib-steps {
+  display: flex;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 8px;
+  flex-wrap: wrap;
+}
+.calib-steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--text-3);
+}
+.calib-steps li .num {
+  display: inline-flex;
+  min-width: 14px;
+  justify-content: center;
+}
+.calib-steps li.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.calib-steps li.done {
+  border-color: rgba(63, 185, 80, 0.5);
+  color: var(--ok);
+}
+.calib-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.calib-state.ok {
+  color: var(--ok);
+}
+.calib-state.warn {
+  color: var(--warn);
+}
+.calib-state.err {
+  color: var(--err);
+}
+@media (max-width: 560px) {
+  .calib-wizard {
+    flex-direction: column;
+  }
+}
 .console-tail {
   max-height: 200px;
   overflow: auto;

@@ -3,9 +3,9 @@
 // раме (align_board_*, нули — BoardAlignCard), компас — мастером со сферой точек (CompassCard).
 
 import { CircleCheck, Crosshair, Gauge, Ruler } from "lucide-react";
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 
-import { api, errorText } from "../../api";
+import { CalibKey } from "../../core/calibWizard";
 import { ARM_BENCH_OK } from "../../core/copterParams";
 import { gyroReport } from "../../core/gyros";
 import { accZeroTiltDeg, boardRotated, dragText, gyroCalibration, mahonyActive, parseAccCalibration } from "../../core/imuAlign";
@@ -13,12 +13,13 @@ import { t } from "../../i18n";
 import { useApp } from "../../store";
 import { Horizon } from "../live/LiveWidgets";
 import { ArmWhyList } from "./ArmWhy";
+import { CalibWizard } from "./CalibWizard";
 import { CompassCard } from "./CompassCard";
 import { NeedBoard, ParamRow, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 import { PreflightCard } from "./Preflight";
 import { GoTo } from "./Search";
 
-const CALIBRATIONS: { key: string; title: string; hint: string; icon: typeof Gauge }[] = [
+const CALIBRATIONS: { key: CalibKey; title: string; hint: string; icon: typeof Gauge }[] = [
   { key: "i", title: "Гироскоп", hint: "коптер неподвижен (gyro_calib_duration, 1.25 с); делается и сама при каждом включении", icon: Gauge },
   {
     key: "a",
@@ -29,7 +30,7 @@ const CALIBRATIONS: { key: string; title: string; hint: string; icon: typeof Gau
   {
     key: "o",
     title: "Установка платы",
-    hint: "три позы по подсказкам ниже: ровно, нос вверх, правый борт вниз — как плата стоит в раме",
+    hint: "три позы в окне мастера: ровно, нос вверх, правый борт вниз — как плата стоит в раме",
     icon: Crosshair,
   },
 ];
@@ -254,18 +255,11 @@ function BoardSideView({ pitch, roll }: { pitch: number; roll: number }) {
   );
 }
 
-/** Калибровки клавишами консоли платы и её ответ. */
+/** Калибровки: «Начать» открывает мастер (CalibWizard) — шаги, поза, ответ платы. */
 export function Calibrations() {
   const lines = useApp((s) => s.consoleLines);
-  const toast = useApp((s) => s.toast);
   const { armed } = useCopterLink();
-  const calibrate = async (key: string) => {
-    try {
-      await api.linkSend(key);
-    } catch (e) {
-      toast("err", errorText(e));
-    }
-  };
+  const [open, setOpen] = useState<CalibKey | null>(null);
   return (
     <div className="card wide">
       <h3>{t("Калибровки")}</h3>
@@ -278,7 +272,7 @@ export function Calibrations() {
               <div>{t(c.title)}</div>
               <div className="hint">{t(c.hint)}</div>
             </div>
-            <button className="btn" disabled={armed} onClick={() => void calibrate(c.key)}>
+            <button className="btn" disabled={armed} onClick={() => setOpen(c.key)}>
               {t("Начать")}
             </button>
           </div>
@@ -292,6 +286,7 @@ export function Calibrations() {
         ))}
         {!lines.length && <div className="hint">{t("Ответы платы появятся здесь.")}</div>}
       </div>
+      {open && <CalibWizard calib={open} onClose={() => setOpen(null)} />}
     </div>
   );
 }
