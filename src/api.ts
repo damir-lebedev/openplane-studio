@@ -215,6 +215,9 @@ export interface CopterLive {
   amag?: number;
   /** два гироскопа (copter/GyroSelect.h): маска живых, маска взятых в контур, оси второго 0 — не проверены, 1 — совпали, 2 — нет */
   gyros?: [number, number, number];
+  /** вкладка «Датчики» (P61): гироскоп отвечает, гироскоп °/с и акселерометр g в осях рамы (до фильтров),
+   * температура чипа °C, барометр [давление Па, температура °C, высота над морем м] */
+  sens?: { ok: boolean; g: [number, number, number]; a: [number, number, number]; it?: number; baro?: [number, number, number] };
   alt: number;
   vz: number;
   thr: number;

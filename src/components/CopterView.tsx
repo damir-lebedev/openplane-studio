@@ -24,6 +24,7 @@ import { FlashDialog } from "./board/FlashDialog";
 import { BinFlashButton } from "./copter/BinFlashButton";
 import { UnsavedBar, useCopterLink, useCopterLive } from "./copter/common";
 import { BeeperTab } from "./copter/BeeperTab";
+import { SensorsTab } from "./copter/SensorsTab";
 import { FlightTab } from "./copter/FlightTab";
 import { AutopilotTab } from "./copter/AutopilotTab";
 import { GpsTab } from "./copter/GpsTab";
@@ -192,6 +193,7 @@ export function CopterView() {
           {tab === "overview" && <OverviewTab copter={copter} />}
           {tab === "frombf" && <FromBfTab onGo={go} />}
           {tab === "setup" && <SetupTab onGo={go} />}
+          {tab === "sensors" && <SensorsTab />}
           {tab === "receiver" && <ReceiverTab />}
           {tab === "modes" && <ModesTab />}
           {tab === "motors" && <MotorsTab />}

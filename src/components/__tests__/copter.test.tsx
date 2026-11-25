@@ -522,6 +522,25 @@ describe("вкладки коптера", () => {
     expect(ask()).toHaveLength(1);
   });
 
+  it("«Датчики»: графики гиро/аксель/баро, давление, нет компаса, старая прошивка без sens (P61)", () => {
+    render(<CopterView />);
+    tab("Датчики");
+    act(() =>
+      useApp.setState({
+        clive: live({ sens: { ok: true, g: [0.3, -0.2, 0.1], a: [0.01, 0, 0.5], it: 41.2, baro: [101325, 24.5, 142.31] } }),
+        cliveAt: Date.now(),
+      }),
+    );
+    expect(document.querySelectorAll(".sensors-chart").length).toBe(3);
+    expect(screen.getByText(/1013\.3 гПа · 24\.5 °C/)).toBeTruthy();
+    expect(screen.getByText("чип 41 °C")).toBeTruthy();
+    expect(screen.getByText("142.31")).toBeTruthy();
+    expect(screen.getByText(/полная перегрузка далека от 1 g/)).toBeTruthy();   // |a| = 0.5 на столе
+    expect(screen.getByText(/Компаса нет/)).toBeTruthy();
+    act(() => useApp.setState({ clive: live(), cliveAt: Date.now() }));
+    expect(screen.getByText(/не шлёт показания датчиков/)).toBeTruthy();
+  });
+
   it("два гироскопа: карточка только при «gyros» в кадре, состояние и выбор gyro_to_use (P42)", () => {
     render(<CopterView />);
     tab("Подготовка");

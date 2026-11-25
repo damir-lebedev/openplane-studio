@@ -206,6 +206,7 @@ export type CopterTab =
   | "parts"
   | "frombf"
   | "setup"
+  | "sensors"
   | "receiver"
   | "modes"
   | "motors"
@@ -229,6 +230,7 @@ export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "parts", title: N_("Что подключено"), board: true },
   { id: "frombf", title: N_("Я с Betaflight"), board: false },
   { id: "setup", title: N_("Подготовка"), board: true },
+  { id: "sensors", title: N_("Датчики"), board: true },
   { id: "receiver", title: N_("Приёмник"), board: true },
   { id: "modes", title: N_("Режимы"), board: true },
   { id: "motors", title: N_("Моторы"), board: true },
