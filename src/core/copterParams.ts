@@ -100,6 +100,10 @@ export interface CopterBoard {
   errors: Record<string, string>;
   /** изменено и не сохранено (ARM запрещён, пока не save или revert) */
   unsaved: boolean;
+  /** P65: имена настроек, изменённых после последнего save/revert (для полосы и точек на вкладках) */
+  edited: string[];
+  /** время последнего удачного save (полоса «Сохранено» на пару секунд), 0 — не было */
+  savedAt: number;
   /** ползунки проверки моторов, % (ответ "@motor") */
   motorTest: number[];
   /** поле и запретные зоны геозабора (ответы "@fence", core/geozones.ts) */
@@ -107,7 +111,7 @@ export interface CopterBoard {
 }
 
 export function emptyBoard(): CopterBoard {
-  return { header: null, params: {}, order: [], rc: null, modes: [], loading: false, loadedAt: 0, pending: {}, errors: {}, unsaved: false, motorTest: [], fence: [] };
+  return { header: null, params: {}, order: [], rc: null, modes: [], loading: false, loadedAt: 0, pending: {}, errors: {}, unsaved: false, edited: [], savedAt: 0, motorTest: [], fence: [] };
 }
 
 /** Ответ платы → новое состояние (без мутаций). */
@@ -141,16 +145,17 @@ export function applyMessage(b: CopterBoard, kind: string, data: unknown, now = 
       const value = (d.value ?? p.value) as ParamValue;
       const params = { ...b.params, [name]: { ...p, value, set: d.ok ? true : p.set, profiles: withProfile(p, b.header, value) } };
       const header = d.margin && b.header ? { ...b.header, margin: d.margin as LoopMargin } : b.header;
-      return { ...b, header, params, pending, errors, unsaved: b.unsaved || !!d.ok };
+      const edited = d.ok && !b.edited.includes(name) ? [...b.edited, name] : b.edited;
+      return { ...b, header, params, pending, errors, edited, unsaved: b.unsaved || !!d.ok };
     }
     case "profile":
       return b.header ? { ...b, header: { ...b.header, profile: Number(d.profile), rateprofile: Number(d.rateprofile) }, unsaved: true } : b;
     case "save": {
       const header = b.header ? { ...b.header, ...(d.margin ? { margin: d.margin as LoopMargin } : {}), ...(d.flash ? { flash: d.flash as [number, number] } : {}) } : b.header;
-      return d.ok ? { ...b, header, unsaved: false, errors: {} } : { ...b, header, errors: { ...b.errors, save: String(d.error ?? "не сохранилось") } };
+      return d.ok ? { ...b, header, unsaved: false, edited: [], savedAt: now, errors: {} } : { ...b, header, errors: { ...b.errors, save: String(d.error ?? "не сохранилось") } };
     }
     case "revert":
-      return { ...b, unsaved: false, pending: {} };
+      return { ...b, unsaved: false, edited: [], pending: {} };
     case "error":
       return { ...b, errors: { ...b.errors, [String(d.cmd ?? "?")]: String(d.error ?? "") } };
     case "motor":

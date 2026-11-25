@@ -1438,14 +1438,41 @@ textarea {
   border-color: rgba(248, 81, 73, 0.5);
 }
 .unsaved-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
   gap: 10px;
   margin: 0 0 14px;
   padding: 10px 14px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(227, 179, 65, 0.4);
-  background: linear-gradient(90deg, var(--warn-soft), transparent 80%);
+  border: 1px solid rgba(227, 179, 65, 0.6);
+  border-left: 4px solid var(--warn);
+  /* непрозрачный фон: прилипшая полоса не просвечивает содержимым под собой */
+  background: linear-gradient(90deg, var(--warn-soft), var(--warn-soft)), var(--bg);
+  color: var(--text);
+}
+.unsaved-bar > svg {
+  color: var(--warn);
+  flex-shrink: 0;
+}
+.unsaved-bar.saved {
+  border-color: rgba(63, 185, 80, 0.5);
+  border-left-color: var(--ok);
+  background: linear-gradient(90deg, var(--ok-soft), var(--ok-soft)), var(--bg);
+}
+.unsaved-bar.saved > svg {
+  color: var(--ok);
+}
+.copter-tab .tab-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  vertical-align: middle;
 }
 .need-board {
   display: flex;

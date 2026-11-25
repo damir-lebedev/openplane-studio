@@ -1,7 +1,7 @@
 // Общее для вкладок коптера: плата на связи, живые кадры, строка настройки
 // с умолчанием и единицами, панель «не сохранено».
 
-import { CircleAlert, LoaderCircle, RotateCcw, Save, Undo2 } from "lucide-react";
+import { CircleAlert, CircleCheck, LoaderCircle, RotateCcw, Save, Undo2 } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 
 import { CopterLive } from "../../api";
@@ -81,22 +81,54 @@ export function NeedBoard({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-/** Панель «изменения на плате не сохранены»: сохранить во флеш или отменить. */
+/** Сколько секунд после save видна зелёная полоса «Сохранено». */
+export const SAVED_SHOW_MS = 4000;
+
+/** Что изменено: первые имена и «ещё N». */
+export function editedSummary(names: string[], max = 3): string {
+  const head = names.slice(0, max).join(", ");
+  return names.length > max ? `${head} ${t("и ещё {n}", { n: names.length - max })}` : head;
+}
+
+/** Панель «изменения на плате не сохранены» (прилипает сверху): что изменено, сохранить или отменить;
+ *  после save — на пару секунд «Сохранено» (P65: тестер не понял, применилась ли настройка). */
 export function UnsavedBar() {
   const board = useApp((s) => s.copterBoard);
   const save = useApp((s) => s.copterSave);
   const revert = useApp((s) => s.copterRevert);
   const { armed } = useCopterLink();
   const pending = Object.keys(board.pending).length;
-  if (!board.unsaved && !pending && !board.errors.save) return null;
+  const [, tick] = useState(0);
+  const savedLeft = board.savedAt ? board.savedAt + SAVED_SHOW_MS - Date.now() : 0;
+  useEffect(() => {
+    if (savedLeft <= 0) return;
+    const id = setTimeout(() => tick((n) => n + 1), savedLeft);
+    return () => clearTimeout(id);
+  }, [board.savedAt, savedLeft > 0]);
+  if (!board.unsaved && !pending && !board.errors.save) {
+    if (savedLeft <= 0) return null;
+    return (
+      <div className="unsaved-bar saved" role="status">
+        <CircleCheck size={16} />
+        <span className="grow">{t("Сохранено в плату: настройка останется и после перезагрузки.")}</span>
+      </div>
+    );
+  }
   return (
-    <div className="unsaved-bar">
+    <div className="unsaved-bar" role="status">
+      <CircleAlert size={16} />
       <span className="grow">
         {pending
           ? t("Отправляю на плату…")
           : board.errors.save
             ? t("Не сохранилось: {e}", { e: board.errors.save })
-            : t("Изменения уже работают на плате, но не сохранены: после перезагрузки вернутся прежние. Пока не сохранено, ARM запрещён.")}
+            : (
+                <>
+                  <b>{board.edited.length ? t("Не сохранено: {list}", { list: editedSummary(board.edited) }) : t("Не сохранено")}</b>
+                  {" · "}
+                  {t("Изменения уже работают на плате, но не сохранены: после перезагрузки вернутся прежние. Пока не сохранено, ARM запрещён.")}
+                </>
+              )}
       </span>
       <button className="btn" disabled={armed} onClick={() => void revert()}>
         <Undo2 size={15} />

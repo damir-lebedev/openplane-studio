@@ -57,9 +57,14 @@ describe("настройки коптера с платы", () => {
     expect(b.unsaved).toBe(true);
     b = applyMessage(b, "set", { name: "p_roll", ok: false, error: "допустимо 0 - 250", value: 47 });
     expect(b.errors.p_roll).toBe("допустимо 0 - 250");
-    b = applyMessage(b, "save", { ok: true, stored: true });
+    expect(b.edited).toEqual(["p_roll"]);   // P65: ошибка не добавляет, повтор не дублирует
+    b = applyMessage(b, "set", { name: "p_roll", ok: true, value: 48 });
+    expect(b.edited).toEqual(["p_roll"]);
+    b = applyMessage(b, "save", { ok: true, stored: true }, 5000);
     expect(b.unsaved).toBe(false);
     expect(b.errors).toEqual({});
+    expect(b.edited).toEqual([]);
+    expect(b.savedAt).toBe(5000);
     b = applyMessage(b, "rc", { ...b.rc!, aux: [[0, 0, 0, 1700, 2100, 0, 0]], usingFallback: false });
     expect(b.unsaved).toBe(true);   // aux после дампа — правка
     b = applyMessage(b, "motor", { ok: true, max: 30, m: [10, 0, 0, 0] });

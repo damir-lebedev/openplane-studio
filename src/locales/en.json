@@ -2727,5 +2727,10 @@
   "Сначала diff all или dump — сохранится их вывод.": "Run diff all or dump first — their output gets saved.",
   "Сохранено: {path}": "Saved: {path}",
   "Файл «{name}» — в поле ниже: проверьте и нажмите «Отправить».": "File “{name}” is in the box below: check it and press “Send”.",
-  "Этой платы в ваших исходниках прошивки нет. Обновите их («Настройки → Взять с GitHub») — новые платы появляются там раньше, чем в релизе приложения. Не помогло — пришлите нам diff all из Betaflight.": "Your firmware sources don't have this board. Update them (“Settings → Get from GitHub”) — new boards land there before the app release. Didn't help — send us diff all from Betaflight."
+  "Этой платы в ваших исходниках прошивки нет. Обновите их («Настройки → Взять с GitHub») — новые платы появляются там раньше, чем в релизе приложения. Не помогло — пришлите нам diff all из Betaflight.": "Your firmware sources don't have this board. Update them (“Settings → Get from GitHub”) — new boards land there before the app release. Didn't help — send us diff all from Betaflight.",
+  "Есть несохранённые изменения": "Has unsaved changes",
+  "Не сохранено": "Not saved",
+  "Не сохранено: {list}": "Not saved: {list}",
+  "Сохранено в плату: настройка останется и после перезагрузки.": "Saved to the board: the setting stays after a reboot.",
+  "и ещё {n}": "and {n} more"
 }

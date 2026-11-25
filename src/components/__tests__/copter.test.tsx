@@ -378,10 +378,15 @@ describe("вкладки коптера", () => {
     fireEvent.change(inputs[0], { target: { value: "47" } });
     fireEvent.blur(inputs[0]);
     expect(sent).toContain("set p_roll 47");
-    act(() => useApp.getState().copterBoard && useApp.setState((s) => ({ copterBoard: { ...s.copterBoard, unsaved: true, pending: {} } })));
+    act(() => useApp.getState().copterBoard && useApp.setState((s) => ({ copterBoard: { ...s.copterBoard, unsaved: true, edited: ["p_roll"], pending: {} } })));
     expect(screen.getByText(/не сохранены/)).toBeTruthy();
+    expect(screen.getByText("Не сохранено: p_roll")).toBeTruthy();   // P65: что именно
+    expect(screen.getByRole("button", { name: "PID" }).querySelector(".tab-dot")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
     expect(sent).toContain("save");
+    act(() => useApp.setState((s) => ({ copterBoard: { ...s.copterBoard, unsaved: false, edited: [], savedAt: Date.now() } })));
+    expect(screen.getByText(/Сохранено в плату/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "PID" }).querySelector(".tab-dot")).toBeNull();
   });
 
   it("поиск по имени BF открывает вкладку и подсвечивает строку", async () => {

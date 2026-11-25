@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 
 import { isMobile } from "../api";
 import { findCopterEnv } from "../core/copter";
-import { CopterTab } from "../core/copterParams";
+import { CopterTab, GROUP_TAB } from "../core/copterParams";
 import { copterTabs, PACKS, profileOf, tabPack } from "../core/pilot";
 import { betaflightPort, runCopterFlash } from "../flash";
 import { t } from "../i18n";
@@ -57,6 +57,11 @@ export function CopterView() {
   const [focus, setFocus] = useState<{ param: string; at: number } | null>(null);
   const link = useCopterLink();
   const live = useCopterLive();
+  // P65: точка на вкладках, где есть несохранённые правки
+  const editedTabs = useApp((s) => {
+    const b = s.copterBoard;
+    return [...new Set(b.edited.map((n) => GROUP_TAB[b.params[n]?.group ?? ""] ?? "other"))].join(",");
+  }).split(",");
   const fc = useApp((s) => s.fc);
 
   // на телефоне вкладки — горизонтальная лента: выбранную держать в кадре
@@ -176,6 +181,7 @@ export function CopterView() {
           {tabs.map((x) => (
             <button key={x.id} className={`copter-tab${tab === x.id ? " on" : ""}${x.board && !link.copter ? " dim" : ""}`} onClick={() => setTab(x.id)}>
               {t(x.title)}
+              {editedTabs.includes(x.id) && <span className="tab-dot" aria-hidden title={t("Есть несохранённые изменения")} />}
             </button>
           ))}
         </nav>
