@@ -484,6 +484,31 @@ describe("вкладки коптера", () => {
     vi.useRealTimers();
   });
 
+  it("моторы: смеситель на упоре (039/040) — столбики по типам, EZ — свои настройки", () => {
+    const mt = param("mixer_type", { group: "motors", scope: "master", type: "enum", options: ["LEGACY", "LINEAR", "DYNAMIC", "EZLANDING"], default: "LEGACY", value: "LEGACY", from: "table", text: "mixer" });
+    const ezl = param("ez_landing_limit", { group: "motors", scope: "pid", type: "int", min: 0, max: 75, default: 15, value: 15, from: "table", text: "EZ limit" });
+    const put = (value: string) =>
+      act(() => useApp.setState((s) => ({ copterBoard: { ...s.copterBoard, params: { ...s.copterBoard.params, mixer_type: { ...mt, value }, ez_landing_limit: ezl } } })));
+    put("LEGACY");
+    const { container } = render(<CopterView />);
+    tab("Моторы");
+    const card = screen.getByTestId("mixer-card");
+    expect(card.querySelector('g.on[data-type="LEGACY"]')).toBeTruthy();
+    expect(within(card).getByText(/рысканье уступает первым/)).toBeTruthy();
+    expect(within(card).queryByText("EZ limit")).toBeNull();
+    fireEvent.click(within(card).getByRole("button", { name: "Касание земли" }));
+    expect(card.querySelector('g[data-type="LEGACY"]')?.textContent).toContain("разброс 60 %");
+    expect(card.querySelector('g[data-type="EZLANDING"]')?.textContent).toContain("разброс 15 %");
+    cleanup();
+    put("EZLANDING");
+    render(<CopterView />);
+    tab("Моторы");
+    const ez = screen.getByTestId("mixer-card");
+    expect(ez.querySelector('g.on[data-type="EZLANDING"]')).toBeTruthy();
+    expect(within(ez).getAllByText(/ez_landing_limit|EZ limit/).length).toBeGreaterThan(0);
+    expect(container).toBeTruthy();
+  });
+
   it("моторы: EDT регуляторов (091) — подсказка включить и таблица по живому кадру", () => {
     const edt = param("dshot_edt", { group: "motors", scope: "master", type: "enum", options: ["OFF", "ON"], default: "OFF", value: "OFF", from: "table", text: "EDT" });
     const bidir = param("dshot_bidir", { group: "motors", scope: "master", type: "enum", options: ["OFF", "ON"], default: "OFF", value: "ON", from: "table", text: "bidir" });

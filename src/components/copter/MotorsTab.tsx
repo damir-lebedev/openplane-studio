@@ -12,7 +12,8 @@ import { useEffect, useRef, useState } from "react";
 import { FrameMotor, tabParams } from "../../core/copterParams";
 import { cancelSteps, Dir, flipSteps, runSteps, saveSteps, startSteps, Step, wizardPct } from "../../core/motorDirection";
 import { ESC_HOT_C, escRows, escTotalAmps } from "../../core/escTelemetry";
-import { t } from "../../i18n";
+import { EZ_DEFAULT, MIX_CASES, MIXER_TYPES, MixerType, mixQuadX } from "../../core/mixerType";
+import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamList, ParamRow, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 
@@ -149,11 +150,92 @@ export function MotorsBody({ simple = false }: { simple?: boolean }) {
 
       {dshot && <EscCard />}
 
+      {!simple && <MixerCard />}
+
       {!simple && (
         <div className="wide">
-          <ParamList title={t("Моторы и регуляторы")} params={tabParams(board, "motors")} />
+          <ParamList title={t("Моторы и регуляторы")} params={tabParams(board, "motors").filter((p) => !mixerCardParams(board.params).includes(p.name))} />
         </div>
       )}
+    </div>
+  );
+}
+
+const EZ_PARAMS = ["ez_landing_threshold", "ez_landing_limit", "ez_landing_speed"];
+
+/** Настройки, которые показывает карточка смесителя (в общем списке их нет). */
+function mixerCardParams(params: Record<string, { value: unknown } | undefined>): string[] {
+  if (!params.mixer_type) return [];
+  return params.mixer_type.value === "EZLANDING" ? ["mixer_type", ...EZ_PARAMS] : ["mixer_type"];
+}
+
+const MIXER_TEXT: Record<MixerType, string> = {
+  LEGACY: N_("Урезает команды: крен и тангаж целы, рысканье уступает первым. По умолчанию."),
+  LINEAR: N_("Ничего не урезает: газ встаёт в середину, края обрезаются. Больше управления на упоре, но тяга и направление гуляют."),
+  DYNAMIC: N_("У середины газа — как LEGACY, к нулю и полному газу — как LINEAR."),
+  EZLANDING: N_("Как LEGACY, но со стиками у центра и газом внизу моторы почти не расходятся: на посадке коптер не подпрыгивает и не заваливается."),
+};
+
+/** mixer_type (039/040): как смеситель укладывает команды на упоре — столбики моторов. */
+export function MixerCard() {
+  const board = useCopterBoard();
+  const p = board.params.mixer_type;
+  const [view, setView] = useState<keyof typeof MIX_CASES>("punch");
+  if (!p) return null;   // старая прошивка
+  const current = (MIXER_TYPES as string[]).includes(String(p.value)) ? (String(p.value) as MixerType) : "LEGACY";
+  const num = (name: string, def: number) => {
+    const v = Number(board.params[name]?.value);
+    return Number.isFinite(v) ? v / 100 : def;
+  };
+  const ez = { threshold: num("ez_landing_threshold", EZ_DEFAULT.threshold), limit: num("ez_landing_limit", EZ_DEFAULT.limit) };
+  const c = MIX_CASES[view];
+  const W = 92, H = 70, GAP = 14;
+  return (
+    <div className="card wide" data-testid="mixer-card">
+      <div className="row" style={{ gap: 8 }}>
+        <h3 className="grow" style={{ margin: 0 }}>
+          {t("Смеситель на упоре")}
+        </h3>
+        <div className="seg" role="group" aria-label={t("Случай")}>
+          <button className={view === "punch" ? "on" : ""} onClick={() => setView("punch")}>
+            {t("Полный газ и разворот")}
+          </button>
+          <button className={view === "touchdown" ? "on" : ""} onClick={() => setView("touchdown")}>
+            {t("Касание земли")}
+          </button>
+        </div>
+      </div>
+      <p className="sub">
+        {view === "punch"
+          ? t("Газ 90 %, крен и рысканье разом — моторам не хватает хода. Столбики — тяга M1–M4 при каждом типе.")
+          : t("Газ в нуле, коптер ударился о землю, и PID тянет по крену. airmode поднимает газ — без ограничения одна сторона подпрыгивает.")}
+      </p>
+      <svg viewBox={`0 0 ${MIXER_TYPES.length * (W + GAP)} ${H + 34}`} className="filter-svg" role="img" aria-label={t("Тяга моторов при каждом типе смесителя")}>
+        {MIXER_TYPES.map((type, k) => {
+          const out = mixQuadX(type, c, ez);
+          const x0 = k * (W + GAP);
+          const on = type === current;
+          return (
+            <g key={type} data-type={type} className={on ? "on" : undefined}>
+              <rect x={x0} y={0} width={W} height={H} rx={6} fill={on ? "var(--accent-soft)" : "none"} stroke={on ? "var(--accent-line)" : "var(--line)"} />
+              {out.motors.map((m, i) => {
+                const bw = 14, bx = x0 + 10 + i * 20, bh = m * (H - 12);
+                return <rect key={i} x={bx} y={H - 6 - bh} width={bw} height={Math.max(1, bh)} rx={2} fill={on ? "var(--accent)" : "var(--text-2)"} opacity={on ? 1 : 0.55} />;
+              })}
+              <text x={x0 + W / 2} y={H + 14} textAnchor="middle" className="filter-label">
+                {type}
+              </text>
+              <text x={x0 + W / 2} y={H + 28} textAnchor="middle" className="filter-label">
+                {t("разброс {s} %", { s: Math.round((Math.max(...out.motors) - Math.min(...out.motors)) * 100) })}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+      <p className="hint">{t(MIXER_TEXT[current])}</p>
+      <ParamRow p={p} title={t("Тип смесителя (mixer_type)")} />
+      {current === "EZLANDING" &&
+        EZ_PARAMS.map((n) => board.params[n] && <ParamRow key={n} p={board.params[n]} />)}
     </div>
   );
 }

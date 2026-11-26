@@ -2874,5 +2874,18 @@
   "Пройдено": "Travelled",
   "Пунктир по кругу — геозабор {r} м; красное — запретные зоны.": "Dashed circle is the {r} m geofence; red are no-fly zones.",
   "Путь — пока открыта вкладка, точка через каждые 3 м; новый ARM — новый дом и путь заново.": "The path is recorded while the tab is open, a point every 3 m; a new ARM means a new home and a fresh path.",
-  "дома ещё нет": "no home yet"
+  "дома ещё нет": "no home yet",
+  "Газ 90 %, крен и рысканье разом — моторам не хватает хода. Столбики — тяга M1–M4 при каждом типе.": "Throttle 90 %, roll and yaw at once — the motors run out of travel. Bars show M1–M4 thrust for each type.",
+  "Газ в нуле, коптер ударился о землю, и PID тянет по крену. airmode поднимает газ — без ограничения одна сторона подпрыгивает.": "Throttle at zero, the quad hits the ground and the PID pulls on roll. Airmode raises throttle — without a limit one side jumps up.",
+  "Как LEGACY, но со стиками у центра и газом внизу моторы почти не расходятся: на посадке коптер не подпрыгивает и не заваливается.": "Like LEGACY, but with sticks centred and throttle low the motors barely differ: the quad does not bounce or tip over on landing.",
+  "Касание земли": "Touchdown",
+  "Ничего не урезает: газ встаёт в середину, края обрезаются. Больше управления на упоре, но тяга и направление гуляют.": "Cuts nothing: throttle moves to the middle and the ends are clipped. More authority at the limit, but thrust and direction wander.",
+  "Полный газ и разворот": "Full throttle and a turn",
+  "Случай": "Case",
+  "Смеситель на упоре": "Mixer at the limit",
+  "Тип смесителя (mixer_type)": "Mixer type (mixer_type)",
+  "Тяга моторов при каждом типе смесителя": "Motor thrust for each mixer type",
+  "У середины газа — как LEGACY, к нулю и полному газу — как LINEAR.": "Near mid throttle — like LEGACY, towards zero and full throttle — like LINEAR.",
+  "Урезает команды: крен и тангаж целы, рысканье уступает первым. По умолчанию.": "Scales commands down: roll and pitch stay intact, yaw gives way first. Default.",
+  "разброс {s} %": "spread {s} %"
 }
