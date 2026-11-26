@@ -241,7 +241,7 @@ jobs:
           - Android 7+ (arm64 и 32-битные ARM) — `OpenPlane-Studio-Android.apk`: настройка платы по кабелю USB-C ↔ USB-C и прошивка готовым файлом (разрешить «установку из неизвестных источников»)
 
           Готовые прошивки для телефона (Studio скачивает их сама кнопкой «Скачать и прошить»):
-          `firmware-<сборка>.bin` — STM32H743 DevEBox и Matek H743 (самолёт и коптер), AocodaRC F405 V3 (коптер).
+          `firmware-<сборка>.bin` — STM32H743 DevEBox и Matek H743 (самолёт и коптер); коптер: AocodaRC F405 V3, SpeedyBee F405 V4 и V3, HAKRC F405.
           На компьютере прошивка собирается под ваш аппарат — эти файлы ему не нужны.
           EOF
           gh release create "$TAG" out/* --repo "$GITHUB_REPOSITORY" --title "OpenPlane Studio $TAG" --notes-file notes.md
