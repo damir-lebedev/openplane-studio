@@ -2834,5 +2834,14 @@
   "на грани": "borderline",
   "на модели коптера с платы, при этих фильтрах и газе — ещё до записи": "on the quad model from the board, with these filters and throttle — before saving",
   "с запасом": "comfortable",
-  "срез контура {hz} Гц": "loop crossover {hz} Hz"
+  "срез контура {hz} Гц": "loop crossover {hz} Hz",
+  "Все моторы закрутятся на {pct} % в обычную сторону. Сравните со стрелками на схеме и щёлкните по неправильному — он встанет, развернётся и закрутится снова. В конце «Сохранить».": "All motors will spin at {pct} % in the normal direction. Compare them with the arrows on the diagram and click the wrong one — it stops, reverses and spins again. Press «Save» at the end.",
+  "Мастер: щёлкните по мотору, который крутится не туда": "Wizard: click the motor that spins the wrong way",
+  "Модель повторяет коптер; сверху — полётник с поворотом из «Плата на раме», винты светятся по командам моторов.": "The model follows the quad; on top is the flight controller turned as set in «Board on the frame», props glow with the motor commands.",
+  "Нос от себя": "Nose away from me",
+  "Поставьте коптер носом от себя и нажмите — модель повернётся так же. Без компаса курс понемногу уходит, это нормально.": "Point the quad's nose away from you and press — the model turns the same way. Without a compass the heading slowly drifts, that is normal.",
+  "Сначала отметьте «Я снял пропеллеры».": "First tick «I removed the propellers».",
+  "обратное": "reversed",
+  "обычное": "normal",
+  "разворачиваю…": "reversing…"
 }

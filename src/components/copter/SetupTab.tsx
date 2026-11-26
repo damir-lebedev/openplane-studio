@@ -1,9 +1,12 @@
 // «Подготовка»: как стоит коптер (горизонт), можно ли армить и почему нет,
 // калибровки (клавиши консоли платы: i, a, o) и ответ платы на них, плата на
 // раме (align_board_*, нули — BoardAlignCard), компас — мастером со сферой точек (CompassCard).
+// 3D-коптер по живой ориентации с платой на раме — LiveQuad3D (072).
 
 import { CircleCheck, Crosshair, Gauge, Ruler } from "lucide-react";
-import { Fragment, useState } from "react";
+import { Fragment, lazy, Suspense, useRef, useState } from "react";
+
+import { CopterLive } from "../../api";
 
 import { CalibKey } from "../../core/calibWizard";
 import { ARM_BENCH_OK } from "../../core/copterParams";
@@ -18,6 +21,8 @@ import { CompassCard } from "./CompassCard";
 import { NeedBoard, ParamRow, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 import { PreflightCard } from "./Preflight";
 import { GoTo } from "./Search";
+
+const LiveQuad3D = lazy(() => import("./LiveQuad3D").then((m) => ({ default: m.LiveQuad3D })));
 
 const CALIBRATIONS: { key: CalibKey; title: string; hint: string; icon: typeof Gauge }[] = [
   { key: "i", title: "Гироскоп", hint: "коптер неподвижен (gyro_calib_duration, 1.25 с); делается и сама при каждом включении", icon: Gauge },
@@ -45,6 +50,15 @@ export function SetupTab({ onGo }: { onGo?: GoTo }) {
 
 function SetupBody({ onGo }: { onGo?: GoTo }) {
   const live = useCopterLive();
+  const p = useCopterBoard().params;
+  const liveRef = useRef<CopterLive | null>(null);
+  liveRef.current = live ?? null;
+  const yaw0 = useRef<number | null>(null);
+  const align = {
+    roll: Number(p.align_board_roll?.value ?? 0),
+    pitch: Number(p.align_board_pitch?.value ?? 0),
+    yaw: Number(p.align_board_yaw?.value ?? 0),
+  };
   const blocks = live?.block ?? [];
   const serious = blocks.filter((b) => !ARM_BENCH_OK.includes(b));
 
@@ -89,6 +103,21 @@ function SetupBody({ onGo }: { onGo?: GoTo }) {
           </div>
         </div>
         <p className="hint">{t("Наклоните коптер вправо — горизонт должен уйти влево, крен — стать больше нуля; нос вверх — тангаж больше нуля. Не так — откалибруйте установку платы.")}</p>
+        {live && (
+          <>
+            {typeof ResizeObserver !== "undefined" && (
+              <Suspense fallback={<div className="rates-3d live-3d" />}>
+                <LiveQuad3D live={liveRef} yaw0={yaw0} align={align} />
+              </Suspense>
+            )}
+            <div className="row" style={{ gap: 10, alignItems: "center" }}>
+              <button className="btn" onClick={() => (yaw0.current = live.att[2])} title={t("Поставьте коптер носом от себя и нажмите — модель повернётся так же. Без компаса курс понемногу уходит, это нормально.")}>
+                {t("Нос от себя")}
+              </button>
+              <span className="hint">{t("Модель повторяет коптер; сверху — полётник с поворотом из «Плата на раме», винты светятся по командам моторов.")}</span>
+            </div>
+          </>
+        )}
       </div>
 
       <div className="card">

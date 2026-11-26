@@ -462,6 +462,28 @@ describe("вкладки коптера", () => {
     expect(sent.filter((c) => c.startsWith("dshot"))).toEqual(["dshot 1 8 12", "dshot 1 1", "dshot all 1"]);
   });
 
+  it("моторы: мастер направления — крутит все, щелчок разворачивает, «Сохранить» — dshot all 12", async () => {
+    vi.useFakeTimers();
+    act(() => useApp.setState((s) => ({ copterBoard: { ...s.copterBoard, header: { ...s.copterBoard.header!, dshotCommands: true } } })));
+    const { container } = render(<CopterView />);
+    tab("Моторы");
+    const start = () => screen.getAllByRole("button", { name: "Начать" }).find((b) => b.closest(".dir-wizard"))!;
+    expect((start() as HTMLButtonElement).disabled).toBe(true);   // без «пропеллеры сняты» — нельзя
+    fireEvent.click(screen.getByRole("checkbox"));
+    fireEvent.click(start());
+    await act(async () => void (await vi.advanceTimersByTimeAsync(1000)));
+    expect(sent).toContain("dshot all 7");
+    expect(sent).toContain("motor 2 6");   // все крутятся тихо
+    fireEvent.click(container.querySelectorAll(".frame-pick")[2]);
+    await act(async () => void (await vi.advanceTimersByTimeAsync(1500)));
+    expect(sent).toContain("dshot 2 8");
+    expect(screen.getByText(/M3 обратное/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Сохранить" }));
+    await act(async () => void (await vi.advanceTimersByTimeAsync(1000)));
+    expect(sent[sent.length - 1]).toBe("dshot all 12");
+    vi.useRealTimers();
+  });
+
   it("моторы: EDT регуляторов (091) — подсказка включить и таблица по живому кадру", () => {
     const edt = param("dshot_edt", { group: "motors", scope: "master", type: "enum", options: ["OFF", "ON"], default: "OFF", value: "OFF", from: "table", text: "EDT" });
     const bidir = param("dshot_bidir", { group: "motors", scope: "master", type: "enum", options: ["OFF", "ON"], default: "OFF", value: "ON", from: "table", text: "bidir" });

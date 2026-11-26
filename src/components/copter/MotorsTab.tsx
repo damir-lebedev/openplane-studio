@@ -3,12 +3,14 @@
 // команда повторяется каждые 0,4 с, плата держит её 1 с: приложение
 // закрылось или связь пропала — моторы встали сами. У регуляторов DShot —
 // направление мотора и «пискнуть» командой (dshot N 7|8 12, как мастер
-// направления конфигуратора BF): мотор выбирается кликом по схеме.
+// направления конфигуратора BF): мотор выбирается кликом по схеме. Мастер
+// направления (096): все крутятся тихо, щелчок по мотору разворачивает его.
 
 import { TriangleAlert, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { FrameMotor, tabParams } from "../../core/copterParams";
+import { cancelSteps, Dir, flipSteps, runSteps, saveSteps, startSteps, Step, wizardPct } from "../../core/motorDirection";
 import { ESC_HOT_C, escRows, escTotalAmps } from "../../core/escTelemetry";
 import { t } from "../../i18n";
 import { useApp } from "../../store";
@@ -60,11 +62,51 @@ export function MotorsBody({ simple = false }: { simple?: boolean }) {
   const [picked, setPicked] = useState(0);
   const dshot = !!board.header?.dshotCommands;
 
+  // мастер направления: null — не идёт; dirs — что сейчас у каждого регулятора
+  const [wiz, setWiz] = useState<Dir[] | null>(null);
+  const [wizBusy, setWizBusy] = useState(false);
+  const pct = wizardPct(max);
+  const run = async (steps: Step[]) => {
+    setWizBusy(true);
+    try {
+      await runSteps(steps, { send: (l) => cmd(l), spin: (on) => setValues(motors.map(() => (on ? pct : 0))) });
+    } finally {
+      setWizBusy(false);
+    }
+  };
+  const wizard = {
+    dirs: wiz,
+    busy: wizBusy,
+    start: () => {
+      setWiz(motors.map(() => "normal"));
+      void run(startSteps());
+    },
+    flip: (i: number) => {
+      if (!wiz || wizBusy) return;
+      const f = flipSteps(i, wiz);
+      setWiz(f.dirs);
+      setPicked(i);
+      void run(f.steps);
+    },
+    save: () => {
+      setWiz(null);
+      void run(saveSteps());
+    },
+    cancel: () => {
+      setWiz(null);
+      void run(cancelSteps());
+    },
+  };
+  // сняли галочку «пропеллеры сняты» или заармили — мастер закончился
+  useEffect(() => {
+    if ((!propsOff || armed) && wiz) setWiz(null);
+  }, [propsOff, armed, wiz]);
+
   return (
     <div className="copter-grid">
       <div className="card">
         <h3>{t("Рама")}</h3>
-        <FrameDiagram motors={motors} out={live?.motors} reversed={!!live?.turtle} selected={dshot ? picked : undefined} onPick={dshot ? setPicked : undefined} />
+        <FrameDiagram motors={motors} out={live?.motors} reversed={!!live?.turtle} selected={dshot ? picked : undefined} onPick={dshot ? (wiz ? wizard.flip : setPicked) : undefined} />
         <p className="hint">
           {t("Вид сверху, нос — вверх. Номера — выходы M1–M{n} платы, как в Betaflight. Стрелка — куда должен крутиться мотор.", { n: motors.length })}
         </p>
@@ -103,7 +145,7 @@ export function MotorsBody({ simple = false }: { simple?: boolean }) {
         <p className="hint">{t("Не больше {max} % тяги. Плата держит команду 1 с: закрыли приложение или вынули кабель — моторы встанут сами.", { max })}</p>
       </div>
 
-      {dshot && <DirectionCard motors={motors} picked={picked} busy={armed || spinning} />}
+      {dshot && <DirectionCard motors={motors} picked={picked} busy={armed || spinning} wizard={wizard} canWizard={propsOff && !armed} pct={pct} />}
 
       {dshot && <EscCard />}
 
@@ -191,7 +233,9 @@ export function motorWhere(m: FrameMotor): string {
 
 // Направление мотора командой DShot: «обычное» (7) или «обратное» (8) и
 // «сохранить» (12) — регулятор запоминает; «пискнуть» (1) — найти мотор.
-function DirectionCard({ motors, picked, busy }: { motors: FrameMotor[]; picked: number; busy: boolean }) {
+type Wizard = { dirs: Dir[] | null; busy: boolean; start: () => void; flip: (i: number) => void; save: () => void; cancel: () => void };
+
+function DirectionCard({ motors, picked, busy, wizard, canWizard, pct }: { motors: FrameMotor[]; picked: number; busy: boolean; wizard: Wizard; canWizard: boolean; pct: number }) {
   const cmd = useApp((s) => s.copterCommand);
   const error = useApp((s) => s.copterBoard.errors.dshot);
   const [sent, setSent] = useState("");
@@ -229,6 +273,39 @@ function DirectionCard({ motors, picked, busy }: { motors: FrameMotor[]; picked:
         </button>
       </div>
       {error ? <p className="hint warn-text">{error}</p> : sent && <p className="hint">{sent}</p>}
+      <div className="dir-wizard" data-card="dir-wizard">
+        <h4>{t("Мастер: щёлкните по мотору, который крутится не туда")}</h4>
+        {!wizard.dirs ? (
+          <>
+            <p className="hint">{t("Все моторы закрутятся на {pct} % в обычную сторону. Сравните со стрелками на схеме и щёлкните по неправильному — он встанет, развернётся и закрутится снова. В конце «Сохранить».", { pct })}</p>
+            <button className="btn primary" disabled={!canWizard || busy || wizard.busy} onClick={wizard.start}>
+              {t("Начать")}
+            </button>
+            {!canWizard && <span className="hint"> {t("Сначала отметьте «Я снял пропеллеры».")}</span>}
+          </>
+        ) : (
+          <>
+            <div className="row" style={{ gap: 6, flexWrap: "wrap", margin: "6px 0" }}>
+              {wizard.dirs.map((d, i) => (
+                <span key={i} className={`pill${d === "reversed" ? " warn" : " ok"}`}>
+                  <span className="txt mono">
+                    M{i + 1} {d === "reversed" ? t("обратное") : t("обычное")}
+                  </span>
+                </span>
+              ))}
+            </div>
+            <div className="row" style={{ gap: 8 }}>
+              <button className="btn primary" disabled={wizard.busy} onClick={wizard.save}>
+                {t("Сохранить")}
+              </button>
+              <button className="btn ghost" onClick={wizard.cancel}>
+                {t("Отмена")}
+              </button>
+              {wizard.busy && <span className="hint">{t("разворачиваю…")}</span>}
+            </div>
+          </>
+        )}
+      </div>
       <p className="hint">{t("Команды уходят, только пока моторы стоят и коптер не заармлен. «Обычное» и «Обратное» — относительно того, как мотор припаян; провода не трогайте.")}</p>
     </div>
   );
