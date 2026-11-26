@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { dumpedBoard, param } from "./__fixtures__/copterBoard";
-import { COLS, MenuKey, menuChanges, menuPress, menuScreen, menuStart, MenuState, PAGE_MAIN, PAGE_PID, PAGE_VTX } from "./osdMenu";
+import { COLS, MenuKey, menuChanges, menuPress, menuScreen, menuStart, MenuState, PAGE_AUTOPILOT, PAGE_MAIN, PAGE_PID, PAGE_VTX } from "./osdMenu";
 
 const board = dumpedBoard([
   param("p_roll", { value: 45 }),
+  param("autopilot_hover_throttle", { group: "autopilot", scope: "master", min: 0, max: 1700, value: 0 }),
   param("vtx_band", { group: "vtx", scope: "master", min: 0, max: 10, value: 5 }),
   param("vtx_low_power_disarm", { group: "vtx", scope: "master", type: "enum", options: ["OFF", "ON", "UNTIL_FIRST_ARM"], value: 2 }),
 ]);
@@ -57,6 +58,20 @@ describe("меню в очках (CMS)", () => {
     expect(keys(menuStart(board), "up", "up", "right").exit).toBe("save");
     expect(keys(menuStart(board), "up", "right").exit).toBe("discard");
     expect(keys(menuStart(board), "back").exit).toBe("discard");
+  });
+
+  it("AUTOPILOT: POS/ALT HOLD как в прошивке; газ висения AUTO ↔ 1050 шагом 5", () => {
+    let { s } = keys(menuStart(board), "down", "down", "down", "down", "down", "down", "right");
+    expect(s.page).toBe(PAGE_AUTOPILOT);
+    expect(menuScreen(board, s)[0].trim()).toBe("AUTOPILOT");
+    ({ s } = keys(s, "down", "down", "down", "down", "down"));
+    expect(menuScreen(board, s)[7]).toMatch(/HOVER THR\s+AUTO $/);
+    ({ s } = keys(s, "right", "right"));
+    expect(s.edits.autopilot_hover_throttle).toBe(1055);
+    ({ s } = keys(s, "left", "left"));
+    expect(s.edits.autopilot_hover_throttle).toBe(0);
+    ({ s } = keys(s, "back"));
+    expect(s.cursor).toBe(6);
   });
 
   it("профили по кругу: 4 → 1", () => {

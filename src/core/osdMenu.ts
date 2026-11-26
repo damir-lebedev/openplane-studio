@@ -9,16 +9,19 @@ export type MenuExit = "save" | "discard" | null;
 
 type Item =
   | { label: string; kind: "page"; page: number }
-  | { label: string; kind: "param"; name: string }
+  | { label: string; kind: "param"; name: string; step?: number }
   | { label: string; kind: "pid_profile" | "rate_profile" | "save_exit" | "exit" };
 
 export const PAGE_MAIN = 0;
 export const PAGE_PID = 2;
 export const PAGE_VTX = 5;
+export const PAGE_AUTOPILOT = 7;
+/** autopilot_hover_throttle ниже — «из описания коптера» (AUTO), как в Params.h */
+const HOVER_MIN_US = 1050;
 
-const PAGE_NAMES = ["MENU", "PROFILES", "PID", "RATES", "SLIDERS", "VTX", "TRAINING"];
+const PAGE_NAMES = ["MENU", "PROFILES", "PID", "RATES", "SLIDERS", "VTX", "TRAINING", "AUTOPILOT"];
 
-const param = (label: string, name: string): Item => ({ label, kind: "param", name });
+const param = (label: string, name: string, step?: number): Item => ({ label, kind: "param", name, step });
 
 /** Страницы — порядок строк как в прошивке. */
 export const MENU_PAGES: Item[][] = [
@@ -29,6 +32,7 @@ export const MENU_PAGES: Item[][] = [
     { label: "SLIDERS", kind: "page", page: 4 },
     { label: "VTX", kind: "page", page: 5 },
     { label: "TRAINING", kind: "page", page: 6 },
+    { label: "AUTOPILOT", kind: "page", page: 7 },
     { label: "SAVE+EXIT", kind: "save_exit" },
     { label: "EXIT", kind: "exit" },
   ],
@@ -61,6 +65,19 @@ export const MENU_PAGES: Item[][] = [
     param("MAX DIST M", "training_max_dist"),
     param("MAX ANGLE", "training_max_angle"),
     param("MAX KMH", "training_max_speed"),
+  ],
+  [
+    param("ALT RATE 0.1M/S", "alt_hold_adjust_rate"),
+    param("ALT DEADBAND %", "alt_hold_deadband"),
+    param("POS RATE 0.1M/S", "pos_hold_adjust_rate"),
+    param("POS DEADBAND %", "pos_hold_deadband"),
+    param("POS NO MAG", "pos_hold_without_mag"),
+    param("HOVER THR", "autopilot_hover_throttle", 5),
+    param("THR MIN", "autopilot_throttle_min", 5),
+    param("THR MAX", "autopilot_throttle_max", 5),
+    param("MAX ANGLE", "autopilot_max_angle"),
+    ...["P", "I", "D", "F"].map((t) => param(`ALT ${t}`, `autopilot_altitude_${t.toLowerCase()}`)),
+    ...["P", "I", "D", "A"].map((t) => param(`POS ${t}`, `autopilot_position_${t.toLowerCase()}`)),
   ],
 ];
 
@@ -112,6 +129,7 @@ export function menuValue(board: CopterBoard, s: MenuState, it: Item): string | 
       const p = board.params[it.name];
       const v = valueOf(board, s, it.name);
       if (it.name === "vtx_band") return v >= 1 && v <= VTX_BANDS.length ? VTX_BANDS[v - 1] : "U";
+      if (it.name === "autopilot_hover_throttle" && v < HOVER_MIN_US) return "AUTO";
       if (p?.type === "enum") return p.options?.[v] ?? "?";
       if (p?.type === "float") return String(Math.round(v * 1000) / 1000);
       return String(Math.round(v));
@@ -177,8 +195,9 @@ export function menuPress(board: CopterBoard, s: MenuState, key: MenuKey): { sta
         case "param": {
           const p = board.params[it.name];
           if (!p) return done(s);
-          const inc = p.type === "float" ? 0.1 : 1;
-          const v = Math.min(p.max ?? Infinity, Math.max(p.min ?? -Infinity, valueOf(board, s, it.name) + dir * inc));
+          const inc = it.step ?? (p.type === "float" ? 0.1 : 1);
+          let v = Math.min(p.max ?? Infinity, Math.max(p.min ?? -Infinity, valueOf(board, s, it.name) + dir * inc));
+          if (it.name === "autopilot_hover_throttle" && v > 0 && v < HOVER_MIN_US) v = dir > 0 ? HOVER_MIN_US : 0; // AUTO <-> 1050
           return done({ ...s, edits: { ...s.edits, [it.name]: p.type === "float" ? Math.round(v * 1000) / 1000 : v } });
         }
       }
