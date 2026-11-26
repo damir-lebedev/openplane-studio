@@ -795,6 +795,19 @@ describe("вкладки коптера", () => {
     fireEvent.change(chart.querySelector("input[type=range]")!, { target: { value: "0" } });
     expect(screen.getByText(/Гироскоп: срез 250 Гц/)).toBeTruthy();
     expect(screen.getByText(/D: срез 75 Гц/)).toBeTruthy();
+    // 071: ФЧХ — та же пара кривых, ось в градусах
+    fireEvent.click(within(chart).getByText("Запаздывает"));
+    expect(chart.querySelectorAll(".filter-curve")).toHaveLength(2);
+    expect(within(chart).getByText("90°")).toBeTruthy();
+    // запаса без модели с платы нет; с моделью — по трём осям, ниже срез гироскопа — меньше запас
+    expect(screen.queryByTestId("loop-margins")).toBeNull();
+    const model = { loop: 1000, tau: 0.0315, delay: 0.0024, iy: 0, ax: [[148166, 1601.45, 9263.84, 14.196, 4.724], [148166, 1505.36, 9263.84, 14.196, 4.724], [19214, 687.8, 1429.26, 0, 36.431]] as [number, number, number, number, number][] };
+    act(() => useApp.setState((st) => ({ copterBoard: { ...st.copterBoard, header: { ...st.copterBoard.header!, margin: { gm: 8.6, pm: 28, hz: 15.5, min: 6, model } } } })));
+    const pm = () => Number(screen.getByTestId("loop-margin-roll").querySelector(".mono")!.textContent!.split("°")[0]);
+    expect(screen.getByTestId("loop-margins").querySelectorAll(".loop-margin")).toHaveLength(3);
+    const before = pm();
+    act(() => useApp.setState((st) => ({ copterBoard: { ...st.copterBoard, params: { ...st.copterBoard.params, gyro_lpf1_static_hz: { ...st.copterBoard.params.gyro_lpf1_static_hz, value: 40 }, gyro_lpf1_dyn_min_hz: { ...st.copterBoard.params.gyro_lpf1_dyn_min_hz, value: 0 } } } })));
+    expect(pm()).toBeLessThan(before);
   });
 
   it("фильтры: живой спектр гироскопа и метки режекторов (060–063)", () => {

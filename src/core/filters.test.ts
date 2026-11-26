@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { dumpedBoard, param } from "./__fixtures__/copterBoard";
-import { Chain, chainOf, delayMs, dynHz, FILTER_PARAMS, gainDb, lpf1Hz, notchQ, rpmMarks, spectrumBars } from "./filters";
+import { Chain, chainOf, curve, delayMs, dynHz, FILTER_PARAMS, gainDb, lagDeg, lpf1Hz, notchQ, rpmMarks, spectrumBars } from "./filters";
 
 const TYPES = ["PT1", "BIQUAD", "PT2", "PT3"];
 const f = (name: string, value: number | string) =>
@@ -78,5 +78,23 @@ describe("спектр гироскопа и режекторы (060–063)", ()
     expect(rpmMarks([150, 150, 160, 0], 3)).toEqual([150, 160, 300, 320, 450, 480]);
     expect(rpmMarks([150], 1)).toEqual([150]);
     expect(rpmMarks([150], 0)).toEqual([]);
+  });
+});
+
+describe("ФЧХ цепочки (071)", () => {
+  const pt1 = (hz: number): Chain => ({ lpf1: { type: "PT1", hz }, dyn: { min: 0, max: 0, expo: 0 }, lpf2: { type: "PT1", hz: 0 }, notches: [] });
+
+  it("PT1 на срезе — 45°, далеко выше — к 90°; согласовано с задержкой", () => {
+    expect(lagDeg(pt1(100), 100)).toBeCloseTo(45, 3);
+    expect(lagDeg(pt1(100), 10000)).toBeGreaterThan(89);
+    expect(delayMs(pt1(100), 50)).toBeCloseTo((lagDeg(pt1(100), 50) / 360 / 50) * 1000, 6);
+  });
+
+  it("кривая фазы одной развёрткой совпадает с поточечной и не скачет через 180°", () => {
+    const c: Chain = { lpf1: { type: "PT3", hz: 120 }, dyn: { min: 0, max: 0, expo: 0 }, lpf2: { type: "BIQUAD", hz: 200 }, notches: [] };
+    const pts = curve(c, 0, 20, 1000, 60, "lag");
+    for (const [f, lag] of [pts[0], pts[30], pts[59]]) expect(lag).toBeCloseTo(lagDeg(c, f), 3);
+    for (let i = 1; i < pts.length; i++) expect(pts[i][1]).toBeGreaterThan(pts[i - 1][1] - 1e-9);
+    expect(pts[59][1]).toBeGreaterThan(270);   // PT3 + biquad: до 450° на бесконечности
   });
 });

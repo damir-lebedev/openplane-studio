@@ -111,14 +111,16 @@ export function gainDb(c: Chain, f: number, throttle = 0): number {
   return 20 * Math.log10(Math.max(1e-6, Math.hypot(re, im)));
 }
 
-/** Задержка цепочки на частоте f, мс (запаздывание фазы / 360·f). */
-export function delayMs(c: Chain, f: number, throttle = 0): number {
-  // фаза с развёрткой: шагами от низких частот
+/** Ответ цепочки на частоте f: [re, im] (для контура — core/pidStep.ts). */
+export const response = (c: Chain, f: number, throttle = 0): [number, number] => chainAt(c, f, throttle);
+
+/** Фаза цепочки на частоте f, рад, с развёрткой (шагами от 1 Гц; отрицательная — запаздывание). */
+function phaseRad(c: Chain, f: number, throttle: number): number {
   let prev = 0;
   let total = 0;
   const steps = 48;
   for (let i = 1; i <= steps; i++) {
-    const fi = 1 * Math.pow(f / 1, i / steps);
+    const fi = Math.pow(f, i / steps);
     const [re, im] = chainAt(c, fi, throttle);
     const a = Math.atan2(im, re);
     let d = a - prev;
@@ -127,7 +129,15 @@ export function delayMs(c: Chain, f: number, throttle = 0): number {
     total += d;
     prev = a;
   }
-  return (-total / (2 * Math.PI * f)) * 1000;
+  return total;
+}
+
+/** Запаздывание фазы на частоте f, ° (0 — без задержки, 90 — на четверть периода позже). */
+export const lagDeg = (c: Chain, f: number, throttle = 0) => (-phaseRad(c, f, throttle) * 180) / Math.PI;
+
+/** Задержка цепочки на частоте f, мс (запаздывание фазы / 360·f). */
+export function delayMs(c: Chain, f: number, throttle = 0): number {
+  return (-phaseRad(c, f, throttle) / (2 * Math.PI * f)) * 1000;
 }
 
 /** Верх шкалы спектра, дБ над 0.01 °/с (100 °/с). */
@@ -152,10 +162,23 @@ export function rpmMarks(rpm: number[], harmonics: number): number[] {
   return [...out].sort((a, b) => a - b);
 }
 
-/** Точки АЧХ от fMin до fMax (лог-шкала). */
-export function curve(c: Chain, throttle: number, fMin = 20, fMax = 1000, n = 120): [number, number][] {
+/** Точки АЧХ (дБ) или ФЧХ (запаздывание, °) от fMin до fMax (лог-шкала). */
+export function curve(c: Chain, throttle: number, fMin = 20, fMax = 1000, n = 120, kind: "gain" | "lag" = "gain"): [number, number][] {
+  // фаза — одной развёрткой по всей сетке (lagDeg на каждой точке — 48 шагов заново)
+  let prev = 0;
+  let total = kind === "lag" ? phaseRad(c, fMin, throttle) : 0;
   return Array.from({ length: n }, (_, i) => {
     const f = fMin * Math.pow(fMax / fMin, i / (n - 1));
-    return [f, gainDb(c, f, throttle)];
+    if (kind === "gain") return [f, gainDb(c, f, throttle)];
+    const [re, im] = chainAt(c, f, throttle);
+    const a = Math.atan2(im, re);
+    if (i) {
+      let d = a - prev;
+      while (d > Math.PI) d -= 2 * Math.PI;
+      while (d < -Math.PI) d += 2 * Math.PI;
+      total += d;
+    }
+    prev = a;
+    return [f, (-total * 180) / Math.PI];
   });
 }

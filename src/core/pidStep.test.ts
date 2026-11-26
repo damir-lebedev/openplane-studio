@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyMessage, CopterParam, emptyBoard, LoopModel } from "./copterParams";
-import { pidSteps, stepVerdict } from "./pidStep";
+import { filterMargins, marginVerdict, pidSteps, stepVerdict } from "./pidStep";
 
 // Числа — из ответа прошивки на `set p_pitch 47` (freestyle5, MODEL, test_app_stm32_copter)
 const MODEL: LoopModel = {
@@ -57,5 +57,42 @@ describe("044: ступенька во вкладке «PID»", () => {
 
   it("integrated yaw — рысканье не рисуется", () => {
     expect(pidSteps(board({ ...MODEL, iy: 1 }))!.map((x) => x.axis)).toEqual(["roll", "pitch"]);
+  });
+});
+
+describe("071: запас контура во вкладке «Фильтры»", () => {
+  const filters = (lpf: number) => ({
+    gyro_lpf1_type: "PT1", gyro_lpf1_static_hz: lpf, gyro_lpf1_dyn_min_hz: 0, gyro_lpf1_dyn_max_hz: 0, gyro_lpf1_dyn_expo: 5,
+    gyro_lpf2_type: "PT1", gyro_lpf2_static_hz: 500, gyro_notch1_hz: 0, gyro_notch1_cutoff: 0, gyro_notch2_hz: 0, gyro_notch2_cutoff: 0,
+    dterm_lpf1_type: "PT1", dterm_lpf1_static_hz: 75, dterm_lpf1_dyn_min_hz: 0, dterm_lpf1_dyn_max_hz: 0, dterm_lpf1_dyn_expo: 5,
+    dterm_lpf2_type: "PT1", dterm_lpf2_static_hz: 150, dterm_notch_hz: 0, dterm_notch_cutoff: 0,
+  });
+
+  it("без модели — null; с моделью — три оси со срезом и запасами", () => {
+    expect(filterMargins(board())).toBeNull();
+    const m = filterMargins(board(MODEL, filters(250)))!;
+    expect(m.map((x) => x.axis)).toEqual(["roll", "pitch", "yaw"]);
+    for (const x of m) {
+      expect(x.m.crossoverHz).toBeGreaterThan(1);
+      expect(marginVerdict(x.m)).not.toBe("bad");
+      expect(x.m.phaseMarginDeg).toBeGreaterThan(20);
+      expect(x.m.gainMarginDb).toBeGreaterThan(3);
+    }
+  });
+
+  it("ФНЧ гироскопа ниже — запас по фазе меньше (фильтр — задержка в контуре)", () => {
+    const soft = filterMargins(board(MODEL, filters(250)))![0].m;
+    const hard = filterMargins(board(MODEL, filters(40)))![0].m;
+    expect(hard.phaseMarginDeg).toBeLessThan(soft.phaseMarginDeg - 5);
+    expect(hard.gainMarginDb).toBeLessThan(soft.gainMarginDb);
+  });
+
+  it("оценка словами", () => {
+    const m = (pm: number, gm: number, hz = 20) => ({ crossoverHz: hz, phaseMarginDeg: pm, gainMarginDb: gm, sensitivityDb: 0, sensitivityHz: 0 });
+    expect(marginVerdict(m(50, 8))).toBe("ok");
+    expect(marginVerdict(m(25, 6))).toBe("ok");
+    expect(marginVerdict(m(20, 8))).toBe("warn");
+    expect(marginVerdict(m(50, 2))).toBe("bad");
+    expect(marginVerdict(m(60, 10, 0))).toBe("bad");
   });
 });

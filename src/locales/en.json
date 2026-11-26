@@ -2821,5 +2821,18 @@
   "Как будет крутиться": "How it will spin",
   "Крен и тангаж": "Roll and pitch",
   "Пульт не на связи — тяните стики мышью. Отпустили — коптер стоит, через секунду модель встаёт в горизонт.": "Radio not connected — drag the sticks with the mouse. Let go and the quad holds still; after a second the model levels itself.",
-  "оборот за {s} с": "full turn in {s} s"
+  "оборот за {s} с": "full turn in {s} s",
+  "{pm}° · {gm} дБ": "{pm}° · {gm} dB",
+  "Гасит": "Attenuation",
+  "Запаздывает": "Lag",
+  "Запас контура": "Loop margin",
+  "Запас по фазе — сколько ещё задержки выдержит контур, по усилению — во сколько раз можно поднять PID. Ниже срез фильтра — тише моторы, но меньше запас.": "Phase margin is how much more delay the loop can take; gain margin is how far the PIDs can be raised. A lower filter cutoff means quieter motors but less margin.",
+  "Насколько сигнал опаздывает после фильтров, в градусах периода: 0 — вовремя, 90 — на четверть качания позже. Слева, где летает коптер (10–50 Гц), опоздание съедает запас контура.": "How late the signal is after the filters, in degrees of a period: 0 is on time, 90 is a quarter swing late. On the left, where the quad actually flies (10–50 Hz), this lag eats into the loop margin.",
+  "ФЧХ фильтров": "Filter phase response",
+  "Что показать": "What to show",
+  "мало — раскачается": "too little — will oscillate",
+  "на грани": "borderline",
+  "на модели коптера с платы, при этих фильтрах и газе — ещё до записи": "on the quad model from the board, with these filters and throttle — before saving",
+  "с запасом": "comfortable",
+  "срез контура {hz} Гц": "loop crossover {hz} Hz"
 }
