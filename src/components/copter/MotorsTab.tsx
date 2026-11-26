@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { FrameMotor, tabParams } from "../../core/copterParams";
 import { cancelSteps, Dir, flipSteps, runSteps, saveSteps, startSteps, Step, wizardPct } from "../../core/motorDirection";
 import { ESC_HOT_C, escRows, escTotalAmps } from "../../core/escTelemetry";
+import { DYN_IDLE_PARAMS, dynIdleFrom, DynIdleState, dynIdleState, throttleCutTrace } from "../../core/dynIdle";
 import { EZ_DEFAULT, MIX_CASES, MIXER_TYPES, MixerType, mixQuadX } from "../../core/mixerType";
 import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
@@ -152,6 +153,8 @@ export function MotorsBody({ simple = false }: { simple?: boolean }) {
 
       {!simple && <MixerCard />}
 
+      {!simple && <DynIdleCard dshot={dshot} />}
+
       {!simple && (
         <div className="wide">
           <ParamList title={t("Моторы и регуляторы")} params={tabParams(board, "motors").filter((p) => !mixerCardParams(board.params).includes(p.name))} />
@@ -166,7 +169,8 @@ const EZ_PARAMS = ["ez_landing_threshold", "ez_landing_limit", "ez_landing_speed
 /** Настройки, которые показывает карточка смесителя (в общем списке их нет). */
 function mixerCardParams(params: Record<string, { value: unknown } | undefined>): string[] {
   if (!params.mixer_type) return [];
-  return params.mixer_type.value === "EZLANDING" ? ["mixer_type", ...EZ_PARAMS] : ["mixer_type"];
+  const mixer = params.mixer_type.value === "EZLANDING" ? ["mixer_type", ...EZ_PARAMS] : ["mixer_type"];
+  return params.dyn_idle_min_rpm ? [...mixer, ...DYN_IDLE_PARAMS] : mixer;
 }
 
 const MIXER_TEXT: Record<MixerType, string> = {
@@ -236,6 +240,63 @@ export function MixerCard() {
       <ParamRow p={p} title={t("Тип смесителя (mixer_type)")} />
       {current === "EZLANDING" &&
         EZ_PARAMS.map((n) => board.params[n] && <ParamRow key={n} p={board.params[n]} />)}
+    </div>
+  );
+}
+
+const DYN_TEXT: Record<DynIdleState, string> = {
+  off: N_("Выключен: холостые постоянные (dshot_idle_value). Задайте dyn_idle_min_rpm — обычно 25–40 у 5\", у мелких винтов больше."),
+  needBidir: N_("Нужны обороты от регуляторов: протокол DShot и dshot_bidir = ON (после него — перезагрузка платы). Без них dynamic idle молчит."),
+  noRpm: N_("Оборотов пока нет: моторы стоят или регуляторы не отвечают по DShot."),
+  ok: N_("Самый медленный мотор выше минимума — холостые не подняты."),
+  raising: N_("Мотор у минимума — холостые подняты."),
+};
+
+/** dynamic idle (041): обороты на сбросе газа с ним и без — картинка, живое состояние и настройки. */
+export function DynIdleCard({ dshot = true }: { dshot?: boolean }) {
+  const board = useCopterBoard();
+  const live = useCopterLive();
+  if (!board.params.dyn_idle_min_rpm) return null;   // старая прошивка
+  const s = dynIdleFrom(board.params);
+  const bidir = dshot && String(board.params.dshot_bidir?.value ?? "ON") === "ON";
+  const state = dynIdleState(s, bidir, live?.dynidle);
+  const tr = throttleCutTrace(s);
+  const minRpm = s.minRpm > 0 ? s.minRpm : 3500;
+  const W = 420, H = 120, top = 2 * minRpm;
+  const x = (t: number) => (t / tr.t[tr.t.length - 1]) * W;
+  const y = (rpm: number) => H - (Math.min(rpm, top) / top) * H;
+  const line = (v: number[]) => v.map((r, i) => `${x(tr.t[i]).toFixed(1)},${y(r).toFixed(1)}`).join(" ");
+  return (
+    <div className="card wide" data-testid="dynidle-card">
+      <h3>{t("Холостые по оборотам (dynamic idle)")}</h3>
+      <p className="sub">
+        {t("Газ сброшен, коптер падает в собственный поток винтов: обороты проваливаются, регулятор может потерять мотор, а раме нечем тормозить. Dynamic idle поднимает холостые ровно настолько, чтобы самый медленный мотор не опускался ниже минимума.")}
+      </p>
+      <svg viewBox={`0 0 ${W} ${H + 18}`} className="filter-svg" role="img" aria-label={t("Обороты мотора после сброса газа")}>
+        <rect x={x(tr.washS[0])} y={0} width={x(tr.washS[1]) - x(tr.washS[0])} height={H} fill="var(--accent-soft)" opacity={0.5} />
+        <line x1={0} x2={W} y1={y(minRpm)} y2={y(minRpm)} stroke="var(--warn)" strokeDasharray="4 3" />
+        <line x1={x(tr.cutS)} x2={x(tr.cutS)} y1={0} y2={H} stroke="var(--line)" />
+        <polyline points={line(tr.off)} fill="none" stroke="var(--text-2)" strokeWidth={1.5} data-line="off" />
+        <polyline points={line(tr.on)} fill="none" stroke="var(--accent)" strokeWidth={2} data-line="on" />
+        <text x={x(tr.cutS) + 4} y={12} className="filter-label">
+          {t("газ в ноль")}
+        </text>
+        <text x={x(tr.washS[0]) + 4} y={H - 4} className="filter-label">
+          {t("в своём потоке")}
+        </text>
+        <text x={W - 4} y={y(minRpm) - 4} textAnchor="end" className="filter-label">
+          {t("минимум {r} об/мин", { r: Math.round(minRpm) })}
+        </text>
+        <text x={0} y={H + 14} className="filter-label">
+          {t("серая — без dynamic idle, цветная — с ним")}
+        </text>
+      </svg>
+      <p className={`hint${state === "needBidir" ? " warn-text" : ""}`} data-state={state}>
+        {t(DYN_TEXT[state])}
+        {live?.dynidle && live.dynidle.rpm > 0 &&
+          " " + t("Сейчас: самый медленный {r} об/мин, добавка {p} %.", { r: Math.round(live.dynidle.rpm), p: (live.dynidle.inc * 100).toFixed(1) })}
+      </p>
+      {DYN_IDLE_PARAMS.map((n) => board.params[n] && <ParamRow key={n} p={board.params[n]} />)}
     </div>
   );
 }

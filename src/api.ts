@@ -266,6 +266,8 @@ export interface CopterLive {
   fence?: { f: number; m: number };
   /** launch control (037): ACTIVE — ждёт рывка газом на земле, TRIGGERED — стартовал (до газа вниз на земле) */
   launch?: "ACTIVE" | "TRIGGERED";
+  /** dynamic idle (041, только когда включён): inc — добавка к холостым, доля; rpm — самый медленный мотор, об/мин (0 — нет оборотов DShot) */
+  dynidle?: { inc: number; rpm: number };
   /** спектр гироскопа (060–063): ширина полосы, Гц; полосы 0, bw, 2bw… в дБ над 0.01 °/с (сумма осей);
    *  центры динамических режекторов по осям; обороты моторов, Гц (DShot — каждый, модель — один) */
   spec?: CopterSpectrum;

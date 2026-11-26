@@ -2897,5 +2897,18 @@
   "без предела": "no limit",
   "газ > {p} %": "throttle > {p} %",
   "ждёт рывка": "waiting for punch",
-  "стартовал": "launched"
+  "стартовал": "launched",
+  "Выключен: холостые постоянные (dshot_idle_value). Задайте dyn_idle_min_rpm — обычно 25–40 у 5\", у мелких винтов больше.": "Off: idle is fixed (dshot_idle_value). Set dyn_idle_min_rpm — usually 25–40 on a 5\", higher on smaller props.",
+  "Газ сброшен, коптер падает в собственный поток винтов: обороты проваливаются, регулятор может потерять мотор, а раме нечем тормозить. Dynamic idle поднимает холостые ровно настолько, чтобы самый медленный мотор не опускался ниже минимума.": "Throttle cut, the quad drops into its own prop wash: RPM collapses, the ESC may lose sync and the frame has nothing to brake with. Dynamic idle raises idle just enough to keep the slowest motor above the minimum.",
+  "Мотор у минимума — холостые подняты.": "A motor is at the minimum — idle is raised.",
+  "Нужны обороты от регуляторов: протокол DShot и dshot_bidir = ON (после него — перезагрузка платы). Без них dynamic idle молчит.": "Needs RPM from the ESCs: DShot protocol and dshot_bidir = ON (reboot the board after it). Without them dynamic idle stays off.",
+  "Оборотов пока нет: моторы стоят или регуляторы не отвечают по DShot.": "No RPM yet: motors are stopped or the ESCs do not answer over DShot.",
+  "Обороты мотора после сброса газа": "Motor RPM after a throttle cut",
+  "Самый медленный мотор выше минимума — холостые не подняты.": "The slowest motor is above the minimum — idle is not raised.",
+  "Сейчас: самый медленный {r} об/мин, добавка {p} %.": "Now: slowest {r} rpm, raised by {p} %.",
+  "Холостые по оборотам (dynamic idle)": "RPM-based idle (dynamic idle)",
+  "в своём потоке": "in own prop wash",
+  "газ в ноль": "throttle to zero",
+  "минимум {r} об/мин": "minimum {r} rpm",
+  "серая — без dynamic idle, цветная — с ним": "grey — without dynamic idle, colour — with it"
 }

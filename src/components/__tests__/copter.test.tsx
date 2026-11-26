@@ -552,6 +552,39 @@ describe("вкладки коптера", () => {
     expect(screen.queryByText(/Всего .* А по регуляторам/)).toBeNull();   // у M4 нет тока
   });
 
+  it("моторы: dynamic idle (041) — график сброса газа, подсказки и живое состояние", () => {
+    const min = param("dyn_idle_min_rpm", { group: "motors", scope: "pid", type: "int", min: 0, max: 200, default: 0, value: 0, from: "table", text: "dyn idle min" });
+    const bidir = param("dshot_bidir", { group: "motors", scope: "master", type: "enum", options: ["OFF", "ON"], default: "OFF", value: "OFF", from: "table", text: "bidir" });
+    const put = (value: number, bd: string) =>
+      act(() =>
+        useApp.setState((s) => ({
+          copterBoard: { ...s.copterBoard, header: { ...s.copterBoard.header!, dshotCommands: true }, params: { ...s.copterBoard.params, dyn_idle_min_rpm: { ...min, value }, dshot_bidir: { ...bidir, value: bd } } },
+        })),
+      );
+    put(0, "OFF");
+    render(<CopterView />);
+    tab("Моторы");
+    let card = screen.getByTestId("dynidle-card");
+    expect(card.querySelector('[data-state="off"]')).toBeTruthy();
+    expect(card.querySelector('polyline[data-line="on"]')).toBeTruthy();
+    expect(within(card).getByText("минимум 3500 об/мин")).toBeTruthy();   // выключен — пример
+    expect(within(card).getAllByText(/dyn idle min|dyn_idle_min_rpm/).length).toBeGreaterThan(0);
+    cleanup();
+    put(30, "OFF");
+    render(<CopterView />);
+    tab("Моторы");
+    card = screen.getByTestId("dynidle-card");
+    expect(card.querySelector('[data-state="needBidir"]')).toBeTruthy();
+    expect(within(card).getByText("минимум 3000 об/мин")).toBeTruthy();
+    cleanup();
+    put(30, "ON");
+    act(() => useApp.setState({ clive: live({ dynidle: { inc: 0.032, rpm: 2950 } }) }));
+    render(<CopterView />);
+    tab("Моторы");
+    card = screen.getByTestId("dynidle-card");
+    expect(card.querySelector('[data-state="raising"]')?.textContent).toContain("самый медленный 2950 об/мин, добавка 3.2 %");
+  });
+
   it("режимы: turtle mode — схема моторов от стиков пульта", () => {
     act(() =>
       useApp.setState((s) => ({
