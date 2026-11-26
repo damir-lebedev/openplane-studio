@@ -2887,5 +2887,15 @@
   "Тяга моторов при каждом типе смесителя": "Motor thrust for each mixer type",
   "У середины газа — как LEGACY, к нулю и полному газу — как LINEAR.": "Near mid throttle — like LEGACY, towards zero and full throttle — like LINEAR.",
   "Урезает команды: крен и тангаж целы, рысканье уступает первым. По умолчанию.": "Scales commands down: roll and pitch stay intact, yaw gives way first. Default.",
-  "разброс {s} %": "spread {s} %"
+  "разброс {s} %": "spread {s} %",
+  "FULL: стики и I всех трёх осей — рама держит и крен, если стоит неровно.": "FULL: sticks and I on all three axes — the frame also holds roll if it stands unevenly.",
+  "Launch control — гоночный старт": "Launch control — race start",
+  "NORMAL: стики всех осей работают медленно (100 °/с на половине хода), наклон держит I тангажа. По умолчанию.": "NORMAL: sticks on all axes work slowly (100 °/s at half travel), the pitch I-term holds the tilt. Default.",
+  "PITCHONLY: только тангаж и только носом вниз — работают задние моторы, передние на холостых.": "PITCHONLY: pitch only and nose-down only — the rear motors work, the front ones stay at idle.",
+  "Коптер на земле наклонён вперёд и ждёт рывка газом": "The quad on the ground is tilted forward and waits for a throttle punch",
+  "Режим LAUNCH CONTROL (вкладка «Режимы») и ARM в ACRO: коптер стоит на земле, газ его не поднимает, а стик от себя наклоняет раму вперёд. Рывок газом — старт уже с наклоном: сразу вперёд, без кувырка и потери первых метров.": "LAUNCH CONTROL mode (Modes tab) and ARM in ACRO: the quad stays on the ground, throttle does not lift it, and pitch forward tilts the frame. A throttle punch launches it already tilted: straight forward, no flip and no lost first metres.",
+  "без предела": "no limit",
+  "газ > {p} %": "throttle > {p} %",
+  "ждёт рывка": "waiting for punch",
+  "стартовал": "launched"
 }

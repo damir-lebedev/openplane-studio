@@ -12,6 +12,7 @@ import { SpectrumChart } from "./SpectrumChart";
 import { Plot } from "./AutotuneTab";
 import { pidSteps, stepVerdict } from "../../core/pidStep";
 import { CENTER_STICKS, deadbands, flipSeconds, liveSticks, spinRates, Sticks } from "../../core/ratesSpin";
+import { LAUNCH_MODES, LAUNCH_PARAMS, LaunchMode, launchMotors, launchPictureAngle } from "../../core/launchControl";
 
 const RatesSpin3D = lazy(() => import("./RatesSpin3D").then((m) => ({ default: m.RatesSpin3D })));
 const hasWebGL = () => typeof WebGL2RenderingContext !== "undefined";
@@ -180,7 +181,7 @@ function PidBody() {
   const source = board.params.tune_source;
   const inTable = new Set(PID_COLUMNS.flatMap((c) => AXES.map((a) => c.name(a))));
   const sliders = PID_SLIDERS.filter(([n]) => board.params[n]).map(([n, title]): [CopterParam, string] => [board.params[n], t(title)]);
-  const rest = tabParams(board, "pid", ["tune_source", "profile_name", "simplified_pids_mode", ...PID_SLIDERS.map(([n]) => n), ...inTable]);
+  const rest = tabParams(board, "pid", ["tune_source", "profile_name", "simplified_pids_mode", ...PID_SLIDERS.map(([n]) => n), ...inTable, ...LAUNCH_PARAMS]);
   const topics = PID_TOPICS.map((tp) => ({ ...tp, params: [] as CopterParam[] }));
   const other: CopterParam[] = [];
   for (const p of rest) {
@@ -213,10 +214,82 @@ function PidBody() {
         sliders={sliders}
       />
       <StepCard board={board} />
+      <LaunchCard board={board} />
       {topics.map((tp) => (
         <ParamList key={tp.title} title={t(tp.title)} sub={tp.sub ? t(tp.sub) : undefined} params={tp.params} />
       ))}
       <ParamList title={t("Прочее")} params={other} />
+    </div>
+  );
+}
+
+const LAUNCH_TEXT: Record<LaunchMode, string> = {
+  NORMAL: N_("NORMAL: стики всех осей работают медленно (100 °/с на половине хода), наклон держит I тангажа. По умолчанию."),
+  PITCHONLY: N_("PITCHONLY: только тангаж и только носом вниз — работают задние моторы, передние на холостых."),
+  FULL: N_("FULL: стики и I всех трёх осей — рама держит и крен, если стоит неровно."),
+};
+
+/** 037 · Launch control: коптер на земле наклоняется вперёд и ждёт рывка газом. */
+export function LaunchCard({ board }: { board: CopterBoard }) {
+  const live = useCopterLive();
+  const p = board.params.launch_control_mode;
+  if (!p) return null; // старая прошивка
+  const mode = (LAUNCH_MODES as readonly string[]).includes(String(p.value)) ? (String(p.value) as LaunchMode) : "NORMAL";
+  const limit = num(board, "launch_angle_limit", 0);
+  const trigger = num(board, "launch_trigger_throttle_percent", 20);
+  const pic = launchPictureAngle(limit);
+  const motors = launchMotors(mode);
+  // вид сбоку: нос справа, рама опирается на передние ноги и поворачивается вокруг них
+  const PX = 210, GY = 96, L = 130;
+  const a = (pic.deg * Math.PI) / 180;
+  const rear = { x: PX - L * Math.cos(a), y: GY - 8 - L * Math.sin(a) };
+  const front = { x: PX, y: GY - 8 };
+  const thrust = (m: { x: number; y: number }, on: boolean, key: string) => {
+    const len = on ? 26 : 8;
+    const dx = -Math.sin(a) * len, dy = -Math.cos(a) * len;
+    return <line key={key} x1={m.x} y1={m.y} x2={m.x + dx} y2={m.y + dy} stroke={on ? "var(--accent)" : "var(--text-2)"} strokeWidth={on ? 3 : 2} markerEnd={on ? "url(#lc-arrow)" : undefined} opacity={on ? 1 : 0.5} />;
+  };
+  const barH = 80, trigY = 10 + barH * (1 - trigger / 100);
+  return (
+    <div className="card wide" data-testid="launch-card">
+      <div className="row" style={{ gap: 8 }}>
+        <h3 className="grow" style={{ margin: 0 }}>
+          {t("Launch control — гоночный старт")}
+        </h3>
+        {live?.launch === "ACTIVE" && <span className="badge accent">{t("ждёт рывка")}</span>}
+        {live?.launch === "TRIGGERED" && <span className="badge">{t("стартовал")}</span>}
+      </div>
+      <p className="sub">
+        {t("Режим LAUNCH CONTROL (вкладка «Режимы») и ARM в ACRO: коптер стоит на земле, газ его не поднимает, а стик от себя наклоняет раму вперёд. Рывок газом — старт уже с наклоном: сразу вперёд, без кувырка и потери первых метров.")}
+      </p>
+      <svg viewBox="0 0 340 112" className="filter-svg" role="img" aria-label={t("Коптер на земле наклонён вперёд и ждёт рывка газом")}>
+        <defs>
+          <marker id="lc-arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)" />
+          </marker>
+        </defs>
+        <line x1={10} y1={GY} x2={270} y2={GY} stroke="var(--line)" strokeWidth={2} />
+        <line x1={PX} y1={GY - 8} x2={PX - L} y2={GY - 8} stroke="var(--line)" strokeDasharray="4 4" />
+        <path d={`M ${PX - 46} ${GY - 8} A 46 46 0 0 1 ${PX - 46 * Math.cos(a)} ${GY - 8 - 46 * Math.sin(a)}`} fill="none" stroke="var(--text-2)" />
+        <text x={PX - 70} y={GY - 14} className="filter-label" data-testid="launch-angle">
+          {pic.limited ? `${pic.deg}°` : t("без предела")}
+        </text>
+        <line x1={rear.x} y1={rear.y} x2={front.x} y2={front.y} stroke="var(--text)" strokeWidth={5} strokeLinecap="round" />
+        <line x1={front.x} y1={front.y} x2={front.x} y2={GY} stroke="var(--text)" strokeWidth={2} />
+        {thrust(rear, motors.rear, "r")}
+        {thrust(front, motors.front, "f")}
+        <text x={front.x + 8} y={front.y - 6} className="filter-label">
+          {t("нос")}
+        </text>
+        <rect x={300} y={10} width={16} height={barH} rx={3} fill="none" stroke="var(--line)" />
+        <rect x={300} y={trigY} width={16} height={10 + barH - trigY} rx={3} fill="var(--accent-soft)" />
+        <line x1={294} y1={trigY} x2={322} y2={trigY} stroke="var(--accent)" strokeWidth={2} />
+        <text x={308} y={106} textAnchor="middle" className="filter-label" data-testid="launch-trigger">
+          {t("газ > {p} %", { p: trigger })}
+        </text>
+      </svg>
+      <p className="hint">{t(LAUNCH_TEXT[mode])}</p>
+      {LAUNCH_PARAMS.map((n) => board.params[n] && <ParamRow key={n} p={board.params[n]} />)}
     </div>
   );
 }

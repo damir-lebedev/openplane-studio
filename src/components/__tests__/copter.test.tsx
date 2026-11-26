@@ -484,6 +484,26 @@ describe("вкладки коптера", () => {
     vi.useRealTimers();
   });
 
+  it("PID: launch control (037) — картинка наклона и газа старта, режим словами, живое «ждёт рывка»", () => {
+    const lm = param("launch_control_mode", { group: "pid", scope: "pid", type: "enum", options: ["NORMAL", "PITCHONLY", "FULL"], default: "NORMAL", value: "PITCHONLY", from: "table", text: "launch mode" });
+    const la = param("launch_angle_limit", { group: "pid", scope: "pid", type: "int", min: 0, max: 80, default: 0, value: 30, from: "table", text: "launch angle" });
+    const lt = param("launch_trigger_throttle_percent", { group: "pid", scope: "pid", type: "int", min: 0, max: 90, default: 20, value: 25, from: "table", text: "launch trigger" });
+    act(() =>
+      useApp.setState((s) => ({
+        copterBoard: { ...s.copterBoard, params: { ...s.copterBoard.params, launch_control_mode: lm, launch_angle_limit: la, launch_trigger_throttle_percent: lt } },
+        clive: live({ arm: true, launch: "ACTIVE" }),
+      })),
+    );
+    render(<CopterView />);
+    tab("PID");
+    const card = screen.getByTestId("launch-card");
+    expect(within(card).getByTestId("launch-angle").textContent).toBe("30°");
+    expect(within(card).getByTestId("launch-trigger").textContent).toContain("25");
+    expect(within(card).getByText(/задние моторы/)).toBeTruthy();
+    expect(within(card).getByText("ждёт рывка")).toBeTruthy();
+    expect(within(card).getByText("launch angle")).toBeTruthy();
+  });
+
   it("моторы: смеситель на упоре (039/040) — столбики по типам, EZ — свои настройки", () => {
     const mt = param("mixer_type", { group: "motors", scope: "master", type: "enum", options: ["LEGACY", "LINEAR", "DYNAMIC", "EZLANDING"], default: "LEGACY", value: "LEGACY", from: "table", text: "mixer" });
     const ezl = param("ez_landing_limit", { group: "motors", scope: "pid", type: "int", min: 0, max: 75, default: 15, value: 15, from: "table", text: "EZ limit" });
