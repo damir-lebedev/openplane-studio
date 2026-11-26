@@ -2,11 +2,13 @@
 // Rescue — профиль полёта (набор высоты, полёт, снижение, посадка), который
 // считается из настроек gps_rescue_* так же, как в прошивке (copter/GpsRescue.h).
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { CopterLive } from "../../api";
 import { CopterBoard, num, rescuePath, tabParams } from "../../core/copterParams";
+import { geofenceOf } from "../../core/geofence";
 import { BLIND_PHASE_TEXT } from "../../core/gpsSpoof";
+import { homeMapScale, homeTrack, HomeTrack, zonesFromHome } from "../../core/homeMap";
 import { N_, t } from "../../i18n";
 import { NeedBoard, ParamList, useCopterBoard, useCopterLive } from "./common";
 
@@ -48,6 +50,7 @@ function GpsBody() {
   return (
     <div className="copter-grid">
       <NowCard live={live} />
+      <HomeMapCard board={board} live={live} />
       <div className="card">
         <h3>{t("Возврат по потере связи")}</h3>
         {procedure === "GPS-RESCUE" ? (
@@ -166,6 +169,119 @@ function RescueProfile({ board, live }: { board: CopterBoard; live: CopterLive |
           {t("След (rth_breadcrumbs): если коптер ниже, чем летал на последних {m} м пути (залетел под кроны, во двор), он сначала идёт назад тем же путём до места, где был высоко, и только там набирает высоту. Прямая домой через запретную зону геозабора — тоже по следу.", { m: num(board, "rth_path_m", 100) })}
         </p>
       )}
+    </div>
+  );
+}
+
+/** Путь от дома; копится, пока вкладка открыта (кадр — раз в 50 мс, зависимость — его метка). */
+function useHomeTrack(live: CopterLive | null): HomeTrack | null {
+  const ref = useRef<HomeTrack | null>(null);
+  const [, bump] = useState(0);
+  const stamp = live?.t;
+  useEffect(() => {
+    const next = homeTrack(ref.current, live);
+    if (next !== ref.current) {
+      ref.current = next;
+      bump((n) => n + 1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stamp]);
+  return ref.current;
+}
+
+/** Вид сверху: дом в центре, путь, коптер с носом, забор и зоны, линия возврата. */
+function HomeMapCard({ board, live }: { board: CopterBoard; live: CopterLive | null }) {
+  const track = useHomeTrack(live);
+  const fence = geofenceOf(board);
+  const fenceOn = !!fence?.on;
+  const R = 108;
+  const c = 130;
+  const scale = homeMapScale(Math.max(track?.maxDist ?? 0, fenceOn ? fence!.radius * 1.02 : 0));
+  const k = R / scale;
+  const lim = R * 1.18;
+  const at = (n: number, e: number) => ({ x: c + Math.max(-lim, Math.min(lim, e * k)), y: c - Math.max(-lim, Math.min(lim, n * k)) });
+  const zones = track && fenceOn ? zonesFromHome(board.fence ?? [], track.home) : [];
+  const path = (track?.points ?? []).map((p, i) => {
+    const q = at(p.n, p.e);
+    return `${i ? "L" : "M"}${q.x.toFixed(1)},${q.y.toFixed(1)}`;
+  });
+  const now = track?.now;
+  if (now && path.length) {
+    const q = at(now.n, now.e);
+    path.push(`L${q.x.toFixed(1)},${q.y.toFixed(1)}`);
+  }
+  const hdg = ((live?.hdg ?? 0) * Math.PI) / 180;
+  const home = live?.gps?.home;
+  const rescue = !!live?.rescue && live.rescue !== "ABORT";
+  const blind = live?.blind;
+  return (
+    <div className="card wide drift-card" data-testid="home-map">
+      <h3>{t("Карта: дом и путь")}</h3>
+      <div className="drift-body">
+        <svg viewBox="0 0 260 260" className="drift-svg" role="img" aria-label={t("Вид сверху: дом и путь коптера")}>
+          {[1, 0.5].map((f) => (
+            <circle key={f} cx={c} cy={c} r={R * f} className="drift-ring" />
+          ))}
+          <line x1={c - R} x2={c + R} y1={c} y2={c} className="drift-axis" />
+          <line x1={c} x2={c} y1={c - R} y2={c + R} className="drift-axis" />
+          <text x={c} y={c - R - 6} textAnchor="middle" className="rescue-label">
+            {t("С")}
+          </text>
+          <text x={c + R + 3} y={c - 3} className="rescue-label">
+            {t("{m} м", { m: scale })}
+          </text>
+          {zones.map((z, i) => (
+            <polygon
+              key={i}
+              points={z.pts.map(([n, e]) => `${(c + e * k).toFixed(1)},${(c - n * k).toFixed(1)}`).join(" ")}
+              className={z.type === "NOFLY" ? "home-map-nofly" : "home-map-field"}
+              data-testid="home-map-zone"
+            />
+          ))}
+          {fenceOn && <circle cx={c} cy={c} r={fence!.radius * k} className="home-map-fence" data-testid="home-map-fence" />}
+          {path.length > 1 && <path d={path.join(" ")} className="home-map-path" data-testid="home-map-path" />}
+          {now && rescue && (() => {
+            const q = at(now.n, now.e);
+            return <line x1={q.x} y1={q.y} x2={c} y2={c} className="home-map-rescue" data-testid="home-map-rescue" />;
+          })()}
+          {blind && (() => {
+            const q = at(blind.n, blind.e);
+            return <circle cx={q.x} cy={q.y} r={Math.max(4, blind.err * k)} className="home-map-blind" data-testid="home-map-blind" />;
+          })()}
+          <circle cx={c} cy={c} r={6} className="rescue-home" />
+          {now && (() => {
+            const q = at(now.n, now.e);
+            return (
+              <g>
+                <line x1={q.x} y1={q.y} x2={q.x + 13 * Math.sin(hdg)} y2={q.y - 13 * Math.cos(hdg)} className="drift-nose" />
+                <circle cx={q.x} cy={q.y} r={5} className="rescue-copter" data-testid="home-map-copter" />
+              </g>
+            );
+          })()}
+          {!track && (
+            <text x={c} y={c + 30} textAnchor="middle" className="rescue-label">
+              {t("дома ещё нет")}
+            </text>
+          )}
+        </svg>
+        <div className="grow">
+          <div className="kv">
+            <span>{t("До дома")}</span>
+            <span className="mono" data-testid="home-map-dist">{home !== undefined ? `${Math.round(home)} ${t("м")}` : "—"}</span>
+            <span>{t("Пройдено")}</span>
+            <span className="mono">{track ? `${Math.round(track.pathM)} ${t("м")}` : "—"}</span>
+            <span>{t("Дальше всего")}</span>
+            <span className="mono">{track ? `${Math.round(track.maxDist)} ${t("м")}` : "—"}</span>
+            <span>{t("Выше всего")}</span>
+            <span className="mono">{track ? `${Math.round(track.maxAlt)} ${t("м")}` : "—"}</span>
+          </div>
+          {!track && <p className="hint">{t("Дом ставится при ARM, когда спутников достаточно (gps_rescue_min_sats). С домом здесь рисуется путь коптера — пока открыта вкладка.")}</p>}
+          {track && <p className="hint">{t("Путь — пока открыта вкладка, точка через каждые 3 м; новый ARM — новый дом и путь заново.")}</p>}
+          {rescue && <p className="hint warn-text">{t("Идёт возврат: пунктир — прямая домой; со следом (rth_breadcrumbs) коптер может сначала пойти назад своим путём.")}</p>}
+          {blind && <p className="hint warn-text">{t("Вслепую: кружок — где коптер по своим датчикам и насколько это неточно.")}</p>}
+          {fenceOn && <p className="hint">{t("Пунктир по кругу — геозабор {r} м; красное — запретные зоны.", { r: fence!.radius })}</p>}
+        </div>
+      </div>
     </div>
   );
 }

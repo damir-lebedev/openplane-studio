@@ -1055,6 +1055,22 @@ describe("вкладки коптера", () => {
     expect(document.querySelector(".rescue-path")?.getAttribute("d")).toMatch(/^M40\.0,/);
   });
 
+  it("GPS (137): карта — дом в центре, путь из @live, линия возврата, геозабор", () => {
+    withGeofence("ON");
+    render(<CopterView />);
+    tab("GPS");
+    expect(within(screen.getByTestId("home-map")).getByText("дома ещё нет")).toBeTruthy();
+    const g = (n: number, e: number) => ({ fix: true, sats: 14, lat: 55.75, lon: 37.62, spd: 7, home: Math.hypot(n, e), dir: 0, n, e });
+    for (let i = 0; i <= 20; ++i) act(() => useApp.setState({ clive: live({ t: 100 + i, state: "ARMED", arm: true, alt: 30, gps: g(5 * i, 2 * i) }) }));
+    expect(screen.queryByText("дома ещё нет")).toBeNull();
+    expect(screen.getByTestId("home-map-path").getAttribute("d")!.split("L").length).toBe(22);
+    expect(screen.getByTestId("home-map-copter")).toBeTruthy();
+    expect(screen.getByTestId("home-map-fence")).toBeTruthy();
+    expect(screen.queryByTestId("home-map-rescue")).toBeNull();
+    act(() => useApp.setState({ clive: live({ t: 200, state: "FAILSAFE", arm: true, alt: 30, rescue: "FLY_HOME", gps: g(100, 40) }) }));
+    expect(screen.getByTestId("home-map-rescue")).toBeTruthy();
+  });
+
   it("PID (044): ступенька на модели с платы по трём осям; без модели — карточки нет", () => {
     render(<CopterView />);
     tab("PID");

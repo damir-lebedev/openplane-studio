@@ -2863,5 +2863,16 @@
   "полная": "full",
   "След (rth_breadcrumbs): если коптер ниже, чем летал на последних {m} м пути (залетел под кроны, во двор), он сначала идёт назад тем же путём до места, где был высоко, и только там набирает высоту. Прямая домой через запретную зону геозабора — тоже по следу.": "Breadcrumbs (rth_breadcrumbs): if the quad is lower than it flew over the last {m} m of its path (went under tree crowns, into a yard), it first goes back the same way to where it was high, and only climbs there. If the straight line home crosses a geofence no-fly zone, it also follows the trail.",
   "вниз над домом": "down over home",
-  "идёт назад по своему следу": "going back along its own trail"
+  "идёт назад по своему следу": "going back along its own trail",
+  "Вид сверху: дом и путь коптера": "Top view: home and the copter's path",
+  "Вслепую: кружок — где коптер по своим датчикам и насколько это неточно.": "Blind: the circle is where the copter thinks it is from its own sensors, and how uncertain that is.",
+  "Выше всего": "Highest",
+  "Дальше всего": "Farthest",
+  "Дом ставится при ARM, когда спутников достаточно (gps_rescue_min_sats). С домом здесь рисуется путь коптера — пока открыта вкладка.": "Home is set on ARM once there are enough satellites (gps_rescue_min_sats). With a home set, the copter's path is drawn here while the tab is open.",
+  "Идёт возврат: пунктир — прямая домой; со следом (rth_breadcrumbs) коптер может сначала пойти назад своим путём.": "Returning: the dashed line is the straight way home; with the trail (rth_breadcrumbs) the copter may first go back along its own path.",
+  "Карта: дом и путь": "Map: home and path",
+  "Пройдено": "Travelled",
+  "Пунктир по кругу — геозабор {r} м; красное — запретные зоны.": "Dashed circle is the {r} m geofence; red are no-fly zones.",
+  "Путь — пока открыта вкладка, точка через каждые 3 м; новый ARM — новый дом и путь заново.": "The path is recorded while the tab is open, a point every 3 m; a new ARM means a new home and a fresh path.",
+  "дома ещё нет": "no home yet"
 }

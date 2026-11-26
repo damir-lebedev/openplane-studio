@@ -2272,6 +2272,39 @@ textarea {
 .drift-point {
   fill: var(--accent);
 }
+.home-map-path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.home-map-fence {
+  fill: none;
+  stroke: var(--warn);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+.home-map-nofly {
+  fill: color-mix(in srgb, var(--err) 25%, transparent);
+  stroke: var(--err);
+  stroke-width: 1.5;
+}
+.home-map-field {
+  fill: none;
+  stroke: var(--ok);
+  stroke-width: 1.5;
+}
+.home-map-rescue {
+  stroke: var(--ok);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+.home-map-blind {
+  fill: color-mix(in srgb, var(--warn) 20%, transparent);
+  stroke: var(--warn);
+  stroke-width: 1;
+}
 .drift-speed {
   stroke: var(--warn);
   stroke-width: 2;
