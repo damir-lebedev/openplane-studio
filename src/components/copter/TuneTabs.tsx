@@ -1,16 +1,20 @@
 // «PID» и «Расходы»: таблицы по осям как в BF, профили, кривая
 // «стик → °/с»; остальные настройки группы — списками по темам.
 
-import { useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { AXES, AXIS_LABELS, CopterBoard, CopterParam, convertRates, num, PID_COLUMNS, RATE_TYPE_LABELS, rateCurve, RATES_TYPES, RatesType, rateSpec, tabParams, throttleAt } from "../../core/copterParams";
 import { useApp } from "../../store";
 import { N_, t } from "../../i18n";
 import { FILTER_PARAMS } from "../../core/filters";
-import { MarginBar, NeedBoard, ParamInput, ParamList, ParamRow, ParamSlider, ProfilePicker, useCopterBoard, useCopterLink } from "./common";
+import { MarginBar, NeedBoard, ParamInput, ParamList, ParamRow, ParamSlider, ProfilePicker, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 import { FilterChart } from "./FilterChart";
 import { SpectrumChart } from "./SpectrumChart";
 import { Plot } from "./AutotuneTab";
 import { pidSteps, stepVerdict } from "../../core/pidStep";
+import { CENTER_STICKS, deadbands, flipSeconds, liveSticks, spinRates, Sticks } from "../../core/ratesSpin";
+
+const RatesSpin3D = lazy(() => import("./RatesSpin3D").then((m) => ({ default: m.RatesSpin3D })));
+const hasWebGL = () => typeof WebGL2RenderingContext !== "undefined";
 
 /** Темы настроек PID-профиля по началу имени. */
 const PID_TOPICS: { title: string; sub?: string; match: (n: string) => boolean }[] = [
@@ -278,7 +282,7 @@ export function RatesTab() {
 const AXIS_COLORS = { roll: "#39d0ff", pitch: "#3fb950", yaw: "#e3b341" };
 
 /** Кривые «стик → °/с» по осям (любая формула rates_type) и сводка под ними. */
-export function RateChart({ board }: { board: CopterBoard }) {
+export function RateChart({ board, sticks }: { board: CopterBoard; sticks?: Sticks }) {
   const curves = AXES.map((a) => ({ axis: a, spec: rateSpec(board, a) }));
   const top = Math.max(200, ...curves.map((c) => rateCurve(c.spec, 1)));
   const w = 360;
@@ -310,6 +314,13 @@ export function RateChart({ board }: { board: CopterBoard }) {
         {curves.map((c) => (
           <path key={c.axis} d={path(c)} stroke={AXIS_COLORS[c.axis]} className="curve" />
         ))}
+        {sticks &&
+          curves.map((c) => {
+            const s = Math.min(1, Math.abs(sticks[c.axis]));
+            return (
+              <circle key={c.axis} data-testid={`stick-dot-${c.axis}`} cx={s * w} cy={h - (Math.abs(rateCurve(c.spec, s)) / top) * h} r={5} fill={AXIS_COLORS[c.axis]} stroke="#0b1520" strokeWidth={1.5} />
+            );
+          })}
       </svg>
       <div className="kv">
         {curves.map((c) => (
@@ -395,8 +406,103 @@ function RatesTypePicker({ board }: { board: CopterBoard }) {
 
 const THROTTLE_PARAMS = ["thr_mid", "thr_expo", "throttle_limit_type", "throttle_limit_percent"];
 
+/**
+ * Виртуальный стик: тянуть мышью, отпустил — пружиной в центр. onlyX — левый
+ * стик (рысканье, газ не трогаем), иначе правый: крен и тангаж (от себя — плюс).
+ */
+function StickPad({ x, y, onlyX, label, onMove }: { x: number; y: number; onlyX?: boolean; label: string; onMove: (x: number, y: number) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const drag = useRef(false);
+  const move = (e: React.PointerEvent) => {
+    if (!drag.current || !ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const cl = (v: number) => Math.max(-1, Math.min(1, v));
+    const nx = cl(((e.clientX - r.left) / r.width) * 2 - 1);
+    const ny = onlyX ? 0 : cl(1 - ((e.clientY - r.top) / r.height) * 2);
+    onMove(nx, ny);
+  };
+  const up = () => {
+    drag.current = false;
+    onMove(0, 0);
+  };
+  return (
+    <div className="stick-pad-wrap">
+      <div
+        ref={ref}
+        className="stick-pad"
+        role="slider"
+        aria-label={label}
+        aria-valuenow={Math.round(x * 100)}
+        onPointerDown={(e) => {
+          drag.current = true;
+          (e.target as Element).setPointerCapture?.(e.pointerId);
+          move(e);
+        }}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+      >
+        <span className="stick-dot" style={{ left: `${50 + x * 50}%`, top: `${50 - y * 50}%` }} />
+      </div>
+      <span className="tick">{label}</span>
+    </div>
+  );
+}
+
+/** Коптер крутится с расходами: от стиков пульта (живой кадр) или виртуальных. */
+function SpinCard({ board, sticks, fromRadio, onVirtual }: { board: CopterBoard; sticks: Sticks; fromRadio: boolean; onVirtual: (s: Sticks) => void }) {
+  const rates = useRef<Sticks>(CENTER_STICKS);
+  rates.current = spinRates(board, sticks);
+  const [reset, setReset] = useState(0);
+  const flips = AXES.map((a) => ({ a, s: flipSeconds(board, a) }));
+  return (
+    <div className="card" data-testid="rates-spin">
+      <div className="row" style={{ gap: 12 }}>
+        <h3 className="grow" style={{ margin: 0 }}>
+          {t("Как будет крутиться")}
+        </h3>
+        <button className="btn small" onClick={() => setReset((n) => n + 1)}>
+          {t("В горизонт")}
+        </button>
+      </div>
+      {hasWebGL() ? (
+        <Suspense fallback={<div className="rates-3d" />}>
+          <RatesSpin3D rates={rates} reset={reset} />
+        </Suspense>
+      ) : null}
+      <div className="kv">
+        {flips.map(({ a, s }) => (
+          <span key={a} style={{ display: "contents" }}>
+            <span style={{ color: AXIS_COLORS[a] }}>{t(AXIS_LABELS[a])}</span>
+            <span className="mono">
+              {Math.round(rates.current[a])} °/с · {s ? t("оборот за {s} с", { s: s.toFixed(2) }) : "—"}
+            </span>
+          </span>
+        ))}
+      </div>
+      {fromRadio ? (
+        <p className="hint">{t("Двигайте стики пульта: модель крутится так, как коптер в акро с этими расходами.")}</p>
+      ) : (
+        <>
+          <div className="row stick-pads">
+            <StickPad x={sticks.yaw} y={0} onlyX label={t("Рысканье")} onMove={(x) => onVirtual({ ...sticks, yaw: x })} />
+            <StickPad x={sticks.roll} y={sticks.pitch} label={t("Крен и тангаж")} onMove={(x, y) => onVirtual({ ...sticks, roll: x, pitch: y })} />
+          </div>
+          <p className="hint">{t("Пульт не на связи — тяните стики мышью. Отпустили — коптер стоит, через секунду модель встаёт в горизонт.")}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function RatesBody() {
   const board = useCopterBoard();
+  const live = useCopterLive();
+  const [virt, setVirt] = useState<Sticks>(CENTER_STICKS);
+  const fromRadio = !!live && live.rx === "ok" && live.ch.length >= 4;
+  const [db, ydb] = deadbands(board);
+  const sticks = fromRadio ? liveSticks(live.ch, board.rc?.map ?? "AETR1234", db, ydb) : virt;
   const type = rateSpec(board, "roll").type;
   const L = RATE_TYPE_LABELS[type];
   const columns = [
@@ -429,9 +535,10 @@ function RatesBody() {
       </div>
       <div className="card">
         <h3>{t("Стик → скорость вращения")}</h3>
-        <RateChart board={board} />
+        <RateChart board={board} sticks={sticks} />
         <p className="hint">{t("Новичку: 400–500 °/с максимума и экспо 30–50 % — спокойно; фристайл — 700–850.")}</p>
       </div>
+      <SpinCard board={board} sticks={sticks} fromRadio={fromRadio} onVirtual={setVirt} />
       {thr.length > 0 && (
         <div className="card">
           <h3>{t("Стик газа → газ")}</h3>

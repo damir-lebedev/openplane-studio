@@ -818,6 +818,28 @@ describe("вкладки коптера", () => {
     expect(screen.getByText(/до 670 °\/с/)).toBeTruthy();
   });
 
+  it("расходы: стик пульта — точка на кривой и скорость модели; без пульта — виртуальный стик", () => {
+    act(() => useApp.setState({ clive: live({ ch: [2000, 1500, 1000, 1500, 1900, 1000, 1000, 1000, 1500, 1500, 1500, 1500] }), cliveAt: Date.now() }));
+    render(<CopterView />);
+    tab("Расходы");
+    const spin = screen.getByTestId("rates-spin");
+    expect(within(spin).getByText(/670 °\/с · оборот за 0\.54 с/)).toBeTruthy();   // крен до упора
+    const dot = screen.getByTestId("stick-dot-roll");
+    expect(Number(dot.getAttribute("cx"))).toBe(360);
+    expect(within(spin).getByText(/Двигайте стики пульта/)).toBeTruthy();
+    cleanup();
+
+    act(() => useApp.setState({ clive: live({ rx: "lost" }) }));
+    render(<CopterView />);
+    tab("Расходы");
+    const pad = screen.getByRole("slider", { name: "Крен и тангаж" });
+    pad.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, x: 0, y: 0, toJSON: () => ({}) });
+    fireEvent.pointerDown(pad, { clientX: 75, clientY: 50, pointerId: 1 });
+    expect(Number(screen.getByTestId("stick-dot-roll").getAttribute("cx"))).toBe(180);   // полстика
+    fireEvent.pointerUp(pad, { pointerId: 1 });
+    expect(Number(screen.getByTestId("stick-dot-roll").getAttribute("cx"))).toBe(0);   // пружина в центр
+  });
+
   it("расходы: смена формулы пересчитывает числа, кривая газа", async () => {
     const r = (name: string, value: number | string, extra: Parameters<typeof param>[1] = {}) =>
       param(name, { group: "rates", scope: "rate", default: value, value, min: 0, max: 255, ...extra });

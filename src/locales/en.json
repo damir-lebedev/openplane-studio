@@ -2815,5 +2815,11 @@
   "быстро и без раскачки": "fast, no oscillation",
   "вяло: P или FF можно поднять": "sluggish: P or FF can go up",
   "перелёт: P или FF великоваты, D мало": "overshoot: P or FF a bit high, D too low",
-  "раскачка: так летать нельзя": "oscillation: do not fly like this"
+  "раскачка: так летать нельзя": "oscillation: do not fly like this",
+  "В горизонт": "Level it",
+  "Двигайте стики пульта: модель крутится так, как коптер в акро с этими расходами.": "Move the radio sticks: the model spins the way the quad would in acro with these rates.",
+  "Как будет крутиться": "How it will spin",
+  "Крен и тангаж": "Roll and pitch",
+  "Пульт не на связи — тяните стики мышью. Отпустили — коптер стоит, через секунду модель встаёт в горизонт.": "Radio not connected — drag the sticks with the mouse. Let go and the quad holds still; after a second the model levels itself.",
+  "оборот за {s} с": "full turn in {s} s"
 }

@@ -1844,6 +1844,68 @@ textarea {
   fill: none;
   stroke-width: 2.5;
 }
+.rates-3d {
+  height: 240px;
+  margin: 10px 0;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: radial-gradient(400px 220px at 50% 30%, #16283b 0%, #0b131c 70%);
+  overflow: hidden;
+}
+.stick-pads {
+  gap: 28px;
+  justify-content: center;
+  margin-top: 10px;
+}
+.stick-pad-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.stick-pad-wrap .tick {
+  color: var(--text-3);
+  font-size: 12px;
+}
+.stick-pad {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  border: 1px solid var(--line-2);
+  background: radial-gradient(circle, rgba(57, 208, 255, 0.08) 0%, transparent 70%);
+  touch-action: none;
+  cursor: grab;
+}
+.stick-pad::before,
+.stick-pad::after {
+  content: "";
+  position: absolute;
+  background: var(--line);
+}
+.stick-pad::before {
+  left: 50%;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+}
+.stick-pad::after {
+  top: 50%;
+  left: 8px;
+  right: 8px;
+  height: 1px;
+}
+.stick-dot {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  background: #39d0ff;
+  box-shadow: 0 0 10px rgba(57, 208, 255, 0.6);
+  z-index: 1;
+  pointer-events: none;
+}
 .fs-timeline {
   display: grid;
   grid-template-columns: 1fr 2fr 2fr;
