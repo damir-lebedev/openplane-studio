@@ -2860,5 +2860,8 @@
   "пусто — CRITICAL": "empty — CRITICAL",
   "домой — WARNING": "go home — WARNING",
   "летать": "fly",
-  "полная": "full"
+  "полная": "full",
+  "След (rth_breadcrumbs): если коптер ниже, чем летал на последних {m} м пути (залетел под кроны, во двор), он сначала идёт назад тем же путём до места, где был высоко, и только там набирает высоту. Прямая домой через запретную зону геозабора — тоже по следу.": "Breadcrumbs (rth_breadcrumbs): if the quad is lower than it flew over the last {m} m of its path (went under tree crowns, into a yard), it first goes back the same way to where it was high, and only climbs there. If the straight line home crosses a geofence no-fly zone, it also follows the trail.",
+  "вниз над домом": "down over home",
+  "идёт назад по своему следу": "going back along its own trail"
 }

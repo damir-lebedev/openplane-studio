@@ -672,11 +672,13 @@ export function rescuePath(b: CopterBoard, distM: number, altM: number, maxAltM:
   const down = num(b, "gps_rescue_descend_rate", 150) / 100;
   const speed = Math.max(0.5, num(b, "gps_rescue_ground_speed", 750) / 100);
   const tooClose = distM < num(b, "gps_rescue_min_start_dist", 15);
+  // rth_breadcrumbs ON (P45): у дома не скользит вниз — снижается только над ним
+  const breadcrumbs = String(b.params.rth_breadcrumbs?.value ?? "OFF") === "ON";
   const landS = (h: number) => Math.max(0, h - landAlt) / down + Math.min(landAlt, h) / (down / 2);   // ниже landing_alt — вдвое медленнее
-  if (tooClose) return { ret: altM, descent: 0, landAlt, tooClose, seconds: landS(altM), mode };
+  if (tooClose) return { ret: altM, descent: 0, landAlt, tooClose, seconds: landS(altM), mode, breadcrumbs };
   const climbS = Math.abs(ret - altM) / up;
   const flyS = (distM - descent) / speed + (descent * 2) / speed;   // в снижении скорость убывает — в среднем вдвое
-  return { ret, descent, landAlt, tooClose, seconds: climbS + flyS + landS(Math.min(landAlt, ret)), mode };
+  return { ret, descent, landAlt, tooClose, seconds: climbS + flyS + landS(breadcrumbs ? ret : Math.min(landAlt, ret)), mode, breadcrumbs };
 }
 
 // ---------------- сглаживание стиков ----------------

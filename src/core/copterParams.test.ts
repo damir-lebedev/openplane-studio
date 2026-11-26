@@ -170,6 +170,14 @@ describe("GPS Rescue: профиль возврата", () => {
     expect(p.seconds).toBeCloseTo(25 / 7.5 + 280 / 7.5 + 40 / 7.5 + 4 / 0.75, 5);
   });
 
+  it("rth_breadcrumbs ON: снижение только над домом", () => {
+    const p = rescuePath(board({ rth_breadcrumbs: "ON" }), 300, 20, 35);
+    expect(p.breadcrumbs).toBe(true);
+    // как выше, но вниз с 45 м над домом: 41 м по 1.5 + 4 м по 0.75
+    expect(p.seconds).toBeCloseTo(25 / 7.5 + 280 / 7.5 + 40 / 7.5 + 41 / 1.5 + 4 / 0.75, 5);
+    expect(rescuePath(board({}), 300, 20, 35).breadcrumbs).toBe(false);   // старая прошивка — без следа
+  });
+
   it("FIXED_ALT и CURRENT_ALT", () => {
     expect(rescuePath(board({ gps_rescue_alt_mode: "FIXED_ALT", gps_rescue_return_alt: 60 }), 300, 20, 35).ret).toBe(60);
     expect(rescuePath(board({ gps_rescue_alt_mode: "CURRENT_ALT" }), 300, 20, 35).ret).toBe(30);

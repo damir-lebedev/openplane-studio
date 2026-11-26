@@ -19,6 +19,7 @@ export function GpsTab() {
 }
 
 const PHASES: Record<string, string> = {
+  TRAIL: N_("идёт назад по своему следу"),
   CLIMB: N_("набирает высоту"),
   FLY_HOME: N_("летит домой"),
   DESCEND: N_("снижается к дому"),
@@ -40,8 +41,9 @@ function GpsBody() {
   const board = useCopterBoard();
   const live = useCopterLive();
   const all = tabParams(board, "gps");
-  const rescue = all.filter((p) => p.name.startsWith("gps_rescue"));
-  const rest = all.filter((p) => !p.name.startsWith("gps_rescue"));
+  const isRescue = (n: string) => n.startsWith("gps_rescue") || n.startsWith("rth_");
+  const rescue = all.filter((p) => isRescue(p.name));
+  const rest = all.filter((p) => !isRescue(p.name));
   const procedure = String(board.params.failsafe_procedure?.value ?? "AUTO-LAND");
   return (
     <div className="copter-grid">
@@ -111,7 +113,9 @@ function RescueProfile({ board, live }: { board: CopterBoard; live: CopterLive |
   const y = (h: number) => H - B - (H - T - B) * (h / maxAlt);
   const pts = p.tooClose
     ? [[d, a], [d, 0]]
-    : [[d, a], [d, p.ret], [p.descent, p.ret], [0, Math.min(p.landAlt, p.ret)], [0, 0]];
+    : p.breadcrumbs
+      ? [[d, a], [d, p.ret], [0, p.ret], [0, 0]]
+      : [[d, a], [d, p.ret], [p.descent, p.ret], [0, Math.min(p.landAlt, p.ret)], [0, 0]];
   const path = pts.map(([m, h], i) => `${i ? "L" : "M"}${x(m).toFixed(1)},${y(h).toFixed(1)}`).join(" ");
   const label = (m: number, h: number, s: string, dy = -8, anchor: "middle" | "end" = "middle") => (
     <text x={x(m) + (anchor === "end" ? -10 : 0)} y={y(h) + dy} textAnchor={anchor} className="rescue-label">
@@ -148,14 +152,20 @@ function RescueProfile({ board, live }: { board: CopterBoard; live: CopterLive |
         {label(0, 0, t("дом"), 18)}
         {label(d, a, t("связь пропала"), 18)}
         {!p.tooClose && label((d + p.descent) / 2, p.ret, t("высота {h} м, {v} м/с", { h: Math.round(p.ret), v: (num(board, "gps_rescue_ground_speed", 750) / 100).toFixed(1) }))}
-        {!p.tooClose && p.descent > 0 && label(p.descent, p.ret, t("снижение с {m} м", { m: Math.round(p.descent) }), 16, "end")}
-        {!p.tooClose && label(0, Math.min(p.landAlt, p.ret), t("медленно с {h} м", { h: Math.round(Math.min(p.landAlt, p.ret)) }), 4, "end")}
+        {!p.tooClose && !p.breadcrumbs && p.descent > 0 && label(p.descent, p.ret, t("снижение с {m} м", { m: Math.round(p.descent) }), 16, "end")}
+        {!p.tooClose && !p.breadcrumbs && label(0, Math.min(p.landAlt, p.ret), t("медленно с {h} м", { h: Math.round(Math.min(p.landAlt, p.ret)) }), 4, "end")}
+        {!p.tooClose && p.breadcrumbs && label(0, p.ret / 2, t("вниз над домом"), 4, "end")}
       </svg>
       <p className="hint">
         {p.tooClose
           ? t("Ближе gps_rescue_min_start_dist — не летит, а сразу садится на месте.")
           : t("Около {s} с до касания. Проверки в пути (GPS пропал, не приближается, улетает) — посадка на месте.", { s: Math.round(p.seconds) })}
       </p>
+      {p.breadcrumbs && (
+        <p className="hint">
+          {t("След (rth_breadcrumbs): если коптер ниже, чем летал на последних {m} м пути (залетел под кроны, во двор), он сначала идёт назад тем же путём до места, где был высоко, и только там набирает высоту. Прямая домой через запретную зону геозабора — тоже по следу.", { m: num(board, "rth_path_m", 100) })}
+        </p>
+      )}
     </div>
   );
 }
