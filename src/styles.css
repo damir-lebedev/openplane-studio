@@ -1927,6 +1927,144 @@ textarea {
   font-size: 13px;
   color: var(--text-2);
 }
+/* 127: шкала банки на вкладке «Питание» */
+.cell-scale {
+  position: relative;
+  display: flex;
+  height: 30px;
+  margin-top: 26px;
+}
+.cell-zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text);
+  border-right: 1px solid var(--bg);
+}
+.cell-zone span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  padding: 0 4px;
+}
+.cell-zone:first-child {
+  border-radius: 8px 0 0 8px;
+}
+.cell-zone.last {
+  border-radius: 0 8px 8px 0;
+  border-right: none;
+}
+.cell-zone.critical {
+  background: var(--err-soft);
+  box-shadow: inset 0 -3px 0 var(--err);
+}
+.cell-zone.warning {
+  background: var(--warn-soft);
+  box-shadow: inset 0 -3px 0 var(--warn);
+}
+.cell-zone.ok {
+  background: var(--ok-soft);
+  box-shadow: inset 0 -3px 0 var(--ok);
+}
+.cell-zone.full {
+  background: var(--accent-soft);
+  box-shadow: inset 0 -3px 0 var(--accent);
+}
+.cell-mark {
+  position: absolute;
+  top: -6px;
+  bottom: -6px;
+  width: 3px;
+  margin-left: -1.5px;
+  border-radius: 2px;
+  background: var(--text);
+}
+.cell-mark b {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: var(--panel-3);
+  border: 1px solid var(--line-2);
+}
+.cell-mark.critical b {
+  border-color: var(--err);
+}
+.cell-mark.warning b {
+  border-color: var(--warn);
+}
+.cell-ticks {
+  position: relative;
+  height: 34px;
+  margin-bottom: 6px;
+}
+.cell-ticks span {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.cell-ticks i {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-3);
+}
+.bat-steps {
+  margin: 4px 0 6px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+.bat-steps li.warning b {
+  color: var(--warn);
+}
+.bat-steps li.critical b {
+  color: var(--err);
+}
+.cap-bar {
+  position: relative;
+  height: 24px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+.cap-fill {
+  height: 100%;
+  background: var(--ok-soft);
+  box-shadow: inset 0 -3px 0 var(--ok);
+}
+.cap-fill.warning {
+  background: var(--warn-soft);
+  box-shadow: inset 0 -3px 0 var(--warn);
+}
+.cap-fill.critical {
+  background: var(--err-soft);
+}
+.cap-alert {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--warn);
+}
+.cap-bar span {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  font-size: 12px;
+}
 .import-groups {
   display: flex;
   flex-direction: column;

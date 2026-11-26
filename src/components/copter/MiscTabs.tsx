@@ -8,11 +8,12 @@ import { useEffect, useRef, useState } from "react";
 import { api, errorText } from "../../api";
 import { VTX_BANDS, vtxFrequency } from "../../core/copter";
 import { CopterParam, CopterTab, num, tabParams, yawSpinThreshold } from "../../core/copterParams";
+import { batteryPlan, capacityBar, CellScale, cellScale, CellZone, scalePos } from "../../core/battery";
 import { BOARD_ALIGN_PARAMS } from "../../core/imuAlign";
 import { OVERLOAD_TEXT } from "../../core/parts";
 import { isGeofenceParam } from "../../core/geofence";
 import { isTrainingParam } from "../../core/training";
-import { t } from "../../i18n";
+import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamList, shown, useCopterBoard, useCopterLink, useCopterLive } from "./common";
 import { FailsafeDrillCard } from "./FailsafeDrill";
@@ -201,8 +202,88 @@ function PowerBody() {
           </button>
         </div>
       </div>
+      <CellScaleCard scale={cellScale(board, live && live.v > 0.5 ? live.cell : undefined)} mah={live?.mah} />
       <ParamList title={t("Батарея и предупреждения")} params={cells} />
       <ParamList title={t("Датчики напряжения и тока")} params={meter} />
+    </div>
+  );
+}
+
+const ZONE_TEXT: Record<CellZone, string> = {
+  critical: N_("пусто — CRITICAL"),
+  warning: N_("домой — WARNING"),
+  ok: N_("летать"),
+  full: N_("полная"),
+};
+
+const TICKS: [keyof Pick<CellScale, "min" | "warn" | "full" | "max">, string][] = [
+  ["min", "min"],
+  ["warn", "warning"],
+  ["full", "full"],
+  ["max", "max"],
+];
+
+/** 127: шкала банки с порогами тревог, расход ёмкости и ход разряда. */
+function CellScaleCard({ scale: s, mah }: { scale: CellScale; mah?: number }) {
+  const board = useCopterBoard();
+  const plan = batteryPlan(board);
+  const cap = capacityBar(board, mah);
+  const pack = (v: number) => (s.cells > 0 ? ` (${(v * s.cells).toFixed(1)} ${t("В")})` : "");
+  return (
+    <div className="card wide">
+      <h3>{t("Банка: пороги и тревоги")}</h3>
+      <p className="sub">
+        {s.cells > 0
+          ? t("Батарея {n}S: пороги на банку, в скобках — на всю батарею.", { n: s.cells })
+          : t("Число банок не задано — battery_cells на вкладке «Что подключено» или force_battery_cell_count.")}
+      </p>
+      <div className="cell-scale">
+        {s.zones.map((z, i) => (
+          <div key={z.zone} className={`cell-zone ${z.zone}${i === s.zones.length - 1 ? " last" : ""}`} style={{ width: `${((z.to - z.from) / (s.hi - s.lo)) * 100}%` }}>
+            <span>{t(ZONE_TEXT[z.zone])}</span>
+          </div>
+        ))}
+        {s.pos !== undefined && s.cell !== undefined && (
+          <div className={`cell-mark ${s.zone}`} style={{ left: `${(s.pos * 100).toFixed(2)}%` }} title={t("сейчас")}>
+            <b className="mono">{s.cell.toFixed(2)}</b>
+          </div>
+        )}
+      </div>
+      <div className="cell-ticks">
+        {TICKS.map(([key, name]) => (
+          <span key={key} className="mono" style={{ left: `${(scalePos(s, s[key]) * 100).toFixed(2)}%` }}>
+            {s[key].toFixed(2)}
+            <i>{name}</i>
+          </span>
+        ))}
+      </div>
+      <ol className="bat-steps">
+        {plan.steps.map((st) => (
+          <li key={st.at} className={st.at}>
+            <b>{st.at === "warning" ? "WARNING" : "CRITICAL"}</b>{" "}
+            {t("банка ниже {v} В{pack} дольше {s} с", { v: st.volts.toFixed(2), pack: pack(st.volts), s: st.delay.toFixed(1) })}
+            {" — "}
+            {st.at === "warning"
+              ? t("пора домой; ниже без нагрузки — ARM не даётся")
+              : plan.cutoff < 100
+                ? t("батарея пуста; газ за 10 с плавно ограничивается до {p}%", { p: plan.cutoff })
+                : t("батарея пуста; газ не ограничивается (vbat_cutoff_percent = 100)")}
+          </li>
+        ))}
+      </ol>
+      {!plan.alerts && <p className="hint warn-text">{t("Тревоги выключены (use_vbat_alerts = OFF): ни писка, ни надписи в очках.")}</p>}
+      <p className="hint">{t("Провал под газом короче задержки — не тревога; поднимется выше порога на {h} В — тревога снимается.", { h: plan.hysteresis.toFixed(2) })}</p>
+      {cap && (
+        <>
+          <h4>{t("Расход ёмкости")}</h4>
+          <div className="cap-bar">
+            <div className={`cap-fill ${cap.zone}`} style={{ width: `${(cap.left * 100).toFixed(1)}%` }} />
+            {cap.alerts && <div className="cap-alert" style={{ left: `${(cap.alertAt * 100).toFixed(1)}%` }} />}
+            <span className="mono">{t("осталось {p}% · {u} из {c} мА·ч", { p: Math.round(cap.left * 100), u: Math.round(cap.used), c: cap.capacity })}</span>
+          </div>
+          {!cap.alerts && <p className="hint">{t("По расходу не предупреждает: use_cbat_alerts = ON — тревога при {p}% остатка.", { p: Math.round(cap.alertAt * 100) })}</p>}
+        </>
+      )}
     </div>
   );
 }

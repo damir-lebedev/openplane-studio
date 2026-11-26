@@ -588,6 +588,34 @@ describe("вкладки коптера", () => {
     expect(screen.getByText(/не шлёт показания датчиков/)).toBeTruthy();
   });
 
+  it("«Питание»: шкала банки с порогами, текущая банка, ход тревог и расход ёмкости (127)", () => {
+    const power = (name: string, value: number | string, type: "int" | "enum" = "int") =>
+      param(name, { group: "power", scope: "master", value, default: value, from: "table", ...(type === "enum" ? { type, options: ["OFF", "ON"] } : {}) });
+    useApp.setState({
+      copterBoard: dumpedBoard([
+        power("vbat_min_cell_voltage", 330),
+        power("vbat_warning_cell_voltage", 350),
+        power("vbat_full_cell_voltage", 410),
+        power("vbat_max_cell_voltage", 430),
+        power("force_battery_cell_count", 6),
+        power("vbat_cutoff_percent", 70),
+        power("bat_capacity", 3000),
+        power("use_cbat_alerts", "OFF", "enum"),
+      ]),
+      clive: live({ v: 21.6, cell: 3.6, mah: 750, amps: 12 }),
+      cliveAt: Date.now(),
+    });
+    render(<CopterView />);
+    tab("Питание");
+    expect(screen.getByText("Банка: пороги и тревоги")).toBeTruthy();
+    expect(document.querySelectorAll(".cell-zone").length).toBe(4);
+    expect(document.querySelector(".cell-mark.ok")?.textContent).toBe("3.60");
+    expect(screen.getByText(/банка ниже 3\.50 В \(21\.0 В\) дольше 2\.0 с/)).toBeTruthy();
+    expect(screen.getByText(/газ за 10 с плавно ограничивается до 70%/)).toBeTruthy();
+    expect(screen.getByText("осталось 75% · 750 из 3000 мА·ч")).toBeTruthy();
+    expect(screen.getByText(/По расходу не предупреждает/)).toBeTruthy();
+  });
+
   it("два гироскопа: карточка только при «gyros» в кадре, состояние и выбор gyro_to_use (P42)", () => {
     render(<CopterView />);
     tab("Подготовка");

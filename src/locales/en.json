@@ -2843,5 +2843,22 @@
   "Сначала отметьте «Я снял пропеллеры».": "First tick «I removed the propellers».",
   "обратное": "reversed",
   "обычное": "normal",
-  "разворачиваю…": "reversing…"
+  "разворачиваю…": "reversing…",
+  "Банка: пороги и тревоги": "Cell: thresholds and alarms",
+  "Батарея {n}S: пороги на банку, в скобках — на всю батарею.": "{n}S battery: thresholds per cell, whole pack in brackets.",
+  "По расходу не предупреждает: use_cbat_alerts = ON — тревога при {p}% остатка.": "No alarm by consumption: use_cbat_alerts = ON — alarm at {p}% left.",
+  "Провал под газом короче задержки — не тревога; поднимется выше порога на {h} В — тревога снимается.": "A sag under throttle shorter than the delay is not an alarm; once it rises {h} V above the threshold, the alarm clears.",
+  "Расход ёмкости": "Capacity used",
+  "Тревоги выключены (use_vbat_alerts = OFF): ни писка, ни надписи в очках.": "Alarms are off (use_vbat_alerts = OFF): no beeping, no warning in the goggles.",
+  "Число банок не задано — battery_cells на вкладке «Что подключено» или force_battery_cell_count.": "Cell count is not set — battery_cells on the “What is connected” tab or force_battery_cell_count.",
+  "банка ниже {v} В{pack} дольше {s} с": "cell below {v} V{pack} for longer than {s} s",
+  "батарея пуста; газ за 10 с плавно ограничивается до {p}%": "battery empty; throttle is smoothly limited to {p}% over 10 s",
+  "батарея пуста; газ не ограничивается (vbat_cutoff_percent = 100)": "battery empty; throttle is not limited (vbat_cutoff_percent = 100)",
+  "осталось {p}% · {u} из {c} мА·ч": "{p}% left · {u} of {c} mAh",
+  "пора домой; ниже без нагрузки — ARM не даётся": "time to go home; below it at rest, arming is refused",
+  "сейчас": "now",
+  "пусто — CRITICAL": "empty — CRITICAL",
+  "домой — WARNING": "go home — WARNING",
+  "летать": "fly",
+  "полная": "full"
 }
