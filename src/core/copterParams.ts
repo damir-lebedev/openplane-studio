@@ -64,6 +64,22 @@ export interface LoopMargin {
   hz: number;
   /** ниже этого прошивка предупреждает, дБ */
   min: number;
+  /** 044: модель для ступеньки во вкладке «PID» (core/pidStep.ts); нет — старая прошивка */
+  model?: LoopModel;
+}
+
+/** Модель контура с платы (margin.model). Коэффициенты — в миллионных долях единиц прошивки. */
+export interface LoopModel {
+  /** частота цикла, Гц */
+  loop: number;
+  /** запаздывание мотора, с */
+  tau: number;
+  /** задержка без фильтров гироскопа, с */
+  delay: number;
+  /** integrated yaw: у рысканья другой регулятор — не рисуется */
+  iy: number;
+  /** по осям: [K (°/с²) на единицу команды, P, I, D (с d_max), FF] */
+  ax: [number, number, number, number, number][];
 }
 
 /** Строка aux: [№, режим, канал AUX (0 = AUX1), от, до, логика, связь] — как в CLI BF. */

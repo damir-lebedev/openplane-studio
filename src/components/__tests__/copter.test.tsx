@@ -969,6 +969,22 @@ describe("вкладки коптера", () => {
     expect(screen.getByText(/failsafe_procedure = AUTO-LAND/)).toBeTruthy();
     expect(document.querySelector(".rescue-path")?.getAttribute("d")).toMatch(/^M40\.0,/);
   });
+
+  it("PID (044): ступенька на модели с платы по трём осям; без модели — карточки нет", () => {
+    render(<CopterView />);
+    tab("PID");
+    expect(screen.queryByTestId("pid-step")).toBeNull();   // старая прошивка: margin без model
+    const model = { loop: 1000, tau: 0.0315, delay: 0.0024, iy: 0, ax: [[148166, 1601.45, 9263.84, 14.196, 4.724], [148166, 1505.36, 9263.84, 14.196, 4.724], [19214, 687.8, 1429.26, 0, 36.431]] as [number, number, number, number, number][] };
+    act(() => useApp.setState((st) => ({ copterBoard: { ...st.copterBoard, header: { ...st.copterBoard.header!, margin: { gm: 8.6, pm: 28, hz: 15.5, min: 6, model } } } })));
+    const card = screen.getByTestId("pid-step");
+    expect(card.querySelectorAll("path.tune-line").length).toBe(3);
+    expect(within(card).getByText(/Крен/)).toBeTruthy();
+    expect(screen.getByTestId("pid-step-roll").textContent).toBe("быстро и без раскачки");
+    // P крена вчетверо больше — плата прислала новую модель, картинка говорит «перелёт» или «раскачка»
+    const hot = { ...model, ax: [[148166, 6405.8, 9263.84, 0, 4.724], model.ax[1], model.ax[2]] as [number, number, number, number, number][] };
+    act(() => useApp.setState((st) => ({ copterBoard: { ...st.copterBoard, header: { ...st.copterBoard.header!, margin: { gm: 2, pm: 10, hz: 40, min: 6, model: hot } } } })));
+    expect(screen.getByTestId("pid-step-roll").textContent).not.toBe("быстро и без раскачки");
+  });
 });
 
 describe("память настроек", () => {

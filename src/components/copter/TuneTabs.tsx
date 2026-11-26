@@ -9,6 +9,8 @@ import { FILTER_PARAMS } from "../../core/filters";
 import { MarginBar, NeedBoard, ParamInput, ParamList, ParamRow, ParamSlider, ProfilePicker, useCopterBoard, useCopterLink } from "./common";
 import { FilterChart } from "./FilterChart";
 import { SpectrumChart } from "./SpectrumChart";
+import { Plot } from "./AutotuneTab";
+import { pidSteps, stepVerdict } from "../../core/pidStep";
 
 /** Темы настроек PID-профиля по началу имени. */
 const PID_TOPICS: { title: string; sub?: string; match: (n: string) => boolean }[] = [
@@ -99,6 +101,76 @@ function SliderCard({ board, title, sub, mode, sliders }: { board: CopterBoard; 
   );
 }
 
+const VERDICT_TEXT = {
+  ok: N_("быстро и без раскачки"),
+  slow: N_("вяло: P или FF можно поднять"),
+  overshoot: N_("перелёт: P или FF великоваты, D мало"),
+  unstable: N_("раскачка: так летать нельзя"),
+} as const;
+
+/** 044 · Ступенька на модели коптера при PID, что работают: меняешь число — видишь отклик. */
+export function StepCard({ board }: { board: CopterBoard }) {
+  const steps = pidSteps(board);
+  if (!steps) return null;
+  const top = Math.min(2, Math.max(1.4, Math.ceil(Math.max(...steps.flatMap((s) => s.points.map(([, v]) => v)), 0) * 10.5) / 10));
+  return (
+    <div className="card wide" data-testid="pid-step">
+      <h3>{t("Отклик на резкий стик")}</h3>
+      <p className="sub">{t("Ступенька в 40 % стика на модели коптера при тех PID и фильтрах, что работают сейчас. Линия должна быстро дойти до 1 и не прыгать выше — прыгает, значит раскачается и в воздухе.")}</p>
+      <div className="row" style={{ gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div className="grow" style={{ minWidth: 280, maxWidth: 560 }}>
+          <Plot
+            title={t("Доля уставки по времени, мс")}
+            x={[0, 200]}
+            y={[0, top]}
+            xTicks={[0, 50, 100, 150, 200]}
+            yTicks={top > 1.6 ? [0, 0.5, 1, 1.5, 2].filter((v) => v <= top) : [0, 0.5, 1]}
+            unit={t("мс")}
+            lines={[]}
+          >
+            {(fx, fy) => (
+              <>
+                <line x1={fx(0)} x2={fx(200)} y1={fy(1)} y2={fy(1)} className="tune-target" />
+                {steps.map((s) => (
+                  <path
+                    key={s.axis}
+                    d={s.points
+                      .filter(([ms]) => ms <= 200)
+                      .map(([ms, v], i) => `${i ? "L" : "M"}${fx(ms).toFixed(1)},${fy(v).toFixed(1)}`)
+                      .join("")}
+                    stroke={AXIS_COLORS[s.axis]}
+                    className="tune-line"
+                  />
+                ))}
+              </>
+            )}
+          </Plot>
+        </div>
+        <div className="kv">
+          {steps.map((s) => {
+            const v = stepVerdict(s.step);
+            return (
+              <span key={s.axis} style={{ display: "contents" }}>
+                <span style={{ color: AXIS_COLORS[s.axis] }}>{t(AXIS_LABELS[s.axis])}</span>
+                <span>
+                  <span className="mono">
+                    {t("{dps} °/с · до 90 % за {ms} мс · перелёт {os} %", { dps: Math.round(s.stepDps), ms: Math.round(s.step.rise * 1000), os: Math.round(s.step.overshoot * 100) })}
+                  </span>
+                  <br />
+                  <span className={v === "ok" ? "ok-text" : "warn-text"} data-testid={`pid-step-${s.axis}`}>
+                    {t(VERDICT_TEXT[v])}
+                  </span>
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      <p className="hint">{t("Модель знает коптер с точностью около ±30 %: проверить на деле — вкладка «Измерение и автонастройка».")}</p>
+    </div>
+  );
+}
+
 function PidBody() {
   const board = useCopterBoard();
   const source = board.params.tune_source;
@@ -136,6 +208,7 @@ function PidBody() {
         mode={board.params.simplified_pids_mode ? [[board.params.simplified_pids_mode, t("Ползунки работают на осях")]] : []}
         sliders={sliders}
       />
+      <StepCard board={board} />
       {topics.map((tp) => (
         <ParamList key={tp.title} title={t(tp.title)} sub={tp.sub ? t(tp.sub) : undefined} params={tp.params} />
       ))}

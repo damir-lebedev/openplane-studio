@@ -2806,5 +2806,14 @@
   "— свободен —": "— free —",
   "Нуль на ровном": "Zero on level",
   "Покажите, как плата стоит в раме: три позы по подсказкам. Плате из Betaflight хватит нуля акселерометра: коптер ровно на столе.": "Show how the board sits in the frame: three poses following the prompts. A board from Betaflight only needs an accelerometer zero: the copter level on the table.",
-  "не откалибрована установка платы — «Подготовка» → «Установка платы» (плата из BF — нуль на ровном)": "board alignment not calibrated — Setup → Board alignment (BF board — zero on level)"
+  "не откалибрована установка платы — «Подготовка» → «Установка платы» (плата из BF — нуль на ровном)": "board alignment not calibrated — Setup → Board alignment (BF board — zero on level)",
+  "{dps} °/с · до 90 % за {ms} мс · перелёт {os} %": "{dps} °/s · 90 % in {ms} ms · overshoot {os} %",
+  "Доля уставки по времени, мс": "Share of setpoint over time, ms",
+  "Модель знает коптер с точностью около ±30 %: проверить на деле — вкладка «Измерение и автонастройка».": "The model knows the quad to about ±30 %: check it for real on the “Measure and autotune” tab.",
+  "Отклик на резкий стик": "Response to a sharp stick move",
+  "Ступенька в 40 % стика на модели коптера при тех PID и фильтрах, что работают сейчас. Линия должна быстро дойти до 1 и не прыгать выше — прыгает, значит раскачается и в воздухе.": "A step to 40 % stick on the quad model with the PIDs and filters that are active now. The line should reach 1 quickly and not jump above it — if it does, the quad will oscillate in the air too.",
+  "быстро и без раскачки": "fast, no oscillation",
+  "вяло: P или FF можно поднять": "sluggish: P or FF can go up",
+  "перелёт: P или FF великоваты, D мало": "overshoot: P or FF a bit high, D too low",
+  "раскачка: так летать нельзя": "oscillation: do not fly like this"
 }

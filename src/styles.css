@@ -3437,6 +3437,11 @@ textarea {
 .tune-line.model {
   stroke: var(--warn);
 }
+/* 044: ступенька во вкладке «PID» — уставка пунктиром */
+.tune-target {
+  stroke: var(--text-3);
+  stroke-dasharray: 4 4;
+}
 .tune-dot {
   fill: var(--text-2);
 }

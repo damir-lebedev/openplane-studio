@@ -81,7 +81,7 @@ function runAnalysis(request: TuneRequest): Promise<TuneReport> {
 
 // ---------------- графики ----------------
 
-interface Line {
+export interface Line {
   points: [number, number][];
   cls: string;
 }
@@ -95,7 +95,7 @@ interface Dot {
 const PW = 320,
   PH = 170;
 
-function Plot({ title, x, y, logX, xTicks, yTicks, lines, dots, unit, children }: { title: string; x: [number, number]; y: [number, number]; logX?: boolean; xTicks: number[]; yTicks: number[]; lines: Line[]; dots?: Dot[]; unit?: string; children?: (fx: (v: number) => number, fy: (v: number) => number) => React.ReactNode }) {
+export function Plot({ title, x, y, logX, xTicks, yTicks, lines, dots, unit, children }: { title: string; x: [number, number]; y: [number, number]; logX?: boolean; xTicks: number[]; yTicks: number[]; lines: Line[]; dots?: Dot[]; unit?: string; children?: (fx: (v: number) => number, fy: (v: number) => number) => React.ReactNode }) {
   const fx = (v: number) => (logX ? Math.log(Math.max(v, 1e-9) / x[0]) / Math.log(x[1] / x[0]) : (v - x[0]) / (x[1] - x[0])) * PW;
   const fy = (v: number) => PH - ((Math.min(y[1], Math.max(y[0], v)) - y[0]) / (y[1] - y[0])) * PH;
   const path = (pts: [number, number][]) =>
