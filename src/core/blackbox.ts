@@ -290,6 +290,8 @@ export function decodeFlight(bytes: Uint8Array): Flight {
   // по времени (заголовок пишется при открытии полёта — после предзаписи)
   events.sort((a, b) => a.t - b.t);
   for (const ser of Object.values(series)) sortSeries(ser);
+  // blackbox_disable_pids: моторы и газ — записью QMOT4 (те же поля, без P I D F)
+  if (!series.QCTRL && series.QMOT4) series.QCTRL = series.QMOT4;
   if (!Number.isFinite(start)) {
     start = 0;
     stop = 0;

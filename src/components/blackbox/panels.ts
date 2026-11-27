@@ -116,6 +116,19 @@ export const COPTER_PANELS = (flight: Flight | null, axis: number): PanelDef[] =
     ],
   },
   {
+    // debug_mode: debug[0..7] как в BF (запись QDEBUG; нет её — графика нет)
+    id: "debug",
+    title: N_("Отладка (debug_mode)"),
+    unit: "",
+    traces: Array.from({ length: 8 }, (_, i) => ({
+      series: "QDEBUG",
+      field: `debug${i}`,
+      label: `debug[${i}]`,
+      color: COLORS.motors[i],
+      width: 1.2,
+    })),
+  },
+  {
     id: "altitude",
     title: N_("Высота"),
     unit: N_("м"),

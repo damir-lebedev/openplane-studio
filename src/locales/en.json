@@ -2976,5 +2976,6 @@
   "не действует": "inactive",
   "профиль": "profile",
   "ручкой от центра": "knob from center",
-  "шагом": "in steps"
+  "шагом": "in steps",
+  "Отладка (debug_mode)": "Debug (debug_mode)"
 }
