@@ -184,6 +184,8 @@ export interface CopterSpectrum {
   dn: number[][];
   rpm: number[];
   src: "dshot" | "model";
+  /** Поправка модели оборотов по DShot (090): настоящие / модель; нет — старая прошивка. */
+  ms?: number;
 }
 
 export interface CopterLive {

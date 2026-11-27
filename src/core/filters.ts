@@ -206,3 +206,10 @@ export function curve(c: Chain, throttle: number, fMin = 20, fMax = 1000, n = 12
     return [f, (-total * 180) / Math.PI];
   });
 }
+
+/** На сколько процентов модель оборотов поправлена по DShot (090); null — поправки нет (меньше 2 %). */
+export function rpmModelCorrection(ms: number | undefined): number | null {
+  if (ms === undefined || !Number.isFinite(ms)) return null;
+  const pct = Math.round((ms - 1) * 100);
+  return Math.abs(pct) >= 2 ? pct : null;
+}

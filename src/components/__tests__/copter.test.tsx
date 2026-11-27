@@ -975,6 +975,11 @@ describe("вкладки коптера", () => {
     expect(chart.querySelectorAll(".spectrum-notch.rpm").length).toBeGreaterThan(4);
     expect(within(chart).getByText(/Динамические: 188 Гц/)).toBeTruthy();
     expect(within(chart).getByText(/Обороты по DShot, моторы: 150, 152, 149, 151 Гц/)).toBeTruthy();
+    expect(within(chart).queryByTestId("rpm-model-correction")).toBeNull();   // старая прошивка — без ms
+    act(() => useApp.setState({ clive: live({ spec: { bw: 15.625, db, dn: [[], [], []], rpm: [150, 152, 149, 151], src: "dshot", ms: 0.94 } }) }));
+    expect(within(screen.getByTestId("spectrum-chart")).getByTestId("rpm-model-correction").textContent).toMatch(/-6 %/);
+    act(() => useApp.setState({ clive: live({ spec: { bw: 15.625, db, dn: [[], [], []], rpm: [150], src: "model", ms: 1.01 } }) }));
+    expect(within(screen.getByTestId("spectrum-chart")).queryByTestId("rpm-model-correction")).toBeNull();   // меньше 2 % — не шумим
   });
 
   it("расходы: кривая и максимум по оси", () => {

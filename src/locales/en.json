@@ -2917,5 +2917,6 @@
   "Порядок выходов": "Output order",
   "Проверка показала, что крутится не тот мотор? Нажмите на схеме на два мотора — они поменяются выходами платы.": "Wrong motor spinning in the test? Tap two motors on the diagram and they swap board outputs.",
   "Теперь — мотор, с которым поменять M{n}.": "Now tap the motor to swap M{n} with.",
-  "выход {n}": "output {n}"
+  "выход {n}": "output {n}",
+  "Модель оборотов поправлена по DShot: {pct} % — если телеметрия пропадёт, режекторы останутся на месте": "RPM model corrected from DShot: {pct} % — if telemetry drops out, the notches stay in place"
 }

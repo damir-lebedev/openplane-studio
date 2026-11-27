@@ -3,7 +3,7 @@
 // пиками спектра) и RPM-фильтра (по оборотам: DShot — на каждый мотор,
 // модель — на средних). Без живых кадров — подсказка, как увидеть вибрацию.
 
-import { rpmMarks, spectrumBars, SPECTRUM_DB_MAX } from "../../core/filters";
+import { rpmMarks, rpmModelCorrection, spectrumBars, SPECTRUM_DB_MAX } from "../../core/filters";
 import { t } from "../../i18n";
 import { useCopterBoard, useCopterLive } from "./common";
 
@@ -21,6 +21,7 @@ export function SpectrumChart() {
   const bars = spec ? spectrumBars(spec) : [];
   const dyn = spec ? [...new Set(spec.dn.flat().filter((f) => f > 0).map(Math.round))] : [];
   const rpm = spec ? rpmMarks(spec.rpm, harmonics) : [];
+  const corr = rpmModelCorrection(spec?.ms);
   const grid = [100, 200, 300, 400, 500].filter((f) => f < fMax);
   return (
     <div className="card wide spectrum-chart" data-testid="spectrum-chart">
@@ -63,6 +64,11 @@ export function SpectrumChart() {
                 ? t("Обороты по DShot, моторы: {list} Гц", { list: spec.rpm.map(Math.round).join(", ") || "—" })
                 : t("Обороты по модели: {hz} Гц", { hz: Math.round(spec.rpm[0] ?? 0) })}
             </span>
+            {corr !== null && (
+              <span className="filter-key" data-testid="rpm-model-correction">
+                {t("Модель оборотов поправлена по DShot: {pct} % — если телеметрия пропадёт, режекторы останутся на месте", { pct: corr > 0 ? `+${corr}` : String(corr) })}
+              </span>
+            )}
           </div>
         </>
       )}
