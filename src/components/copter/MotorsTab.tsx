@@ -5,6 +5,8 @@
 // направление мотора и «пискнуть» командой (dshot N 7|8 12, как мастер
 // направления конфигуратора BF): мотор выбирается кликом по схеме. Мастер
 // направления (096): все крутятся тихо, щелчок по мотору разворачивает его.
+// Порядок выходов (076, motor_output_reordering): два щелчка по схеме —
+// моторы меняются выходами платы.
 
 import { TriangleAlert, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -14,6 +16,7 @@ import { cancelSteps, Dir, flipSteps, runSteps, saveSteps, startSteps, Step, wiz
 import { ESC_HOT_C, escRows, escTotalAmps } from "../../core/escTelemetry";
 import { DYN_IDLE_PARAMS, dynIdleFrom, DynIdleState, dynIdleState, throttleCutTrace } from "../../core/dynIdle";
 import { EZ_DEFAULT, MIX_CASES, MIXER_TYPES, MixerType, mixQuadX } from "../../core/mixerType";
+import { parseMotorOrder, swapOutputs } from "../../core/motorOrder";
 import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
 import { NeedBoard, ParamList, ParamRow, useCopterBoard, useCopterLink, useCopterLive } from "./common";
@@ -146,6 +149,8 @@ export function MotorsBody({ simple = false }: { simple?: boolean }) {
         </button>
         <p className="hint">{t("Не больше {max} % тяги. Плата держит команду 1 с: закрыли приложение или вынули кабель — моторы встанут сами.", { max })}</p>
       </div>
+
+      <OutputOrderCard motors={motors} />
 
       {dshot && <DirectionCard motors={motors} picked={picked} busy={armed || spinning} wizard={wizard} canWizard={propsOff && !armed} pct={pct} />}
 
@@ -368,6 +373,43 @@ export function EscCard() {
 }
 
 /** Где мотор на раме, словами: «передний правый». */
+/** Порядок выходов: щелчок по двум моторам схемы — они меняются выходами платы. */
+export function OutputOrderCard({ motors }: { motors: FrameMotor[] }) {
+  const board = useCopterBoard();
+  const set = useApp((s) => s.copterSet);
+  const pending = useApp((s) => s.copterBoard.pending.motor_output_reordering);
+  const { armed } = useCopterLink();
+  const [first, setFirst] = useState<number | null>(null);
+  const p = board.params.motor_output_reordering;
+  if (!p || motors.length === 0) return null;
+  const order = parseMotorOrder(String(pending ?? p.value ?? "")) ?? parseMotorOrder("")!;
+  const send = (o: number[]) => void set(p.name, o.join(","));
+  const pick = (i: number) => {
+    if (armed) return;
+    if (first === null) return setFirst(i);
+    if (first !== i) send(swapOutputs(order, first, i));
+    setFirst(null);
+  };
+  const shuffled = order.slice(0, motors.length).some((v, i) => v !== i);
+  return (
+    <div className="card" data-card="output-order">
+      <h3>{t("Порядок выходов")}</h3>
+      <FrameDiagram motors={motors} labels={motors.map((_, i) => t("выход {n}", { n: order[i] + 1 }))} selected={first ?? undefined} onPick={pick} />
+      <p className="hint">
+        {first === null
+          ? t("Проверка показала, что крутится не тот мотор? Нажмите на схеме на два мотора — они поменяются выходами платы.")
+          : t("Теперь — мотор, с которым поменять M{n}.", { n: first + 1 })}
+      </p>
+      <p className="hint">{t("Новый порядок выходов и протокол регуляторов включаются после сохранения и перезагрузки платы.")}</p>
+      {shuffled && (
+        <button className="btn ghost small" disabled={armed} onClick={() => send(parseMotorOrder("")!)}>
+          {t("По порядку")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function motorWhere(m: FrameMotor): string {
   const fore = m[0] > 0.2 ? t("передний") : m[0] < -0.2 ? t("задний") : "";
   const side = m[1] > 0.2 ? t("правый") : m[1] < -0.2 ? t("левый") : "";
@@ -463,6 +505,7 @@ export function FrameDiagram({
   reversed = false,
   selected,
   onPick,
+  labels,
 }: {
   motors: FrameMotor[];
   out?: number[];
@@ -470,6 +513,8 @@ export function FrameDiagram({
   reversed?: boolean;
   selected?: number;
   onPick?: (i: number) => void;
+  /** подпись под мотором вместо направления (порядок выходов) */
+  labels?: string[];
 }) {
   const c = 130;
   const arm = 88;
@@ -495,7 +540,7 @@ export function FrameDiagram({
               {i + 1}
             </text>
             <text y={46} textAnchor="middle" className="frame-dir">
-              {reversed ? (level > 0 ? t("наоборот") : t("стоит")) : cw ? t("по часовой") : t("против")}
+              {labels?.[i] ?? (reversed ? (level > 0 ? t("наоборот") : t("стоит")) : cw ? t("по часовой") : t("против"))}
             </text>
           </g>
         );

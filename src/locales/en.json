@@ -2911,5 +2911,11 @@
   "Фильтр в самом чипе гироскопа (gyro_hardware_lpf) — до фильтров прошивки. Шире NORMAL — меньше задержка, но больше шума: посмотрите спектр.": "Filter inside the gyro chip itself (gyro_hardware_lpf), ahead of the firmware filters. Wider than NORMAL means less delay but more noise: check the spectrum.",
   "Чип: {option}, ~{hz} Гц, ~{ms} мс": "Chip: {option}, ~{hz} Hz, ~{ms} ms",
   "после save и перезапуска": "after save and restart",
-  "шире проверенного — больше шума": "wider than tested: more noise"
+  "шире проверенного — больше шума": "wider than tested: more noise",
+  "Новый порядок выходов и протокол регуляторов включаются после сохранения и перезагрузки платы.": "The new output order and ESC protocol take effect after saving and rebooting the board.",
+  "По порядку": "In order",
+  "Порядок выходов": "Output order",
+  "Проверка показала, что крутится не тот мотор? Нажмите на схеме на два мотора — они поменяются выходами платы.": "Wrong motor spinning in the test? Tap two motors on the diagram and they swap board outputs.",
+  "Теперь — мотор, с которым поменять M{n}.": "Now tap the motor to swap M{n} with.",
+  "выход {n}": "output {n}"
 }

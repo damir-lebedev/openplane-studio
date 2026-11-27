@@ -462,6 +462,30 @@ describe("вкладки коптера", () => {
     expect(sent.filter((c) => c.startsWith("dshot"))).toEqual(["dshot 1 8 12", "dshot 1 1", "dshot all 1"]);
   });
 
+  it("моторы: порядок выходов — два щелчка по схеме меняют моторы выходами (motor_output_reordering)", () => {
+    act(() =>
+      useApp.setState((s) => ({
+        copterBoard: dumpedBoard([
+          ...s.copterBoard.order.map((n) => s.copterBoard.params[n]),
+          param("motor_output_reordering", { type: "string", group: "motors", scope: "master", default: "", value: "", from: "table", text: "порядок выходов" }),
+        ]),
+      })),
+    );
+    const { container } = render(<CopterView />);
+    tab("Моторы");
+    const card = () => container.querySelector('[data-card="output-order"]')!;
+    expect(card().textContent).toContain("выход 1");
+    expect(card().textContent).not.toContain("По порядку");
+    const picks = () => card().querySelectorAll(".frame-pick");
+    fireEvent.click(picks()[0]);
+    expect(card().textContent).toContain("с которым поменять M1");
+    fireEvent.click(picks()[2]);
+    expect(sent).toContain("set motor_output_reordering 2,1,0,3,4,5,6,7");
+    expect(card().textContent).toContain("выход 3");
+    fireEvent.click(screen.getByRole("button", { name: "По порядку" }));
+    expect(sent).toContain("set motor_output_reordering 0,1,2,3,4,5,6,7");
+  });
+
   it("моторы: мастер направления — крутит все, щелчок разворачивает, «Сохранить» — dshot all 12", async () => {
     vi.useFakeTimers();
     act(() => useApp.setState((s) => ({ copterBoard: { ...s.copterBoard, header: { ...s.copterBoard.header!, dshotCommands: true } } })));
