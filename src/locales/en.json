@@ -3020,5 +3020,12 @@
   "октава 3..8": "octave 3..8",
   "после = нужно число": "a number is needed after =",
   "у паузы нет диеза": "a pause has no sharp",
-  "умолчания — через запятую": "defaults are comma-separated"
+  "умолчания — через запятую": "defaults are comma-separated",
+  "Стоп моторам": "Stop motors",
+  "Треки моторами: моторы крутятся и поют оборотами — только без винтов! Имя трека в «И моторами» — его играет тумблер MELODY.": "Motor tracks: the motors spin and sing by RPM — props off only! Pick a track name in \"Also with motors\" and the MELODY switch plays it.",
+  "Коробейники": "Korobeiniki",
+  "В пещере горного короля": "In the Hall of the Mountain King",
+  "К Элизе": "Für Elise",
+  "Гамма (проверка)": "Scale (test)",
+  "Свой трек": "Custom track"
 }

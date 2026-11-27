@@ -109,7 +109,9 @@ function MelodyCard() {
   const passive = Number(board.params.beeper_frequency?.value ?? 0) > 0;
   const motors = board.params.beeper_melody_motors;
   const startup = board.params.beeper_melody_startup;
-  const error = board.errors.melody ?? board.errors.beeper_melody;
+  const error = board.errors.melody ?? board.errors.beeper_melody ?? board.errors.music;
+  // треки моторами по оборотам (176c) — значения beeper_melody_motors после OFF/ON
+  const tracks = (motors?.options ?? []).filter((o) => o !== "OFF" && o !== "ON");
 
   const listen = () => {
     stopRef.current?.();
@@ -186,9 +188,36 @@ function MelodyCard() {
       {!passive && <p className="hint">{t("Пищалка активная (beeper_frequency = 0): звучит только ритм мелодии, одной высотой. Ноты — у пассивной пищалки.")}</p>}
       {motors && <ParamRow p={motors} title={t("И моторами")} />}
       {startup && <ParamRow p={startup} title={t("При включении")} />}
+      {tracks.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <p className="hint warn-text">{t("Треки моторами: моторы крутятся и поют оборотами — только без винтов! Имя трека в «И моторами» — его играет тумблер MELODY.")}</p>
+          <div className="row" style={{ gap: 6, flexWrap: "wrap" }}>
+            {tracks.map((name) => (
+              <button key={name} className="btn ghost small" disabled={armed} onClick={() => void cmd(`music play ${name}`)}>
+                <Play size={14} />
+                {trackTitles()[name] ?? name}
+              </button>
+            ))}
+            <button className="btn ghost small" onClick={() => void cmd("music off")}>
+              <Square size={14} />
+              {t("Стоп моторам")}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+// Встроенные треки прошивки (copter/MotorTracks.h) — по-человечески.
+const trackTitles = (): Record<string, string> => ({
+  korobeiniki: t("Коробейники"),
+  ode: t("Ода к радости"),
+  grieg: t("В пещере горного короля"),
+  elise: t("К Элизе"),
+  scale: t("Гамма (проверка)"),
+  custom: t("Свой трек"),
+});
 
 // Ноты картинкой: по времени — вправо, по высоте — вверх; паузы пустые.
 function MelodyRoll({ notes }: { notes: MelodyNote[] }) {

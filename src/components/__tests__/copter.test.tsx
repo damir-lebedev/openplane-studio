@@ -1553,3 +1553,30 @@ describe("порты (P63)", () => {
     expect(screen.getByText(/не сообщает свои UART/)).toBeTruthy();
   });
 });
+
+describe("треки моторами (176c)", () => {
+  beforeEach(() => {
+    sent.length = 0;
+    connect();
+    act(() =>
+      useApp.setState((st) => ({
+        copterBoard: dumpedBoard([
+          ...st.copterBoard.order.map((n) => st.copterBoard.params[n]),
+          param("beeper_melody", { type: "string", group: "beeper", scope: "master", value: "", default: "", from: "table" }),
+          param("beeper_melody_motors", { type: "enum", group: "beeper", scope: "master", options: ["OFF", "ON", "korobeiniki", "scale", "custom"], value: "OFF", default: "OFF", from: "table" }),
+        ]),
+      })),
+    );
+  });
+  afterEach(cleanup);
+
+  it("кнопка трека — music play, «Стоп моторам» — music off, предупреждение про винты", async () => {
+    render(<CopterView />);
+    tab("Пищалка");
+    expect(screen.getByText(/только без винтов/)).toBeTruthy();
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Коробейники" })));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Стоп моторам" })));
+    expect(sent).toEqual(["music play korobeiniki", "music off"]);
+    expect(screen.getByRole("button", { name: "Свой трек" })).toBeTruthy();
+  });
+});
