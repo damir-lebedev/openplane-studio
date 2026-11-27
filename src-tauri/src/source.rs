@@ -168,6 +168,7 @@ pub fn fetch(root: &Path, version: Option<&str>, log: &dyn Fn(&str)) -> Res<Path
     }
 
     let tmp = root.join(format!(".download-{}", &commit[..12]));
+    clean_leftovers(root, &tmp);
     let _ = fs::remove_dir_all(&tmp);
     fs::create_dir_all(&tmp).map_err(err("папка загрузки"))?;
     let got = match api(&format!("git/trees/{commit}?recursive=1")) {
@@ -186,15 +187,53 @@ pub fn fetch(root: &Path, version: Option<&str>, log: &dyn Fn(&str)) -> Res<Path
         return Err("эта версия прошивки старая — без tools/opconfig.py, приложение с ней не работает".into());
     }
 
-    // Прежний снимок (или старая git-копия) — заменить целиком.
+    // Прежний снимок (или старая git-копия) — заменить целиком. Сначала
+    // отодвинуть в сторону одним переименованием: если папку держит
+    // программа, переименование не пройдёт и снимок останется целым (прямое
+    // удаление успевало стереть часть файлов, в т.ч. метку, и падало).
     if dest.exists() {
-        fs::remove_dir_all(&dest).map_err(|e| format!("не удалить прежние исходники {}: {e} — закройте программы, открывшие эту папку", dest.display()))?;
+        let killed = crate::system::kill_running_from(&dest);
+        if killed > 0 {
+            log(&format!("Остановлен симулятор из прежних исходников ({killed} проц.)"));
+        }
+        let old = root.join(format!(".old-{}", &commit[..12]));
+        let _ = fs::remove_dir_all(&old);
+        move_dir(&dest, &old).map_err(|e| format!("не удалить прежние исходники {}: {e} — закройте программы, открывшие эту папку (редактор, проводник, консоль), и повторите", dest.display()))?;
+        let _ = fs::remove_dir_all(&old); // не удалилось — уберёт следующая загрузка
     }
     fs::rename(&tmp, &dest).map_err(err("папка исходников"))?;
     let marker = serde_json::json!({ "repo": REPO, "ref": reference, "commit": commit });
     fs::write(dest.join(MARKER), serde_json::to_string_pretty(&marker).unwrap_or_default()).map_err(err("метка исходников"))?;
     log(&format!("Исходники прошивки: {}", dest.display()));
     Ok(dest)
+}
+
+/// Переименовать папку; Windows отпускает файлы только что убитого процесса
+/// (и антивирус — проверенные) не сразу, поэтому несколько попыток.
+fn move_dir(from: &Path, to: &Path) -> std::io::Result<()> {
+    let mut last = None;
+    for attempt in 0..10 {
+        if attempt > 0 {
+            std::thread::sleep(std::time::Duration::from_millis(300));
+        }
+        match fs::rename(from, to) {
+            Ok(()) => return Ok(()),
+            Err(e) => last = Some(e),
+        }
+    }
+    Err(last.unwrap())
+}
+
+/// Хвосты прошлых загрузок (`.download-*`, `.old-*`), кроме текущей.
+fn clean_leftovers(root: &Path, keep: &Path) {
+    let Ok(list) = fs::read_dir(root) else { return };
+    for entry in list.flatten() {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if path != keep && path.is_dir() && (name.starts_with(".download-") || name.starts_with(".old-")) {
+            let _ = fs::remove_dir_all(&path);
+        }
+    }
 }
 
 /// Нужные файлы по списку из API — одним curl, параллельно.
@@ -365,6 +404,24 @@ mod tests {
         assert!(refs.contains(&("refs/heads/main".into(), "fb6fa22e9bdfcbaa4ef098b735e24108719ad62b".into())));
         assert!(refs.contains(&("refs/tags/v1.0.0".into(), "2222222222222222222222222222222222222222".into())));
         assert!(refs.iter().any(|(n, _)| n == "HEAD"));
+    }
+
+    #[test]
+    fn leftovers_cleaned_snapshot_kept() {
+        let root = std::env::temp_dir().join("openplane-leftovers-test");
+        let _ = fs::remove_dir_all(&root);
+        for d in [".download-aaa", ".download-bbb", ".old-ccc", "OpenPlaneProject"] {
+            fs::create_dir_all(root.join(d).join("include")).unwrap();
+        }
+        clean_leftovers(&root, &root.join(".download-bbb"));
+        assert!(!root.join(".download-aaa").exists());
+        assert!(!root.join(".old-ccc").exists());
+        assert!(root.join(".download-bbb").exists());
+        assert!(root.join("OpenPlaneProject").exists());
+        move_dir(&root.join("OpenPlaneProject"), &root.join(".old-x")).unwrap();
+        assert!(root.join(".old-x").join("include").is_dir());
+        assert_eq!(crate::system::kill_running_from(&root), 0);
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

@@ -72,6 +72,10 @@ impl SitlState {
         if !exe.is_file() {
             return Err("SITL_NOT_BUILT: симулятор ещё не собран".into());
         }
+        // сирота от упавшего/убитого прошлого Studio занял бы порт и папку
+        if let Some(build) = exe.parent() {
+            crate::system::kill_running_from(build);
+        }
         let data = data_dir();
         std::fs::create_dir_all(&data).map_err(|e| format!("{}: {e}", data.display()))?;
         let mut cmd = command(&exe);

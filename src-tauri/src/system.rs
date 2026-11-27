@@ -54,6 +54,25 @@ pub fn kill_port_holders(pids: &[u32]) -> Res<usize> {
     Ok(killed)
 }
 
+/// Погасить процессы, чей exe лежит в папке `dir`. Зовётся только для своей
+/// копии исходников: оттуда запускается разве что симулятор (SITL), и если
+/// Studio прошлый раз упал или был убит, симулятор-сирота держит папку — её
+/// не обновить и не удалить (Windows: Access is denied), а порт 5761 занят.
+pub fn kill_running_from(dir: &std::path::Path) -> usize {
+    let Ok(dir) = dir.canonicalize() else { return 0 };
+    let mut sys = System::new();
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    let mut killed = 0;
+    for p in sys.processes().values() {
+        let inside = p.exe().and_then(|e| e.canonicalize().ok()).is_some_and(|e| e.starts_with(&dir));
+        if inside && p.kill() {
+            let _ = p.wait();
+            killed += 1;
+        }
+    }
+    killed
+}
+
 #[derive(Serialize)]
 pub struct DriverStatus {
     /// Плата в загрузчике видна Windows.
