@@ -224,7 +224,7 @@ const MAX_US = 2100;
 const pct = (us: number) => ((us - MIN_US) / (MAX_US - MIN_US)) * 100;
 const snap = (us: number) => Math.round(us / 25) * 25;
 
-function RangeRow({
+export function RangeRow({
   row,
   auxCount,
   us,
@@ -237,7 +237,8 @@ function RangeRow({
   us?: number;
   disabled: boolean;
   onChange: (r: AuxRow) => void;
-  onRemove: () => void;
+  /** нет — без кнопки «убрать» (вкладка «Подстройки» убирает строку целиком) */
+  onRemove?: () => void;
 }) {
   const [, , ch, from, to] = row;
   const inside = us !== undefined && us >= from && us < to;
@@ -268,9 +269,11 @@ function RangeRow({
       <span className="mono hint" style={{ width: 40 }}>
         {us ?? "—"}
       </span>
-      <button className="btn ghost small" disabled={disabled} title={t("Убрать диапазон")} onClick={onRemove}>
-        <Trash2 size={14} />
-      </button>
+      {onRemove && (
+        <button className="btn ghost small" disabled={disabled} title={t("Убрать диапазон")} onClick={onRemove}>
+          <Trash2 size={14} />
+        </button>
+      )}
     </div>
   );
 }

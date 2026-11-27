@@ -1683,6 +1683,37 @@ textarea {
   gap: 8px;
   margin: 6px 0;
 }
+.adj-pic {
+  display: block;
+  margin: 10px 0 6px;
+}
+.adj-track {
+  fill: var(--bg-2);
+  stroke: var(--line);
+}
+.adj-zone {
+  fill: var(--accent-soft);
+  stroke: var(--accent-line);
+}
+.adj-zone.on {
+  fill: var(--ok-soft);
+  stroke: rgba(63, 185, 80, 0.7);
+}
+.adj-mark {
+  fill: var(--warn);
+}
+.adj-text {
+  font-size: 11px;
+  fill: var(--text-2);
+}
+.adj-text.dim {
+  font-size: 10px;
+  fill: var(--text-3);
+}
+.adj-text.strong {
+  fill: var(--text);
+  font-weight: 600;
+}
 .range-track {
   position: relative;
   flex: 1;

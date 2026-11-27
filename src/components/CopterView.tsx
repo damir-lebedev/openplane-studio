@@ -30,6 +30,7 @@ import { FlightTab } from "./copter/FlightTab";
 import { AutopilotTab } from "./copter/AutopilotTab";
 import { GpsTab } from "./copter/GpsTab";
 import { CliTab, FailsafeTab, ListTab, OtherTab, PowerTab, VtxTab } from "./copter/MiscTabs";
+import { AdjustTab } from "./copter/AdjustTab";
 import { ModesTab } from "./copter/ModesTab";
 import { MotorsTab } from "./copter/MotorsTab";
 import { OsdTab } from "./copter/OsdTab";
@@ -197,6 +198,7 @@ export function CopterView() {
           {tab === "sensors" && <SensorsTab />}
           {tab === "receiver" && <ReceiverTab />}
           {tab === "modes" && <ModesTab />}
+          {tab === "adjust" && <AdjustTab />}
           {tab === "motors" && <MotorsTab />}
           {tab === "pid" && <PidTab />}
           {tab === "rates" && <RatesTab />}

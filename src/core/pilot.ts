@@ -148,6 +148,7 @@ const TAB_PACKS: Record<CopterTab, (Pack | "guided")[]> = {
   ports: ["base"],
   pid: ["freestyle", "race", "geek"],
   rates: ["freestyle", "race", "longrange"],
+  adjust: ["freestyle", "race", "geek"],
   filters: ["freestyle", "race", "geek"],
   autotune: ["freestyle", "race", "geek"],
   vtx: ["freestyle", "race", "longrange"],

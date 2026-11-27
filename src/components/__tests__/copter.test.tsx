@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { CopterLive } from "../../api";
 import { blankCopter } from "../../core/copter";
+import { applyMessage } from "../../core/copterParams";
 import { makeProfile } from "../../core/pilot";
 import { dumpedBoard, param } from "../../core/__fixtures__/copterBoard";
 
@@ -855,6 +856,29 @@ describe("вкладки коптера", () => {
     });
     expect(sent.slice(0, 2)).toEqual(["aux 0 0 0 1700 2100 0 0", "aux 1 1 1 900 1300 0 0"]);
     expect(sent[2]).toMatch(/^aux 2 \d+ 0 1700 2100 0 0$/);
+  });
+
+  it("подстройки: строка с платы, схема хода ручки, правка, новая и убрать", async () => {
+    // AUX1 (1900) в диапазоне 900–2100 — действует; AUX4 (1000) — шаг вниз
+    act(() => useApp.setState((st) => ({ copterBoard: applyMessage(st.copterBoard, "adj", { rows: [[0, 0, 900, 2100, 18, 3, 0, 0]] }) })));
+    render(<CopterView />);
+    tab("Подстройки");
+    expect(screen.getByText("действует")).toBeTruthy();
+    expect(screen.getByText(/p_roll \d+/)).toBeTruthy();
+    const on = document.querySelector(".adj-zone.on");
+    expect(on?.parentElement?.textContent).toBe("−1");
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "ручкой от центра" }));
+    });
+    expect(sent[sent.length - 1]).toMatch(/^adjrange 0 0 0 900 2100 18 3 \d+ 20$/);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Подстройка" }));
+    });
+    expect(sent[sent.length - 1]).toBe("adjrange 1 0 0 900 2100 6 3 0 0");
+    await act(async () => {
+      fireEvent.click(screen.getByTitle("Убрать подстройку"));
+    });
+    expect(sent[sent.length - 1]).toBe("adjrange 0 0 0 900 900 0 0 0 0");
   });
 
   it("приёмник: каналы по порядку AETR и смена порядка", () => {

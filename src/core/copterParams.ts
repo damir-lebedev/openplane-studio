@@ -4,6 +4,7 @@
 // BF), ответы "@set", "@save", "@revert", "@profile", "@error", "@motor".
 // Всё здесь — без React и без связи: разбор, вкладки, кривые, импорт diff BF.
 
+import { AdjRow, parseAdj } from "./adjustments";
 import { applyFence, FenceZone } from "./geozones";
 import { N_ } from "../i18n";
 
@@ -128,10 +129,12 @@ export interface CopterBoard {
   motorTest: number[];
   /** поле и запретные зоны геозабора (ответы "@fence", core/geozones.ts) */
   fence: FenceZone[];
+  /** подстройки в полёте (ответ "@adj", core/adjustments.ts) */
+  adj: AdjRow[];
 }
 
 export function emptyBoard(): CopterBoard {
-  return { header: null, params: {}, order: [], rc: null, modes: [], loading: false, loadedAt: 0, pending: {}, errors: {}, unsaved: false, edited: [], savedAt: 0, motorTest: [], fence: [] };
+  return { header: null, params: {}, order: [], rc: null, modes: [], loading: false, loadedAt: 0, pending: {}, errors: {}, unsaved: false, edited: [], savedAt: 0, motorTest: [], fence: [], adj: [] };
 }
 
 /** Ответ платы → новое состояние (без мутаций). */
@@ -149,6 +152,8 @@ export function applyMessage(b: CopterBoard, kind: string, data: unknown, now = 
     }
     case "rc":
       return { ...b, rc: data as RcState, unsaved: b.loading ? b.unsaved : true };
+    case "adj":
+      return { ...b, adj: parseAdj(data), unsaved: b.loading ? b.unsaved : true };
     case "fence":
       return { ...b, fence: applyFence(b.fence, data as FenceZone), unsaved: b.loading ? b.unsaved : true };
     case "modes":
@@ -232,6 +237,7 @@ export type CopterTab =
   | "motors"
   | "pid"
   | "rates"
+  | "adjust"
   | "filters"
   | "autotune"
   | "failsafe"
@@ -257,6 +263,7 @@ export const TABS: { id: CopterTab; title: string; board: boolean }[] = [
   { id: "motors", title: N_("Моторы"), board: true },
   { id: "pid", title: N_("PID"), board: true },
   { id: "rates", title: N_("Расходы"), board: true },
+  { id: "adjust", title: N_("Подстройки"), board: true },
   { id: "filters", title: N_("Фильтры"), board: true },
   { id: "autotune", title: N_("Измерение и автонастройка"), board: false },
   { id: "failsafe", title: N_("Безопасность"), board: true },
@@ -777,17 +784,17 @@ export interface ImportLine {
   name?: string;
   /** группа настройки у нас; undefined — у нас такой нет */
   group?: string;
-  kind: "set" | "aux" | "map" | "rxrange" | "rxfail" | "vtx" | "profile" | "rateprofile";
+  kind: "set" | "aux" | "map" | "rxrange" | "rxfail" | "vtx" | "adjrange" | "profile" | "rateprofile";
 }
 
-const IMPORT_KINDS = new Set(["set", "aux", "map", "rxrange", "rxfail", "vtx", "profile", "rateprofile"]);
+const IMPORT_KINDS = new Set(["set", "aux", "map", "rxrange", "rxfail", "vtx", "adjrange", "profile", "rateprofile"]);
 
 /** Группы, которые по умолчанию не переносятся: настройку PID и фильтров у нас считает модель. */
 export const IMPORT_SKIP_GROUPS = ["pid", "rates", "filters"];
 
 /**
  * Строки из «diff all» Betaflight, которые наша прошивка поймёт: set с
- * известным именем, aux, map, rxrange, rxfail, vtx и переключение профилей.
+ * известным именем, aux, map, rxrange, rxfail, vtx, adjrange и переключение профилей.
  * Остальное (resource, feature, serial, неизвестные set) — в unknown.
  */
 export function parseBfDiff(text: string, params: Record<string, CopterParam>): { lines: ImportLine[]; unknown: string[] } {
