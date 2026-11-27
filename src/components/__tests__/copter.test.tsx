@@ -610,6 +610,35 @@ describe("вкладки коптера", () => {
     expect(card.querySelector('[data-state="raising"]')?.textContent).toContain("самый медленный 2950 об/мин, добавка 3.2 %");
   });
 
+  it("режимы: FPV ANGLE MIX с наклоном камеры и ножки PINIO (165, 167)", () => {
+    act(() =>
+      useApp.setState((s) => ({
+        copterBoard: {
+          ...s.copterBoard,
+          modes: [...s.copterBoard.modes, [32, "FPV ANGLE MIX", true], [40, "USER1", true], [41, "USER2", true]],
+          params: {
+            ...s.copterBoard.params,
+            fpv_mix_degrees: param("fpv_mix_degrees", { group: "rates", default: 0, value: 30 }),
+            pinio_box: param("pinio_box", { group: "modes", type: "string", default: "", value: "41" }),
+            pinio_config: param("pinio_config", { group: "modes", type: "string", default: "", value: "" }),
+          },
+        },
+      })),
+    );
+    render(<CopterView />);
+    tab("Режимы");
+    const ex = screen.getAllByRole("combobox").find((e) => [...(e as HTMLSelectElement).options].some((o) => o.textContent === "добавить…"));
+    fireEvent.change(ex!, { target: { value: "32" } });
+    expect(screen.getByRole("heading", { name: "FPV ANGLE MIX" })).toBeTruthy();
+    expect(document.querySelector("svg[aria-label=\"Наклон камеры\"]")?.textContent).toBe("30°");
+    expect(screen.getByText("Ножки PINIO")).toBeTruthy();
+    const selects = [...document.querySelectorAll("select")].filter((e) => [...e.options].some((o) => o.textContent === "никакой"));
+    expect(selects[0].value).toBe("41");
+    expect(selects[1].value).toBe("");
+    fireEvent.change(selects[1], { target: { value: "255" } });
+    expect(sent).toContain("set pinio_box 41,255");
+  });
+
   it("режимы: turtle mode — схема моторов от стиков пульта", () => {
     act(() =>
       useApp.setState((s) => ({

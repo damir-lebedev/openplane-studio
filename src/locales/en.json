@@ -2977,5 +2977,15 @@
   "профиль": "profile",
   "ручкой от центра": "knob from center",
   "шагом": "in steps",
-  "Отладка (debug_mode)": "Debug (debug_mode)"
+  "Отладка (debug_mode)": "Debug (debug_mode)",
+  "Наклон 0° — режим ничего не делает: поставьте угол камеры на раме.": "Tilt 0° — the mode does nothing: set the camera angle on the frame.",
+  "Ножки PINIO": "PINIO pins",
+  "Ножки платы, которые включаются режимом: переключатель камер, питание 12 В видео, пищалка. Обычно PINIO 1 — USER1 и так далее; «как на плате» — как в файле платы.": "Board pins switched by a mode: camera switch, 12 V video power, buzzer. Usually PINIO 1 is USER1 and so on; \"as on the board\" follows the board file.",
+  "Пунктир — куда смотрит камера, сплошная — ось, вокруг которой режим вращает коптер стиком рысканья. Угол — как наклон камеры на раме.": "Dashed — where the camera looks, solid — the axis the mode spins the quad around with the yaw stick. The angle is the camera tilt on the frame.",
+  "включён — высокий уровень": "on — high level",
+  "включён — низкий уровень": "on — low level",
+  "как на плате": "as on the board",
+  "камера наклонена: крен и рысканье — вокруг осей камеры, разворот в кадре не заваливает горизонт (ACRO и HORIZON)": "tilted camera: roll and yaw turn around the camera axes, so a turn does not tilt the horizon in the picture (ACRO and HORIZON)",
+  "никакой": "none",
+  "ножка PINIO платы (камера, 12 В, пищалка) — какая, внизу вкладки": "a board PINIO pin (camera, 12 V, buzzer) — which one, see the bottom of the tab"
 }

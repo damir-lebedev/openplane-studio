@@ -4,13 +4,15 @@
 // приложение переносит их в таблицу, чтобы ARM не пропал. У FLIP OVER
 // AFTER CRASH (turtle mode) — схема: какие моторы закрутятся от стиков пульта.
 // Внизу — команды стиками картинками (калибровки, профили, горизонт; ARM
-// стиками — если ARM нет в таблице).
+// стиками — если ARM нет в таблице). У FPV ANGLE MIX — наклон камеры
+// картинкой; внизу — ножки PINIO (USER1…USER4: камера, 12 В).
 
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 
 import { gimbals, STICK_ARM, STICK_COMBOS, StickCombo } from "../../core/beeper";
 import { AuxRow, auxCommand, auxLabel, clearAuxCommand, freeAuxSlot, MAIN_MODES } from "../../core/copterParams";
+import { BOX_NONE, formatPinio, parsePinio, pinioConfigOf, pinioUse, PinioUse } from "../../core/pinio";
 import { sticksFromChannels, turtleMix } from "../../core/turtle";
 import { N_, t } from "../../i18n";
 import { useApp } from "../../store";
@@ -18,6 +20,8 @@ import { NeedBoard, ParamRow, useCopterBoard, useCopterLink, useCopterLive } fro
 import { FrameDiagram } from "./MotorsTab";
 
 const TURTLE_MODE = 35;
+const FPV_MIX_MODE = 32;
+const USER_MODES = [40, 41, 42, 43];
 
 const MODE_HINTS: Record<number, string> = {
   0: N_("моторы включены; ExpressLRS передаёт без задержки только AUX1"),
@@ -25,6 +29,11 @@ const MODE_HINTS: Record<number, string> = {
   2: N_("как ANGLE у центра, у края стика — флипы"),
   6: N_("«от себя» — всегда туда, куда смотрел нос при ARM, как бы коптер ни повернулся (не в ACRO)"),
   7: N_("запомнить нынешний курс для HEADFREE"),
+  32: N_("камера наклонена: крен и рысканье — вокруг осей камеры, разворот в кадре не заваливает горизонт (ACRO и HORIZON)"),
+  40: N_("ножка PINIO платы (камера, 12 В, пищалка) — какая, внизу вкладки"),
+  41: N_("ножка PINIO платы (камера, 12 В, пищалка) — какая, внизу вкладки"),
+  42: N_("ножка PINIO платы (камера, 12 В, пищалка) — какая, внизу вкладки"),
+  43: N_("ножка PINIO платы (камера, 12 В, пищалка) — какая, внизу вкладки"),
   13: N_("пищит, чтобы найти упавший коптер (и моторами — вкладка «Пищалка»)"),
   37: N_("пищит числом спутников GPS"),
   51: N_("команды стиками не работают (ARM стиками — работает)"),
@@ -102,6 +111,7 @@ function ModesBody() {
               <span className={`pill${active.has(id) ? " ok" : ""}`}>{active.has(id) ? t("включён") : t("выключен")}</span>
             </div>
             {id === TURTLE_MODE && <TurtlePreview />}
+            {id === FPV_MIX_MODE && <FpvMixPreview />}
             {ranges.length === 0 && <p className="hint">{t("Не на тумблере.")}</p>}
             {ranges.map((r) => (
               <RangeRow key={r[0]} row={r} auxCount={auxCount} us={live?.ch[r[2] + 4]} disabled={armed} onChange={(n) => void write(n)} onRemove={() => void remove(r[0])} />
@@ -114,6 +124,7 @@ function ModesBody() {
         );
       })}
       <StickCommandsCard armFromSticks={!rows.some((r) => r[1] === 0)} />
+      <PinioCard />
       {others.length > 0 && (
         <div className="card">
           <div className="row" style={{ gap: 8 }}>
@@ -215,6 +226,100 @@ function TurtlePreview() {
       </div>
       {board.params.crashflip_expo && <ParamRow p={board.params.crashflip_expo} title={t("Экспо стика")} />}
       {board.params.crashflip_motor_percent && <ParamRow p={board.params.crashflip_motor_percent} title={t("Остальные моторы")} />}
+    </div>
+  );
+}
+
+// FPV ANGLE MIX: коптер сбоку, камера вверх на fpv_mix_degrees, ось рысканья камеры.
+function FpvMixPreview() {
+  const board = useCopterBoard();
+  const p = board.params.fpv_mix_degrees;
+  if (!p) return null;
+  const deg = Math.max(0, Math.min(90, Number(p.value) || 0));
+  const r = (deg * Math.PI) / 180;
+  // камера в (60, 40): взгляд — вперёд и вверх, ось её «вертикали» — перпендикуляр
+  const view = { x: 60 + 70 * Math.cos(r), y: 40 - 70 * Math.sin(r) };
+  const axis = { x: 60 + 32 * Math.sin(r), y: 40 + 32 * Math.cos(r) };
+  const axisTop = { x: 60 - 32 * Math.sin(r), y: 40 - 32 * Math.cos(r) };
+  return (
+    <div className="turtle">
+      <div className="turtle-body">
+        <svg viewBox="0 0 150 80" width={170} height={90} role="img" aria-label={t("Наклон камеры")}>
+          <rect x={14} y={42} width={92} height={8} rx={3} className="gimbal-box" />
+          <line x1={10} y1={40} x2={36} y2={40} className="gimbal-line" />
+          <line x1={84} y1={40} x2={110} y2={40} className="gimbal-line" />
+          <line x1={60} y1={40} x2={view.x} y2={view.y} className="gimbal-line" strokeDasharray="4 3" />
+          <line x1={axisTop.x} y1={axisTop.y} x2={axis.x} y2={axis.y} className="gimbal-line" />
+          <circle cx={60} cy={40} r={5} className="gimbal-dot" />
+          <text x={view.x + 2} y={Math.max(10, view.y)} fontSize={10} className="hint">
+            {deg}°
+          </text>
+        </svg>
+        <div className="turtle-text">
+          <p className="hint">
+            {deg > 0
+              ? t("Пунктир — куда смотрит камера, сплошная — ось, вокруг которой режим вращает коптер стиком рысканья. Угол — как наклон камеры на раме.")
+              : t("Наклон 0° — режим ничего не делает: поставьте угол камеры на раме.")}
+          </p>
+        </div>
+      </div>
+      <ParamRow p={p} title={t("Наклон камеры")} />
+    </div>
+  );
+}
+
+// Ножки PINIO 1…4: какой режим включает ножку и как (pinio_box / pinio_config).
+function PinioCard() {
+  const board = useCopterBoard();
+  const set = useApp((s) => s.copterSet);
+  const { armed } = useCopterLink();
+  const boxP = board.params.pinio_box;
+  const cfgP = board.params.pinio_config;
+  if (!boxP || !cfgP) return null;
+  const boxes = parsePinio(String(boxP.value ?? "")) ?? [null, null, null, null];
+  const cfgs = parsePinio(String(cfgP.value ?? "")) ?? [null, null, null, null];
+  const modeName = (id: number) => board.modes.find((m) => m[0] === id)?.[1] ?? String(id);
+  const choices = [...USER_MODES, ...board.modes.map((m) => m[0]).filter((id) => !USER_MODES.includes(id))];
+  const setBox = (i: number, v: string) => {
+    const next = [...boxes];
+    next[i] = v === "" ? null : Number(v);
+    void set(boxP.name, formatPinio(next, BOX_NONE));
+  };
+  const setUse = (i: number, v: string) => {
+    const next = [...cfgs];
+    next[i] = v === "" ? null : pinioConfigOf(v as PinioUse);
+    void set(cfgP.name, formatPinio(next, 1));
+  };
+  return (
+    <div className="card">
+      <h3>{t("Ножки PINIO")}</h3>
+      <p className="sub">
+        {t("Ножки платы, которые включаются режимом: переключатель камер, питание 12 В видео, пищалка. Обычно PINIO 1 — USER1 и так далее; «как на плате» — как в файле платы.")}
+      </p>
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="row" style={{ gap: 8, marginBottom: 6 }}>
+          <span className="mono" style={{ minWidth: 64 }}>
+            PINIO {i + 1}
+          </span>
+          <select className="select" disabled={armed} value={boxes[i] === null ? "" : String(boxes[i])} onChange={(e) => setBox(i, e.target.value)}>
+            <option value="">{t("как на плате")}</option>
+            {choices.map((id) => (
+              <option key={id} value={id}>
+                {modeName(id)}
+              </option>
+            ))}
+            <option value={BOX_NONE}>{t("никакой")}</option>
+          </select>
+          <select className="select" disabled={armed} value={cfgs[i] === null ? "" : pinioUse(cfgs[i]!)} onChange={(e) => setUse(i, e.target.value)}>
+            <option value="">{t("как на плате")}</option>
+            <option value="out">{t("включён — высокий уровень")}</option>
+            <option value="inverted">{t("включён — низкий уровень")}</option>
+            <option value="off">{t("не трогать")}</option>
+          </select>
+        </div>
+      ))}
+      <ParamRow p={boxP} />
+      <ParamRow p={cfgP} />
     </div>
   );
 }
