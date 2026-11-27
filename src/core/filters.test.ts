@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { dumpedBoard, param } from "./__fixtures__/copterBoard";
-import { Chain, chainOf, curve, delayMs, dynHz, FILTER_PARAMS, gainDb, lagDeg, lpf1Hz, notchQ, rpmMarks, spectrumBars } from "./filters";
+import { Chain, chainOf, chipFilter, curve, delayMs, dynHz, FILTER_PARAMS, gainDb, lagDeg, lpf1Hz, notchQ, rpmMarks, spectrumBars } from "./filters";
 
 const TYPES = ["PT1", "BIQUAD", "PT2", "PT3"];
 const f = (name: string, value: number | string) =>
@@ -96,5 +96,25 @@ describe("ФЧХ цепочки (071)", () => {
     for (const [f, lag] of [pts[0], pts[30], pts[59]]) expect(lag).toBeCloseTo(lagDeg(c, f), 3);
     for (let i = 1; i < pts.length; i++) expect(pts[i][1]).toBeGreaterThan(pts[i - 1][1] - 1e-9);
     expect(pts[59][1]).toBeGreaterThan(270);   // PT3 + biquad: до 450° на бесконечности
+  });
+});
+
+describe("фильтр в чипе гироскопа (065)", () => {
+  const HW = ["NORMAL", "OPTION_1", "OPTION_2", "EXPERIMENTAL"];
+  const chipBoard = (value: string, table?: [number, number][]) => {
+    const b = dumpedBoard([param("gyro_hardware_lpf", { group: "filters", scope: "master", type: "enum", options: HW, min: 0, max: 3, value, default: "NORMAL" })]);
+    return table && b.header ? { ...b, header: { ...b.header, gyroHw: table } } : b;
+  };
+  const TABLE: [number, number][] = [[250, 500], [500, 250], [500, 150], [1000, 80]];
+
+  it("полоса и задержка — из таблицы платы по пункту", () => {
+    expect(chipFilter(chipBoard("NORMAL", TABLE))).toEqual({ option: "NORMAL", hz: 250, ms: 0.5, wide: false, restart: false });
+    expect(chipFilter(chipBoard("EXPERIMENTAL", TABLE))).toMatchObject({ option: "EXPERIMENTAL", hz: 1000, ms: 0.08, wide: true });
+  });
+
+  it("изменённый ждёт перезапуска; без таблицы (чип не умеет) — нет строки", () => {
+    const b = chipBoard("NORMAL", TABLE);
+    expect(chipFilter({ ...b, pending: { gyro_hardware_lpf: "OPTION_1" }, edited: ["gyro_hardware_lpf"] })).toMatchObject({ option: "OPTION_1", hz: 500, restart: true });
+    expect(chipFilter(chipBoard("NORMAL"))).toBeNull();
   });
 });

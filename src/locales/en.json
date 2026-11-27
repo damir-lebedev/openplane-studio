@@ -2907,5 +2907,9 @@
   "в своём потоке": "in own prop wash",
   "газ в ноль": "throttle to zero",
   "минимум {r} об/мин": "minimum {r} rpm",
-  "серая — без dynamic idle, цветная — с ним": "grey — without dynamic idle, colour — with it"
+  "серая — без dynamic idle, цветная — с ним": "grey — without dynamic idle, colour — with it",
+  "Фильтр в самом чипе гироскопа (gyro_hardware_lpf) — до фильтров прошивки. Шире NORMAL — меньше задержка, но больше шума: посмотрите спектр.": "Filter inside the gyro chip itself (gyro_hardware_lpf), ahead of the firmware filters. Wider than NORMAL means less delay but more noise: check the spectrum.",
+  "Чип: {option}, ~{hz} Гц, ~{ms} мс": "Chip: {option}, ~{hz} Hz, ~{ms} ms",
+  "после save и перезапуска": "after save and restart",
+  "шире проверенного — больше шума": "wider than tested: more noise"
 }

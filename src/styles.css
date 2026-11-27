@@ -3729,6 +3729,12 @@ textarea {
 .filter-key.d::before {
   background: var(--warn);
 }
+.filter-key.chip::before {
+  background: var(--muted);
+  height: 8px;
+  width: 8px;
+  border-radius: 50%;
+}
 .loop-margins {
   display: grid;
   gap: 6px;

@@ -59,6 +59,30 @@ export function chainOf(b: CopterBoard, which: "gyro" | "dterm"): Chain | null {
 
 export const dynOn = (d: Dyn) => d.min > 0 && d.max > d.min;
 
+/** Пункты gyro_hardware_lpf — как в BF. */
+export const HARDWARE_LPF = ["NORMAL", "OPTION_1", "OPTION_2", "EXPERIMENTAL"] as const;
+export interface ChipFilter {
+  option: (typeof HARDWARE_LPF)[number];
+  /** полоса чипа, Гц (примерно) */
+  hz: number;
+  /** задержка чипа, мс (примерно) */
+  ms: number;
+  /** шире проверенного NORMAL — больше шума и наложения */
+  wide: boolean;
+  /** изменён и ещё не действует: чип настраивается при запуске */
+  restart: boolean;
+}
+
+/** 065: фильтр в чипе гироскопа — выбранный пункт и его полоса из таблицы платы (заголовок params). */
+export function chipFilter(b: CopterBoard): ChipFilter | null {
+  const table = b.header?.gyroHw;
+  if (!table?.length || !b.params.gyro_hardware_lpf) return null;
+  const v = String("gyro_hardware_lpf" in b.pending ? b.pending.gyro_hardware_lpf : b.params.gyro_hardware_lpf.value);
+  const i = Math.max(0, HARDWARE_LPF.indexOf(v as ChipFilter["option"]));
+  const [hz, us] = table[i] ?? table[0];
+  return { option: HARDWARE_LPF[i], hz, ms: us / 1000, wide: i > 0, restart: b.edited.includes("gyro_hardware_lpf") };
+}
+
 /** Срез динамического ФНЧ при газе 0..1 (как dynLpfHz прошивки). */
 export function dynHz(d: Dyn, throttle: number): number {
   const t = Math.min(1, Math.max(0, throttle));

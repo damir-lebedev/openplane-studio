@@ -50,6 +50,8 @@ export interface ParamsHeader {
   margin?: LoopMargin;
   /** флеш настроек: занято и всего, байт (обновляется и ответом на save) */
   flash?: [number, number];
+  /** 065: фильтр в чипе гироскопа — [Гц, мкс] на пункт gyro_hardware_lpf (NORMAL, OPTION_1, OPTION_2, EXPERIMENTAL); нет — чип не умеет */
+  gyroHw?: [number, number][];
   /** P63: UART платы — [номер, есть RX (1/0), есть TX (1/0)]; нет — порты заданы сборкой */
   uarts?: [number, number, number][];
 }

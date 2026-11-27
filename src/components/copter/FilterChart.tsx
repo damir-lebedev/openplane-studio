@@ -6,7 +6,7 @@
 import { useState } from "react";
 
 import { AXIS_LABELS } from "../../core/copterParams";
-import { Chain, chainOf, curve, delayMs, dynOn, lpf1Hz, notchOn } from "../../core/filters";
+import { Chain, chainOf, chipFilter, curve, delayMs, dynOn, lpf1Hz, notchOn } from "../../core/filters";
 import { filterMargins, marginVerdict } from "../../core/pidStep";
 import { N_, t } from "../../i18n";
 import { useCopterBoard } from "./common";
@@ -72,6 +72,7 @@ export function FilterChart() {
   const [view, setView] = useState<View>("gain");
   const gyro = chainOf(board, "gyro");
   const dterm = chainOf(board, "dterm");
+  const chip = chipFilter(board);
   if (!gyro || !dterm) return null;
   const thr = throttle / 100;
   const dynamic = dynOn(gyro.dyn) || dynOn(dterm.dyn);
@@ -136,6 +137,12 @@ export function FilterChart() {
         <span className="filter-key d">
           {t("D: срез {hz} Гц, задержка {ms} мс", { hz: Math.round(lpf1Hz(dterm, thr)), ms: delayMs(dterm, 100, thr).toFixed(2) })}
         </span>
+        {chip && (
+          <span className="filter-key chip" title={t("Фильтр в самом чипе гироскопа (gyro_hardware_lpf) — до фильтров прошивки. Шире NORMAL — меньше задержка, но больше шума: посмотрите спектр.")}>
+            {t("Чип: {option}, ~{hz} Гц, ~{ms} мс", { option: chip.option, hz: chip.hz, ms: chip.ms.toFixed(2) })}
+            {chip.restart ? ` · ${t("после save и перезапуска")}` : chip.wide ? ` · ${t("шире проверенного — больше шума")}` : ""}
+          </span>
+        )}
       </div>
       {dynamic && (
         <label className="row filter-throttle">
