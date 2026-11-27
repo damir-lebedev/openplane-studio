@@ -2918,5 +2918,8 @@
   "Проверка показала, что крутится не тот мотор? Нажмите на схеме на два мотора — они поменяются выходами платы.": "Wrong motor spinning in the test? Tap two motors on the diagram and they swap board outputs.",
   "Теперь — мотор, с которым поменять M{n}.": "Now tap the motor to swap M{n} with.",
   "выход {n}": "output {n}",
-  "Модель оборотов поправлена по DShot: {pct} % — если телеметрия пропадёт, режекторы останутся на месте": "RPM model corrected from DShot: {pct} % — if telemetry drops out, the notches stay in place"
+  "Модель оборотов поправлена по DShot: {pct} % — если телеметрия пропадёт, режекторы останутся на месте": "RPM model corrected from DShot: {pct} % — if telemetry drops out, the notches stay in place",
+  "после посадки или аварии: ARM запрещён до перезагрузки, пока коптер подбирают (только после первого ARM)": "after landing or a crash: no arming until a reboot while you pick the quad up (only after the first arm)",
+  "«от себя» — всегда туда, куда смотрел нос при ARM, как бы коптер ни повернулся (не в ACRO)": "stick forward always flies where the nose pointed at arming, however the quad turns (not in ACRO)",
+  "запомнить нынешний курс для HEADFREE": "store the current heading for HEADFREE"
 }
