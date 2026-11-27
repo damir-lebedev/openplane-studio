@@ -186,6 +186,7 @@ export function applyMessage(b: CopterBoard, kind: string, data: unknown, now = 
     case "motor":
       return { ...b, motorTest: Array.isArray(d.m) ? (d.m as number[]) : b.motorTest };
     case "dshot":
+    case "melody":
     case "beep": {
       const errors = { ...b.errors };
       delete errors[kind];
